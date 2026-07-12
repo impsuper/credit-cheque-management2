@@ -5023,6 +5023,9 @@ function saveCredit() {
     owner.credits.push(rec);
   }
   logActivity(editId ? 'EDIT_CREDIT' : 'ADD_CREDIT', `Credit · ${fmt(amount)}`);
+  if (!editId && isManager()) {
+    queuePushEvent('credit', '💳 New Credit Bill', `${DB.currentUser?.name||DB.currentUsername} · ${getSupplierName(supId, owner)} · ${fmt(amount)}`);
+  }
   touchSupplier(owner, supId);
   syncUser(owner);
   closeModal('creditModal');
