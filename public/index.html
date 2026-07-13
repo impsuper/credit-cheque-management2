@@ -4620,7 +4620,11 @@ function removeCashPurchaseRow(i) {
 }
 
 function resetCashPurchaseRows() {
-  cpRows.forEach(i => { supSelections['cp' + i] = null; });
+  cpRows.forEach(i => {
+    supSelections['cp' + i] = null;
+    const el = $('cp' + i + '-amount');
+    if (el) el.value = '';
+  });
   cpRows = [0];
   cpRowCounter = 1;
   renderCashPurchaseRows();
