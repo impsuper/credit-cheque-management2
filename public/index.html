@@ -900,13 +900,6 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
     <div class="topbar">
       <h1 id="pageTitle">📊 Dashboard</h1>
       <div class="topbar-right">
-        <div class="notif-wrap">
-          <button class="btn btn-ghost btn-sm" onclick="toggleNotifPanel()" title="Due Date Alerts" style="position:relative;">🔔<span id="notifBadge" class="nb-count hidden">0</span></button>
-          <div id="notifPanel" class="notif-panel hidden">
-            <div class="notif-head">🔔 Due Date Alerts</div>
-            <div id="notifList"><div class="no-data" style="padding:1.5rem;"><span class="ico">✅</span>No alerts</div></div>
-          </div>
-        </div>
         <button id="pushToggleBtn" class="btn btn-ghost btn-sm hidden" onclick="togglePushNotifications()" title="Push Notifications" data-on="0">🔕 <span class="bk-label">Enable Alerts</span></button>
         <button id="notifSettingsBtn" class="btn btn-ghost btn-sm hidden" onclick="openNotifSettings()" title="Notification Settings">⚙️</button>
         <button class="btn btn-ghost btn-sm" onclick="downloadBackup()" title="Backup">⬇️ <span class="bk-label">Backup</span></button>
@@ -1398,8 +1391,8 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
           <p style="font-weight:700;color:var(--navy);margin:.8rem 0 .5rem;">💵 Sales Breakdown</p>
           <div class="form-row" style="grid-template-columns:repeat(auto-fill,minmax(155px,1fr));">
             <div class="form-group"><label>💵 Cash (LKR)</label><input type="number" id="cm-cash" placeholder="0.00" step="0.01" min="0" oninput="calcCashNet()"></div>
-            <div class="form-group"><label>📒 Credit Sales (LKR)</label><input type="number" id="cm-credit" placeholder="0.00" step="0.01" min="0" oninput="calcCashNet()"></div>
-            <div class="form-group"><label>💳 Card / Debit (LKR)</label><input type="number" id="cm-card" placeholder="0.00" step="0.01" min="0" oninput="calcCashNet()"></div>
+            <div class="form-group"><label>💳 Card Sale SDB (LKR)</label><input type="number" id="cm-credit" placeholder="0.00" step="0.01" min="0" oninput="calcCashNet()"></div>
+            <div class="form-group"><label>💳 Card Sale DFCC (LKR)</label><input type="number" id="cm-card" placeholder="0.00" step="0.01" min="0" oninput="calcCashNet()"></div>
             <div class="form-group"><label>📱 QR Payment (LKR)</label><input type="number" id="cm-qr" placeholder="0.00" step="0.01" min="0" oninput="calcCashNet()"></div>
             <div class="form-group"><label>🏦 Cheque Recv. (LKR)</label><input type="number" id="cm-cheque" placeholder="0.00" step="0.01" min="0" oninput="calcCashNet()"></div>
           </div>
@@ -1468,7 +1461,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
           <div class="table-wrap">
             <table>
               <thead><tr>
-                <th>📅 Date</th><th>👤 Cashier</th><th>💵 Cash</th><th>💳 Card</th>
+                <th>📅 Date</th><th>👤 Cashier</th><th>💵 Cash</th><th>💳 Card DFCC</th>
                 <th>💰 Total</th><th>💸 Advance</th><th>🏦 Total Banked Cash</th><th>🛒 Total Purchase</th><th>📝 Other</th><th>✅ Net Cash</th><th>👤 By</th><th>⚙️</th>
               </tr></thead>
               <tbody id="cashBody"></tbody>
@@ -1515,7 +1508,11 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
               </div>
             </div>
           </div>
-          <button class="btn btn-navy btn-sm" onclick="saveCashLogEntry()">➕ Add to Log</button>
+          <input type="hidden" id="cl-edit-id">
+          <div style="display:flex;gap:.6rem;align-items:center;">
+            <button class="btn btn-navy btn-sm" id="cl-save-btn" onclick="saveCashLogEntry()">➕ Add to Log</button>
+            <button class="btn btn-ghost btn-sm hidden" id="cl-cancel-btn" onclick="cancelEditCashLogEntry()">✕ Cancel Edit</button>
+          </div>
         </div>
         <div class="table-wrap">
           <table>
@@ -1807,7 +1804,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
         <div class="table-wrap">
           <table>
             <thead><tr>
-              <th>📅 Date</th><th>👤 Cashier</th><th>💵 Cash</th><th>📒 Credit</th><th>💳 Card</th><th>📱 QR</th><th>🏦 Cheque</th>
+              <th>📅 Date</th><th>👤 Cashier</th><th>💵 Cash</th><th>💳 Card SDB</th><th>💳 Card DFCC</th><th>📱 QR</th><th>🏦 Cheque</th>
               <th>💰 Total</th><th>💸 Advance</th><th>🏦 Banked (PB)</th><th>🏦 Banked (SDB)</th><th>📝 Other</th><th>✅ Net Cash</th><th>👤 By</th><th>⚙️</th>
             </tr></thead>
             <tbody id="cashHistBody"></tbody>
@@ -1925,10 +1922,10 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
                 <th class="sa-sortable" data-key="date" onclick="saTableSort('date')">📅 Date<span class="sa-sort-ico"></span></th>
                 <th class="sa-sortable" data-key="sales" onclick="saTableSort('sales')">💰 Total Sales<span class="sa-sort-ico"></span></th>
                 <th class="sa-sortable" data-key="cash" onclick="saTableSort('cash')">💵 Cash<span class="sa-sort-ico"></span></th>
-                <th class="sa-sortable" data-key="card" onclick="saTableSort('card')">💳 Card<span class="sa-sort-ico"></span></th>
+                <th class="sa-sortable" data-key="card" onclick="saTableSort('card')">💳 Card DFCC<span class="sa-sort-ico"></span></th>
                 <th class="sa-sortable" data-key="qr" onclick="saTableSort('qr')">📱 QR<span class="sa-sort-ico"></span></th>
                 <th class="sa-sortable" data-key="cheque" onclick="saTableSort('cheque')">🏦 Cheque<span class="sa-sort-ico"></span></th>
-                <th class="sa-sortable" data-key="credit" onclick="saTableSort('credit')">🔖 Credit Sales<span class="sa-sort-ico"></span></th>
+                <th class="sa-sortable" data-key="credit" onclick="saTableSort('credit')">💳 Card SDB<span class="sa-sort-ico"></span></th>
                 <th class="sa-sortable" data-key="exp" onclick="saTableSort('exp')">📉 Expenses<span class="sa-sort-ico"></span></th>
                 <th class="sa-sortable" data-key="net" onclick="saTableSort('net')">💹 Net Cash<span class="sa-sort-ico"></span></th>
               </tr></thead>
@@ -2418,8 +2415,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
       <div id="sup-analytics-header" style="margin-bottom:.8rem;padding:.9rem 1rem;background:#f8fafc;border-radius:10px;border-left:4px solid var(--navy3);"></div>
       <div id="sup-profile-actions" style="display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:1rem;"></div>
       <div class="stats-grid" style="margin-bottom:1rem;">
-        <div class="stat-card"><div class="stat-label">💳 Total Credit</div><div class="stat-val" id="sup-an-totcredit">LKR 0</div></div>
-        <div class="stat-card green"><div class="stat-label">✅ Total Paid</div><div class="stat-val" id="sup-an-totpaid">LKR 0</div></div>
+        <div class="stat-card green"><div class="stat-label">✅ Purchased &amp; Settled</div><div class="stat-val" id="sup-an-settled-value">LKR 0</div><div class="stat-sub"><span id="sup-an-settled-count">0</span> bills settled</div></div>
         <div class="stat-card red"><div class="stat-label">⚖️ Balance</div><div class="stat-val" id="sup-an-balance">LKR 0</div></div>
         <div class="stat-card yellow"><div class="stat-label">📄 Cheques</div><div class="stat-val" id="sup-an-cheques">0</div></div>
         <div class="stat-card accent"><div class="stat-label">⚠️ Overdue Cheques</div><div class="stat-val" id="sup-an-overdue">0</div></div>
@@ -3146,7 +3142,6 @@ function initDashboard() {
   document.querySelector('.topbar')?.classList.remove('hidden');
   showPage('dashboardPage');
   showSection('overview');
-  setTimeout(checkDueDateAlerts, 600);
   setTimeout(checkPendingHandovers, 1200);
 }
 
@@ -3220,7 +3215,6 @@ function refreshActiveSection() {
   if (DB.analyticsOpen) renderSupplierAnalytics();
   if (id === 'payroll') renderPayrollTab();
   if (id === 'pl' && isAdmin()) renderPL();
-  checkDueDateAlerts();
 }
 
 function populateUserFilter(elId) {
@@ -3637,9 +3631,17 @@ function renderSupplierAnalytics() {
   if (!data) return;
 
   const { owner, supplier, credits, cheques, cashPurchases } = data;
+  // "Owner" should mean the actual business owner, not whichever staff account
+  // (manager/cashier) happened to be logged in when this supplier was added —
+  // every supplier record technically lives under its creator's own account bucket,
+  // so showing that name here read as "the data-entry person owns this supplier",
+  // which is wrong. Show the admin account instead.
+  const bizOwner = DB.users.find(u => u.role === 'admin') || owner;
   const totCredit = credits.reduce((a, c) => a + (Number(c.amount) || 0), 0);
   const totPaid = credits.reduce((a, c) => a + getTotalPaid(c), 0);
   const bal = totCredit - totPaid;
+  const settledCredits = credits.filter(isCreditSettled);
+  const totSettledValue = settledCredits.reduce((a, c) => a + (Number(c.amount) || 0), 0);
   const overdue = cheques.filter(isOverdue);
   const totCashPurchase = cashPurchases.reduce((a, p) => a + (Number(p.amount) || 0), 0);
   const canManage = isAdmin() || owner.username === DB.currentUsername;
@@ -3648,7 +3650,7 @@ function renderSupplierAnalytics() {
     <div style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;align-items:flex-start;">
       <div>
         <div class="fw700" style="font-size:1.05rem;">🏪 ${supplier.name}</div>
-        <div style="font-size:.85rem;color:var(--muted);margin-top:.2rem;">👤 Owner: ${owner.name} (${owner.username})</div>
+        <div style="font-size:.85rem;color:var(--muted);margin-top:.2rem;">👤 Owner: ${bizOwner.name} (${bizOwner.username})</div>
         ${supplier.phone ? `<div style="font-size:.83rem;color:var(--text);margin-top:.2rem;">📱 ${supplier.phone}</div>` : ''}
         ${supplier.email ? `<div style="font-size:.83rem;color:var(--text);margin-top:.1rem;">📧 ${supplier.email}</div>` : ''}
         ${supplier.address ? `<div style="font-size:.83rem;color:var(--muted);margin-top:.1rem;">📍 ${supplier.address}</div>` : ''}
@@ -3669,8 +3671,8 @@ function renderSupplierAnalytics() {
   if ($('sup-add-credit-btn')) $('sup-add-credit-btn').innerHTML = canManage ? `<button class="btn btn-green btn-sm" onclick="openBillForSupplierFromProfile('credit')">➕ Add</button>` : '';
   if ($('sup-add-cheque-btn')) $('sup-add-cheque-btn').innerHTML = canManage ? `<button class="btn btn-navy btn-sm" onclick="openBillForSupplierFromProfile('cheque')">➕ Add</button>` : '';
 
-  $('sup-an-totcredit').textContent = fmt(totCredit);
-  $('sup-an-totpaid').textContent = fmt(totPaid);
+  $('sup-an-settled-value').textContent = fmt(totSettledValue);
+  $('sup-an-settled-count').textContent = String(settledCredits.length);
   $('sup-an-balance').textContent = fmt(bal);
   $('sup-an-cheques').textContent = String(cheques.length);
   $('sup-an-overdue').textContent = String(overdue.length);
@@ -3991,7 +3993,7 @@ function renderOverview() {
     const totCr2    = payCash.reduce((a,e)=>a+(Number(e.creditSales)||0),0);
     const ptMax2    = Math.max(totCash2,totCard2,totQR2,totChq2,totCr2,1);
     const ptTotal2  = (totCash2+totCard2+totQR2+totChq2+totCr2)||1;
-    const ptypes2   = [{label:'💵 Cash',val:totCash2,color:'#2563eb'},{label:'💳 Card',val:totCard2,color:'#0e7490'},{label:'📱 QR',val:totQR2,color:'#f59e0b'},{label:'🏦 Cheque',val:totChq2,color:'#8b5cf6'},{label:'📋 Credit',val:totCr2,color:'#e63946'}].filter(p=>p.val>0);
+    const ptypes2   = [{label:'💵 Cash',val:totCash2,color:'#2563eb'},{label:'💳 Card DFCC',val:totCard2,color:'#0e7490'},{label:'📱 QR',val:totQR2,color:'#f59e0b'},{label:'🏦 Cheque',val:totChq2,color:'#8b5cf6'},{label:'💳 Card SDB',val:totCr2,color:'#e63946'}].filter(p=>p.val>0);
     if ($('ov-payment-chart')) $('ov-payment-chart').innerHTML = ptypes2.map(p=>`
       <div class="ptype-bar-row">
         <span class="ptype-label">${p.label}</span>
@@ -5514,6 +5516,39 @@ function onCashLogTypeChange() {
   }
 }
 
+function editCashLogEntry(id) {
+  if (!isAdmin()) { toast('Admin only', 'red'); return; }
+  const admin = getUserByUsername('admin');
+  const entry = (admin?.cashLog || []).find(e => e.id === id);
+  if (!entry) return;
+  if ($('cl-edit-id')) $('cl-edit-id').value = entry.id;
+  if ($('cl-date')) $('cl-date').value = entry.date || '';
+  if ($('cl-amount')) $('cl-amount').value = entry.amount || '';
+  if ($('cl-type')) $('cl-type').value = entry.type || 'banked';
+  if ($('cl-desc')) $('cl-desc').value = entry.description || '';
+  onCashLogTypeChange();
+  if (entry.type === 'cash_purchase' && entry.supplierId) {
+    selectSupplier('clp', entry.supplierId, entry.supplierName || '', entry.supplierOwnerUsername || DB.currentUsername);
+  } else {
+    clearSupSelection('clp');
+  }
+  if ($('cl-save-btn')) $('cl-save-btn').innerHTML = '💾 Update Log Entry';
+  $('cl-cancel-btn')?.classList.remove('hidden');
+  $('cashLogCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function cancelEditCashLogEntry() {
+  if ($('cl-edit-id')) $('cl-edit-id').value = '';
+  if ($('cl-date')) $('cl-date').value = today();
+  if ($('cl-amount')) $('cl-amount').value = '';
+  if ($('cl-desc')) $('cl-desc').value = '';
+  if ($('cl-type')) $('cl-type').value = 'banked';
+  onCashLogTypeChange();
+  clearSupSelection('clp');
+  if ($('cl-save-btn')) $('cl-save-btn').innerHTML = '➕ Add to Log';
+  $('cl-cancel-btn')?.classList.add('hidden');
+}
+
 function saveCashLogEntry() {
   const date=$('cl-date')?.value, amount=Number($('cl-amount')?.value)||0;
   const type=$('cl-type')?.value||'banked', desc=$('cl-desc')?.value||'';
@@ -5530,14 +5565,36 @@ function saveCashLogEntry() {
   const admin=getUserByUsername('admin');
   if (!admin) return;
   if (!admin.cashLog) admin.cashLog=[];
-  const logId = uid();
-  admin.cashLog.unshift({
-    id:logId, date, type, amount, description:desc,
-    supplierId: supplierId||undefined, supplierName: supplierName||undefined, supplierOwnerUsername: supplierOwnerUsername||undefined,
-    actor:DB.currentUsername, actorName:DB.currentUser?.name||''
-  });
+
+  const editId = $('cl-edit-id')?.value || '';
+  const existingEntry = editId ? admin.cashLog.find(e => e.id === editId) : null;
+  let logId = editId;
+
+  if (editId && existingEntry) {
+    // Remove any mirrored supplier-ledger entry from BEFORE the edit — the type,
+    // supplier, or amount may have changed, so the old mirror can't just be updated in place.
+    if (existingEntry.type === 'cash_purchase' && existingEntry.supplierOwnerUsername) {
+      const oldSupOwner = getUserByUsername(existingEntry.supplierOwnerUsername);
+      if (oldSupOwner && oldSupOwner.cashPurchases) {
+        oldSupOwner.cashPurchases = oldSupOwner.cashPurchases.filter(p => p.cashLogId !== editId);
+        syncUser(oldSupOwner);
+      }
+    }
+    Object.assign(existingEntry, {
+      date, type, amount, description: desc,
+      supplierId: supplierId||undefined, supplierName: supplierName||undefined, supplierOwnerUsername: supplierOwnerUsername||undefined,
+      updatedAt: new Date().toISOString(), updatedBy: DB.currentUsername, updatedByName: DB.currentUser?.name||''
+    });
+  } else {
+    logId = uid();
+    admin.cashLog.unshift({
+      id:logId, date, type, amount, description:desc,
+      supplierId: supplierId||undefined, supplierName: supplierName||undefined, supplierOwnerUsername: supplierOwnerUsername||undefined,
+      actor:DB.currentUsername, actorName:DB.currentUser?.name||''
+    });
+  }
   syncUser(admin);
-  logActivity('CASH_LOG',`${type} · ${fmt(amount)}`);
+  logActivity(editId ? 'EDIT_CASH_LOG' : 'CASH_LOG', `${type} · ${fmt(amount)}`);
 
   // Mirror this purchase into the supplier's own business ledger so it also shows on the Supplier Profile
   if (type === 'cash_purchase' && supplierId) {
@@ -5555,21 +5612,16 @@ function saveCashLogEntry() {
   }
 
   // If Manager hands to Owner — create confirmation notification for Admin
-  if (type === 'handed_owner' && isManager()) {
+  if (!editId && type === 'handed_owner' && isManager()) {
     createHandoverNotification('owner', amount, date);
     toast('✅ Log entry added + Owner notified 👑', 'green');
-  } else if (type === 'cash_purchase') {
+  } else if (!editId && type === 'cash_purchase') {
     toast('✅ Cash purchase recorded from Cash-in-Hand!', 'green');
   } else {
-    toast('✅ Log entry added!');
+    toast(editId ? '✅ Log entry updated!' : '✅ Log entry added!');
   }
 
-  if($('cl-date'))$('cl-date').value=today();
-  if($('cl-amount'))$('cl-amount').value='';
-  if($('cl-desc'))$('cl-desc').value='';
-  if($('cl-type'))$('cl-type').value='banked';
-  clearSupSelection('clp');
-  if ($('cl-supplier-group')) $('cl-supplier-group').classList.add('hidden');
+  cancelEditCashLogEntry();
   cashLogPage = 1;
   renderCashLog(); renderOverview();
   if (typeof renderCashPurchaseHistory === 'function') renderCashPurchaseHistory();
@@ -5712,10 +5764,10 @@ function renderAnalytics() {
     {ico:'💵',val:fmt(totNet),    label:'Net Cash'},
     {ico:'📉',val:fmt(totExp),    label:'Total Expenses'},
     {ico:'🏧',val:fmt(totCash),   label:'Cash Collected'},
-    {ico:'💳',val:fmt(totCard),   label:'Card Payments'},
+    {ico:'💳',val:fmt(totCard),   label:'Card Sale DFCC'},
     {ico:'📱',val:fmt(totQR),     label:'QR Payments'},
     {ico:'🏦',val:fmt(totCheque), label:'Cheques'},
-    {ico:'📋',val:fmt(totCredit), label:'Credit Sales'},
+    {ico:'💳',val:fmt(totCredit), label:'Card Sale SDB'},
     {ico:'📅',val:String(days),   label:'Active Days'},
   ].map(k=>`<div class="sa-kpi"><div class="sa-kpi-icon">${k.ico}</div><div class="sa-kpi-val">${k.val}</div><div class="sa-kpi-label">${k.label}</div></div>`).join('');
 
@@ -5766,10 +5818,10 @@ function renderAnalytics() {
   // ── Chart 3: Payment Type Breakdown ──
   const ptypes=[
     {label:'💵 Cash',    val:totCash,   color:'#2563eb'},
-    {label:'💳 Card',    val:totCard,   color:'#0e7490'},
+    {label:'💳 Card DFCC', val:totCard, color:'#0e7490'},
     {label:'📱 QR',      val:totQR,     color:'#f59e0b'},
     {label:'🏦 Cheque',  val:totCheque, color:'#8b5cf6'},
-    {label:'📋 Credit',  val:totCredit, color:'#e63946'},
+    {label:'💳 Card SDB', val:totCredit, color:'#e63946'},
   ].filter(p=>p.val>0);
   const ptMax = Math.max(...ptypes.map(p=>p.val),1);
   const ptTotal = ptypes.reduce((a,p)=>a+p.val,0)||1;
@@ -6020,7 +6072,7 @@ function renderDualBarChart(containerId, items) {
 
 /* ===== PROFIT & LOSS (Admin Only) =====
    Cash-basis statement built from data already captured elsewhere in the app:
-   - Income  = Cash + Credit Sales + Card + QR + Cheque Received (Daily Cash Entries)
+   - Income  = Cash + Card Sale SDB + Card Sale DFCC + QR + Cheque Received (Daily Cash Entries)
    - Purchases = ALL Cash Purchases (itemized cash-purchase ledger — covers both Daily
                  Cash Entry purchase rows AND standalone Cash Log "Cash Purchase" entries
                  made straight from Cash-in-Hand) + Credit Bills (Credits) + Cheques NOT
@@ -6084,7 +6136,10 @@ function computePL(yr, mo) {
     + credits.reduce((a, c) => a + getCreditSettledByChequeAmt(c), 0);
   const totalPurchases = purchCash + purchCredit + purchCheque;
 
-  const grossProfit = totalIncome - totalPurchases;
+  // Gross Profit is assumed at a flat 10% of Total Income (Sales) rather than
+  // computed from actual purchase cost — Total Purchases below is still shown
+  // for reference but no longer drives the profit figure.
+  const grossProfit = totalIncome * 0.10;
 
   const salaryGross = payrolls.reduce((a, p) => a + (Number(p.gross) || 0), 0);
   const salaryEmpEPF = payrolls.reduce((a, p) => a + (Number(p.epfEmployer) || 0), 0);
@@ -6198,7 +6253,7 @@ function renderPL() {
   const kpis = [
     { ico: '💰', val: fmt(r.totalIncome), label: 'Total Income' },
     { ico: '🛒', val: fmt(r.totalPurchases), label: 'Total Purchases' },
-    { ico: '📦', val: fmt(r.grossProfit), label: 'Gross Profit', color: r.grossProfit >= 0 ? 'var(--green)' : 'var(--red)' },
+    { ico: '📦', val: fmt(r.grossProfit), label: 'Gross Profit (10% of Sales)', color: r.grossProfit >= 0 ? 'var(--green)' : 'var(--red)' },
     { ico: '📉', val: fmt(r.totalExpenses), label: 'Operating Expenses' },
     { ico: r.netProfit >= 0 ? '✅' : '⚠️', val: fmt(r.netProfit), label: r.netProfit >= 0 ? 'Net Profit' : 'Net Loss', color: r.netProfit >= 0 ? 'var(--green)' : 'var(--red)' },
   ];
@@ -6209,8 +6264,8 @@ function renderPL() {
     body.innerHTML = `
       <div style="font-weight:700;color:var(--navy);margin-bottom:.2rem;">💰 Income</div>
       ${plRow('💵 Cash Sales', r.incCash)}
-      ${plRow('📒 Credit Sales', r.incCredit)}
-      ${plRow('💳 Card / Debit', r.incCard)}
+      ${plRow('💳 Card Sale SDB', r.incCredit)}
+      ${plRow('💳 Card Sale DFCC', r.incCard)}
       ${plRow('📱 QR Payments', r.incQR)}
       ${plRow('🏦 Cheque Received', r.incCheque)}
       ${plRow('Total Income', r.totalIncome, { bold: true, color: 'var(--navy)' })}
@@ -6222,7 +6277,7 @@ function renderPL() {
       ${plRow('Total Purchases', r.totalPurchases, { bold: true, color: '#7c3aed' })}
 
       <div style="background:${r.grossProfit >= 0 ? '#f0fdf4' : '#fef2f2'};border:1px solid ${r.grossProfit >= 0 ? '#bbf7d0' : '#fecaca'};border-radius:10px;padding:.8rem 1.1rem;margin:.8rem 0;display:flex;justify-content:space-between;align-items:center;">
-        <span style="font-weight:700;color:${r.grossProfit >= 0 ? '#166534' : '#dc2626'};">📦 Gross Profit</span>
+        <span style="font-weight:700;color:${r.grossProfit >= 0 ? '#166534' : '#dc2626'};">📦 Gross Profit <span style="font-weight:400;font-size:.78rem;">(10% of Sales)</span></span>
         <span style="font-size:1.05rem;font-weight:700;color:${r.grossProfit >= 0 ? '#166534' : '#dc2626'};">${fmt(r.grossProfit)}</span>
       </div>
 
@@ -6238,13 +6293,13 @@ function renderPL() {
     `;
   }
   if ($('pl-statement-note')) {
-    $('pl-statement-note').innerHTML = 'ℹ️ මෙය cash-basis statement එකකි — bill/sale දිනය අනුව ගණන් කෙරේ. 🏦 Bank Deposits (PB/SDB) සහ 💸 Cash Advances Expense ලෙස ගණන් නොකෙරේ (ඒවා ගිණුම් අතර මාරු කිරීම් / recoverable receivables නිසා). 📱 Reload ව්‍යාපාරයේ margin එක මෙයට ඇතුළත් නොවේ. 💵 Cash Purchases හි Daily Cash Entry හරහා ලබාදුන් Purchases මෙන්ම, Cash-in-Hand එකෙන් සෘජුව (Cash Log හරහා) කරන ලද Cash Purchases ද, සියල්ලම මෙයට ඇතුළත් වේ. Credit Bill එකකට link කර ඇති Cheque එකකින් සම්පූර්ණයෙන් හෝ අර්ධ වශයෙන් pay කර ඇති මුදල, ද්විත්ව ගණන් කිරීම වළක්වා ගැනීම සඳහා 📒 Credit Purchases වලින් අඩු කර 🏦 Cheque Purchases වලට ම එකතු කර ඇත (එනම් චෙක් එකක් දීලා ඇති Credit Bill, දැන් Cheque Purchase එකක් ලෙස ම ගණන් වේ) — නමුත් එම මුදල, චෙක් එකේ දිනය නොව, මුල් Credit Bill එකේ දිනය අනුව ම එම මාසයට/කාලපරිච්ඡේදයට ම ගණන් වේ, එවිට Total Purchases එක වෙනස් වන්නේ නැත. ⚙️ Admin විසින් එකතු කරන ලද සප්ලයර්වරුන්ගෙන් සිදු කරන ලද Cash/Credit/Cheque මිලදී ගැනීම් ද, ඒවා යථා ව්‍යාපාරික දත්ත නොවන බැවින්, මෙම ගණනයෙන් බැහැර කර ඇත.';
+    $('pl-statement-note').innerHTML = 'ℹ️ මෙය cash-basis statement එකකි — bill/sale දිනය අනුව ගණන් කෙරේ. 📦 Gross Profit එක Total Income (Sales) හි 10%ක් ලෙස උපකල්පනය කර ගණන් කෙරේ (Total Purchases වලින් අඩු කිරීමකින් නොවේ) — පහත Purchases breakdown එක reference එකකට විතරක් පෙන්වා ඇත. 🏦 Bank Deposits (PB/SDB) සහ 💸 Cash Advances Expense ලෙස ගණන් නොකෙරේ (ඒවා ගිණුම් අතර මාරු කිරීම් / recoverable receivables නිසා). 📱 Reload ව්‍යාපාරයේ margin එක මෙයට ඇතුළත් නොවේ.';
   }
 
   renderBarChart('pl-income-chart', [
     { label: '💵 Cash', value: r.incCash },
-    { label: '📒 Credit Sales', value: r.incCredit },
-    { label: '💳 Card', value: r.incCard },
+    { label: '💳 Card Sale SDB', value: r.incCredit },
+    { label: '💳 Card Sale DFCC', value: r.incCard },
     { label: '📱 QR', value: r.incQR },
     { label: '🏦 Cheque', value: r.incCheque },
   ].filter(i => i.value > 0), v => fmt(v));
@@ -6269,7 +6324,7 @@ function renderPL() {
       const dcp = allCashPurch.filter(p => p.date === dateStr);
       const inc = de.reduce((a, e) => a + (Number(e.totalSales) || 0), 0);
       const exp = dcp.reduce((a, p) => a + (Number(p.amount) || 0), 0) + dc.reduce((a, c) => a + getCreditPurchaseAmt(c), 0) + dch.filter(c => !c.linkedCreditId).reduce((a, c) => a + (Number(c.amount) || 0), 0) + dc.reduce((a, c) => a + getCreditSettledByChequeAmt(c), 0);
-      if (inc || exp) trendItems.push({ label: String(d), income: inc, expense: exp, profit: inc - exp });
+      if (inc || exp) trendItems.push({ label: String(d), income: inc, expense: exp, profit: inc * 0.10 });
     }
     if ($('pl-trend-label')) $('pl-trend-label').textContent = ` · Daily · ${monthNames[Number(mo) - 1]} ${yr}`;
   } else if (yr) {
@@ -6345,7 +6400,7 @@ function buildCashLogRowHtml(e, labels) {
     <td class="fw700">${fmt(e.amount)}</td>
     <td style="font-size:.82rem;">${descText}</td>
     <td><span class="user-data-badge">${e.actor||'—'}</span> ${e.actorName||''}</td>
-    <td>${isAdmin()?`<button class="btn btn-red btn-sm" onclick="deleteCashLogEntry('${e.id}')">🗑️</button>`:''}</td>
+    <td>${isAdmin()?`<button class="btn btn-yellow btn-sm" onclick="editCashLogEntry('${e.id}')" title="Edit">✏️</button> <button class="btn btn-red btn-sm" onclick="deleteCashLogEntry('${e.id}')">🗑️</button>`:''}</td>
   </tr>`;
 }
 
@@ -7138,35 +7193,6 @@ function drawLineChart(canvas,labels,datasets) {
 }
 
 // ============= NOTIFICATIONS =============
-function checkDueDateAlerts() {
-  if (!DB.currentUser) return;
-  const cheques = getDataRows('cheques');
-  const t = new Date(); t.setHours(0,0,0,0);
-  const in7 = new Date(t); in7.setDate(in7.getDate()+7);
-  const in7s = in7.toISOString().split('T')[0];
-  const alerts = cheques.filter(c => c.status==='pending' && c.dueDate && c.dueDate<=in7s).map(c => {
-    const d = new Date(c.dueDate); d.setHours(0,0,0,0);
-    return {...c, daysLeft: Math.round((d-t)/864e5)};
-  }).sort((a,b) => a.daysLeft - b.daysLeft);
-  const badge = $('notifBadge');
-  if (badge) { badge.textContent = alerts.length; badge.classList.toggle('hidden', !alerts.length); }
-  const list = $('notifList');
-  if (!list) return;
-  list.innerHTML = alerts.length ? alerts.map(c => {
-    const ov = c.daysLeft < 0; const urg = c.daysLeft>=0 && c.daysLeft<=3;
-    const cls = ov ? 'badge-red' : urg ? 'badge-yellow' : 'badge-blue';
-    const lbl = ov ? `⚠️ ${Math.abs(c.daysLeft)}d overdue` : c.daysLeft===0 ? '🔥 Due Today!' : `⏰ ${c.daysLeft}d left`;
-    return `<div class="notif-item">
-      <div style="flex:1;">
-        <div class="notif-title">🔢 ${c.number||c.entryId||'—'}</div>
-        <div class="notif-sub">🏪 ${getSupplierName(c.supplierId,c._owner)} · ${fmt(c.amount)}</div>
-        <div class="notif-sub">📅 ${c.dueDate}${isAdmin()?` · 👤 ${c._ownerUsername}`:''}</div>
-      </div>
-      <span class="badge ${cls}" style="flex-shrink:0;font-size:.72rem;">${lbl}</span>
-    </div>`;
-  }).join('') : '<div class="no-data" style="padding:1.5rem;"><span class="ico">✅</span>No upcoming due dates</div>';
-}
-
 function toggleSidebar() {
   const open = document.body.classList.toggle('sidebar-open');
   try { localStorage.setItem('cms_sidebar_open', open ? '1' : '0'); } catch (e) {}
@@ -7177,18 +7203,6 @@ function restoreSidebarState() {
     if (localStorage.getItem('cms_sidebar_open') === '1') document.body.classList.add('sidebar-open');
   } catch (e) {}
 }
-
-function toggleNotifPanel() {
-  checkDueDateAlerts();
-  const p = $('notifPanel');
-  if (p) p.classList.toggle('hidden');
-}
-
-document.addEventListener('click', e => {
-  const p = $('notifPanel');
-  if (!p || p.classList.contains('hidden')) return;
-  if (!p.closest('.notif-wrap')?.contains(e.target)) p.classList.add('hidden');
-});
 
 // ============= CHEQUE→CREDIT LINK =============
 function updateChequeCreditLink(supplierId, ownerUsername) {
@@ -7271,7 +7285,7 @@ function generateReport(type) {
     const cashRows = getCashRows();
     const totNet = cashRows.reduce((a,e)=>a+(Number(e.netCash)||0),0);
     doc.autoTable({ startY:37, styles:{fontSize:7.5}, headStyles:{fillColor:[15,23,42]},
-      head:[['Date','Cashier','Cash','Credit','Card','QR','Cheque','Total Sales','Advances','Expenses','Net Cash','By']],
+      head:[['Date','Cashier','Cash','Card SDB','Card DFCC','QR','Cheque','Total Sales','Advances','Expenses','Net Cash','By']],
       body: cashRows.map(e=>{ const expAmt=(e.expenses||[]).reduce((a,ex)=>a+(Number(ex.amount)||0),0); const advAmt=(e.advances||[]).reduce((a,ad)=>a+(Number(ad.amount)||0),0); const cn=getCashiers(); return [e.date||'—',cn[Number(e.cashierIdx)||0]||'Cashier '+(Number(e.cashierIdx||0)+1),fmt(e.totalCash),fmt(e.creditSales),fmt(e.cardPayments),fmt(e.qrPayments),fmt(e.chequeReceived),fmt(e.totalSales),fmt(advAmt),fmt(expAmt),fmt(e.netCash),e._owner||'—']; }),
       foot:[['Total ('+cashRows.length+')', '', '', '', '', '', '', '', '', '', fmt(totNet), '']]
     });
@@ -8061,7 +8075,7 @@ function renderActivityLog() {
     renderPagination('activityPagination', 0, activityLogPage, 'goActivityLogPage', ACTIVITY_PAGE_SIZE);
     return;
   }
-  const icons={ADD_CREDIT:'💳',EDIT_CREDIT:'✏️',DEL_CREDIT:'🗑️',ADD_CHEQUE:'✅',EDIT_CHEQUE:'✏️',DEL_CHEQUE:'🗑️',ADD_PAYMENT:'💰',DEL_PAYMENT:'💰',ADD_SUPPLIER:'🏪',EDIT_SUPPLIER:'✏️',DEL_SUPPLIER:'🗑️',ADD_USER:'👥',EDIT_USER:'✏️',DEL_USER:'🗑️',LOGIN:'🔓',LOGOUT:'🔒',REGISTER:'✨',BACKUP:'📥',CHEQUE_LINK:'🔗',ADD_EMPLOYEE:'🧑‍💼',EDIT_EMPLOYEE:'✏️',DEL_EMPLOYEE:'🗑️',ADD_ADVANCE:'💸',DEL_ADVANCE:'🗑️',PROCESS_PAYROLL:'🧮',DEL_PAYROLL:'🗑️',DEL_CASH_PURCHASE:'🛒',MARK_ATTENDANCE:'🗓️',EDIT_ATTENDANCE:'✏️',DEL_ATTENDANCE:'🗑️',CASH_LOG:'💵',DEL_CASH_LOG:'🗑️',ADD_CASH:'💵',EDIT_CASH:'✏️',DEL_CASH:'🗑️',ADD_RELOAD:'📶',EDIT_RELOAD:'✏️',DEL_RELOAD:'🗑️'};
+  const icons={ADD_CREDIT:'💳',EDIT_CREDIT:'✏️',DEL_CREDIT:'🗑️',ADD_CHEQUE:'✅',EDIT_CHEQUE:'✏️',DEL_CHEQUE:'🗑️',ADD_PAYMENT:'💰',DEL_PAYMENT:'💰',ADD_SUPPLIER:'🏪',EDIT_SUPPLIER:'✏️',DEL_SUPPLIER:'🗑️',ADD_USER:'👥',EDIT_USER:'✏️',DEL_USER:'🗑️',LOGIN:'🔓',LOGOUT:'🔒',REGISTER:'✨',BACKUP:'📥',CHEQUE_LINK:'🔗',ADD_EMPLOYEE:'🧑‍💼',EDIT_EMPLOYEE:'✏️',DEL_EMPLOYEE:'🗑️',ADD_ADVANCE:'💸',DEL_ADVANCE:'🗑️',PROCESS_PAYROLL:'🧮',DEL_PAYROLL:'🗑️',DEL_CASH_PURCHASE:'🛒',MARK_ATTENDANCE:'🗓️',EDIT_ATTENDANCE:'✏️',DEL_ATTENDANCE:'🗑️',CASH_LOG:'💵',EDIT_CASH_LOG:'✏️',DEL_CASH_LOG:'🗑️',ADD_CASH:'💵',EDIT_CASH:'✏️',DEL_CASH:'🗑️',ADD_RELOAD:'📶',EDIT_RELOAD:'✏️',DEL_RELOAD:'🗑️'};
   const pageLogs = filtered.slice((activityLogPage-1)*ACTIVITY_PAGE_SIZE, activityLogPage*ACTIVITY_PAGE_SIZE);
   tbody.innerHTML = pageLogs.map(e=>`<tr>
     <td style="font-size:.78rem;white-space:nowrap;">${e.ts?new Date(e.ts).toLocaleString():'—'}</td>
