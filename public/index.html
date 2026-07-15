@@ -325,9 +325,6 @@ tr:hover td{background:#f8fafc;}
 .sa-sortable:hover{color:var(--navy);}
 .sa-sort-ico{font-size:.7rem;margin-left:.15rem;color:var(--navy3);}
 .sup-trend-range-btn.active{background:var(--navy);color:#fff;border-color:var(--navy);}
-.sup-trend-legend{display:flex;gap:1.1rem;flex-wrap:wrap;padding:.7rem 1.2rem 0;font-size:.78rem;color:var(--muted);font-weight:600;}
-.sup-trend-legend span{display:inline-flex;align-items:center;gap:.35rem;}
-.sup-trend-legend i{width:10px;height:10px;border-radius:50%;display:inline-block;}
 .notif-pref-row{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.9rem 0;border-bottom:1px solid var(--border);}
 .notif-pref-row:last-of-type{border-bottom:none;}
 .notif-pref-label{display:flex;align-items:center;gap:.7rem;}
@@ -2435,12 +2432,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
             <button class="btn btn-ghost btn-sm sup-trend-range-btn" id="sup-trend-btn-6" onclick="setSupplierTrendRange(6)">6M</button>
           </div>
         </div>
-        <div class="sup-trend-legend">
-          <span><i style="background:#2563eb;"></i>Cash</span>
-          <span><i style="background:#e63946;"></i>Credit</span>
-          <span><i style="background:#7c3aed;"></i>Cheque</span>
-          <span><i style="background:#166534;"></i>Total</span>
-        </div>
+        <div style="padding:.6rem 1.2rem 0;font-size:.78rem;color:var(--muted);">Each point is one bill / cheque / cash purchase — hover to see which.</div>
         <div id="sup-purchase-trend-chart" class="simple-chart"></div>
       </div>
       <div class="card analytics-card" style="margin-top:1rem;">
@@ -3632,8 +3624,8 @@ function renderBarChart(elId, items, valueLabel) {
 function openSupplierAnalytics(ownerUsername, supplierId) {
   DB.analyticsOpen = { ownerUsername, supplierId };
   DB.analyticsTrendMonths = 3;
-  renderSupplierAnalytics();
   $('supplierAnalyticsModal').classList.add('show');
+  renderSupplierAnalytics();
 }
 
 function setSupplierTrendRange(months) {
@@ -3648,12 +3640,6 @@ function renderSupplierAnalytics() {
   if (!data) return;
 
   const { owner, supplier, credits, cheques, cashPurchases } = data;
-  // "Owner" should mean the actual business owner, not whichever staff account
-  // (manager/cashier) happened to be logged in when this supplier was added —
-  // every supplier record technically lives under its creator's own account bucket,
-  // so showing that name here read as "the data-entry person owns this supplier",
-  // which is wrong. Show the admin account instead.
-  const bizOwner = DB.users.find(u => u.role === 'admin') || owner;
   const totCredit = credits.reduce((a, c) => a + (Number(c.amount) || 0), 0);
   const totPaid = credits.reduce((a, c) => a + getTotalPaid(c), 0);
   const bal = totCredit - totPaid;
@@ -3667,7 +3653,6 @@ function renderSupplierAnalytics() {
     <div style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;align-items:flex-start;">
       <div>
         <div class="fw700" style="font-size:1.05rem;">🏪 ${supplier.name}</div>
-        <div style="font-size:.85rem;color:var(--muted);margin-top:.2rem;">👤 Owner: ${bizOwner.name} (${bizOwner.username})</div>
         ${supplier.phone ? `<div style="font-size:.83rem;color:var(--text);margin-top:.2rem;">📱 ${supplier.phone}</div>` : ''}
         ${supplier.email ? `<div style="font-size:.83rem;color:var(--text);margin-top:.1rem;">📧 ${supplier.email}</div>` : ''}
         ${supplier.address ? `<div style="font-size:.83rem;color:var(--muted);margin-top:.1rem;">📍 ${supplier.address}</div>` : ''}
@@ -3698,34 +3683,33 @@ function renderSupplierAnalytics() {
   $('sup-an-due-cheq').textContent = fmt(totDueCheqAmt);
   if ($('sup-an-cashpurchase')) $('sup-an-cashpurchase').textContent = fmt(totCashPurchase);
 
+  // Purchase History Trend — one point per individual bill/cheque/cash-purchase (not
+  // aggregated by month), so the line shows how each purchase's amount went up/down.
+  // Only records that actually exist for this supplier are included; each type
+  // (Credit Bills / Cheques / Cash Purchases) contributes points only if it has data.
+  //
+  // IMPORTANT — avoid double counting: a Credit Bill that's paid off by a Cheque
+  // "linked" to it (via the "Link to Credit" field) is ONE purchase, not two. The
+  // credit's point already represents the full amount, so a linked cheque is left
+  // out entirely here (same rule P&L already uses via getCreditPurchaseAmt /
+  // !linkedCreditId). Only cheques that stand on their own (not settling an
+  // already-counted credit bill) get their own point.
   const trendMonths = DB.analyticsTrendMonths || 3;
-  const monthKeys = [];
-  const now = new Date();
-  for (let i = trendMonths - 1; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    monthKeys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
-  }
-  const sumByMonth = (arr) => {
-    const map = new Map();
-    arr.forEach(rec => { if (rec.date) map.set(rec.date.slice(0, 7), (map.get(rec.date.slice(0, 7)) || 0) + (Number(rec.amount) || 0)); });
-    return monthKeys.map(k => map.get(k) || 0);
-  };
-  const cashSeries = sumByMonth(cashPurchases);
-  const creditSeries = sumByMonth(credits);
-  const chequeSeries = sumByMonth(cheques);
-  const totalSeries = monthKeys.map((_, i) => cashSeries[i] + creditSeries[i] + chequeSeries[i]);
-  const monthLabels = monthKeys.map(k => {
-    const [yy, mm] = k.split('-');
-    return new Date(Number(yy), Number(mm) - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-  });
+  const cutoff = new Date();
+  cutoff.setMonth(cutoff.getMonth() - trendMonths);
+  const cutoffKey = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, '0')}-${String(cutoff.getDate()).padStart(2, '0')}`;
+  const trendTxns = [
+    ...credits.map(c => ({ date: c.date, amount: c.amount, type: '💳 Credit Bill' })),
+    ...cheques.filter(c => !c.linkedCreditId).map(c => ({ date: c.date, amount: c.amount, type: '✅ Cheque' })),
+    ...cashPurchases.map(p => ({ date: p.date, amount: p.amount, type: '🛒 Cash Purchase' })),
+  ].filter(t => t.date && t.date >= cutoffKey).sort((a, b) => a.date.localeCompare(b.date));
+  const trendItems = trendTxns.map(t => ({
+    label: `${new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · ${t.type}`,
+    value: Number(t.amount) || 0,
+  }));
   document.querySelectorAll('.sup-trend-range-btn').forEach(b => b.classList.remove('active'));
   $('sup-trend-btn-' + trendMonths)?.classList.add('active');
-  renderMultiLineChart('sup-purchase-trend-chart', [
-    { name: 'Cash', color: '#2563eb', data: cashSeries },
-    { name: 'Credit', color: '#e63946', data: creditSeries },
-    { name: 'Cheque', color: '#7c3aed', data: chequeSeries },
-    { name: 'Total', color: '#166534', data: totalSeries, thick: true },
-  ], monthLabels, v => fmt(v));
+  renderLineChart('sup-purchase-trend-chart', trendItems, v => fmt(v));
 
   // Credit Bills list — amount / paid (incl. partial payments) / balance, with view & manage actions
   const creditRows = credits.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
@@ -6021,79 +6005,6 @@ function renderLineChart(containerId, items, fmtFn) {
   </svg></div>
   <div id="${uid}" class="lc-tooltip" style="display:none;position:absolute;pointer-events:none;background:#0f1f2e;color:#fff;padding:.35rem .65rem;border-radius:8px;font-size:.74rem;font-weight:600;white-space:nowrap;transform:translate(-50%,-115%);box-shadow:0 4px 14px rgba(0,0,0,.28);z-index:20;left:0;top:0;"></div>
   </div>`;
-}
-// Multi-series smooth line chart — same visual language as renderLineChart, but plots several
-// named series (e.g. Cash / Credit / Cheque / Total) on one shared timeline & y-scale, with a
-// single combined tooltip per month column instead of per-point tooltips.
-function renderMultiLineChart(containerId, series, labels, fmtFn) {
-  const el = $(containerId);
-  if (!el || !labels.length) { if (el) el.innerHTML = `<div class="sa-no-data"><span class="ico">📭</span>No data</div>`; return; }
-  const fmtV = typeof fmtFn === 'function' ? fmtFn : (v => String(v));
-  const allVals = series.flatMap(s => s.data);
-  const max = Math.max(...allVals, 1);
-  const h = 160, padT = 10, padB = 8, padL = 50, padR = 12;
-  const w = el.offsetWidth || 400;
-  const n = labels.length;
-  const xAt = i => padL + (n > 1 ? i * ((w - padL - padR) / (n - 1)) : (w - padL - padR) / 2);
-  const yAt = v => h - padB - (v / max * (h - padT - padB));
-
-  function smoothPath(pts) {
-    if (pts.length < 2) return `M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`;
-    let d = `M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`;
-    for (let i = 0; i < pts.length - 1; i++) {
-      const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
-      const c1x = p1.x + (p2.x - p0.x) / 6, c1y = p1.y + (p2.y - p0.y) / 6;
-      const c2x = p2.x - (p3.x - p1.x) / 6, c2y = p2.y - (p3.y - p1.y) / 6;
-      d += ` C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
-    }
-    return d;
-  }
-
-  const gridRows = 4;
-  let gridSVG = '';
-  for (let g = 0; g <= gridRows; g++) {
-    const gy = padT + g * ((h - padT - padB) / gridRows);
-    const gv = max - (max * g / gridRows);
-    gridSVG += `<line x1="${padL}" y1="${gy.toFixed(1)}" x2="${w - padR}" y2="${gy.toFixed(1)}" stroke="#e7edf3" stroke-width="1"${g === gridRows ? '' : ' stroke-dasharray="3,3"'}/>`;
-    gridSVG += `<text x="${(padL - 6).toFixed(1)}" y="${(gy + 3).toFixed(1)}" text-anchor="end" font-size="8.5" fill="#9aa5b1">${fmtV(gv)}</text>`;
-  }
-
-  const linesSVG = series.map(s => {
-    const pts = s.data.map((v, i) => ({ x: xAt(i), y: yAt(v) }));
-    const d = smoothPath(pts);
-    const dots = pts.map(p => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="${s.color}" stroke="#fff" stroke-width="1.2"/>`).join('');
-    return `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="${s.thick ? 3 : 2}" stroke-linecap="round" stroke-linejoin="round"/>${dots}`;
-  }).join('');
-
-  const uid = 'mlc_' + containerId.replace(/[^a-zA-Z0-9]/g, '') + '_tip';
-  const colW = n > 1 ? (w - padL - padR) / (n - 1) : (w - padL - padR);
-  const colTips = labels.map((lb, i) => {
-    const x = xAt(i);
-    const tipLines = series.map(s => `${s.name}: ${fmtV(s.data[i])}`).join('&#10;');
-    return `<rect x="${(x - colW / 2).toFixed(1)}" y="${padT}" width="${colW.toFixed(1)}" height="${h - padT - padB}" fill="transparent" style="cursor:pointer;" data-tip-uid="${uid}" data-label="${lb}" data-lines="${tipLines}" onmousemove="mlcShowTip(event,this)" onmouseleave="lcHideTip('${uid}')"/>`;
-  }).join('');
-
-  el.innerHTML = `<div style="position:relative;">
-  <div style="overflow-x:auto;"><svg width="100%" viewBox="0 0 ${w} ${h + 24}" style="display:block;min-width:${Math.max(280, n * 40)}px;">
-    ${gridSVG}
-    ${linesSVG}
-    ${colTips}
-    ${labels.map((lb, i) => `<text x="${xAt(i).toFixed(1)}" y="${h + 16}" text-anchor="middle" font-size="9" fill="#888">${lb}</text>`).join('')}
-  </svg></div>
-  <div id="${uid}" class="lc-tooltip" style="display:none;position:absolute;pointer-events:none;background:#0f1f2e;color:#fff;padding:.4rem .7rem;border-radius:8px;font-size:.72rem;font-weight:600;white-space:pre;line-height:1.5;box-shadow:0 4px 14px rgba(0,0,0,.28);z-index:20;left:0;top:0;"></div>
-  </div>`;
-}
-function mlcShowTip(evt, node) {
-  const uid = node.dataset.tipUid;
-  const tip = document.getElementById(uid);
-  if (!tip) return;
-  const wrap = tip.parentElement;
-  const rect = wrap.getBoundingClientRect();
-  const lines = node.dataset.lines.split('\n').join('<br>');
-  tip.innerHTML = `<div style="opacity:.7;font-weight:500;font-size:.68rem;margin-bottom:2px;">${node.dataset.label}</div>${lines}`;
-  tip.style.left = (evt.clientX - rect.left) + 'px';
-  tip.style.top = (evt.clientY - rect.top) + 'px';
-  tip.style.display = 'block';
 }
 function lcShowTip(evt, node){
   const uid=node.dataset.tipUid;
