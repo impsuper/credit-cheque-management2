@@ -558,7 +558,8 @@ tr:hover td{background:#eef6fb;}
 @media(max-width:768px){
   #creditsSection .table-wrap,
   #chequesSection .table-wrap,
-  #payrollSection .table-wrap{display:none;}
+  #payrollSection .table-wrap,
+  #mgrCashLedgerCard .table-wrap{display:none;}
   .mobile-cards{display:block;padding:.7rem;}
 }
 .mob-card{
@@ -1811,10 +1812,11 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>📅 Date</th><th>📝 Details</th><th>👤 By</th><th>💰 Amount</th><th>✅ Balance</th></tr></thead>
+            <thead><tr><th>📅 Date</th><th style="max-width:200px;">📝 Details</th><th>👤 By</th><th>💰 Amount</th><th>✅ Balance</th></tr></thead>
             <tbody id="mgrLedgerBody"></tbody>
           </table>
         </div>
+        <div class="mobile-cards" id="mgrLedgerMobile"></div>
         <div id="mgrLedgerPagination" class="pg-bar-wrap"></div>
       </div>
 
@@ -6537,6 +6539,7 @@ function goMgrLedgerPage(p) { mgrLedgerPage = p; renderManagerCashLedger(); }
 
 function renderManagerCashLedger() {
   const tbody = $('mgrLedgerBody');
+  const mobileEl = $('mgrLedgerMobile');
   if (!tbody) return;
   if ($('mgrLedgerBalance')) $('mgrLedgerBalance').textContent = fmt(calcCashInHand());
   const rows = getManagerCashLedger();
@@ -6545,18 +6548,44 @@ function renderManagerCashLedger() {
   if (mgrLedgerPage < 1) mgrLedgerPage = 1;
   if (!rows.length) {
     tbody.innerHTML = '<tr><td colspan="5" class="no-data"><span class="ico">🏦</span>Last 6 මාසය තුළ Cash-in-Hand වෙනස්කම් නැත</td></tr>';
+    if (mobileEl) mobileEl.innerHTML = '<div class="mob-no-data"><span class="ico">🏦</span>Last 6 මාසය තුළ Cash-in-Hand වෙනස්කම් නැත</div>';
     renderPagination('mgrLedgerPagination', 0, mgrLedgerPage, 'goMgrLedgerPage', MGR_LEDGER_PAGE_SIZE);
     return;
   }
   const pageRows = rows.slice((mgrLedgerPage-1)*MGR_LEDGER_PAGE_SIZE, mgrLedgerPage*MGR_LEDGER_PAGE_SIZE);
   tbody.innerHTML = pageRows.map(r => `<tr>
     <td>${r.date||'—'}</td>
-    <td>${r.label}<div style="font-size:.75rem;color:var(--muted);font-weight:500;">${r.detail}</div></td>
+    <td style="max-width:200px;overflow-wrap:break-word;">${r.label}<div style="font-size:.75rem;color:var(--muted);font-weight:500;overflow-wrap:break-word;">${r.detail}</div></td>
     <td><span class="user-data-badge">${r.by}</span></td>
     <td class="fw700" style="color:${r.kind==='in'?'#16a34a':'#dc2626'};">${r.kind==='in'?'+':'−'} ${fmt(r.amount)}</td>
     <td class="fw700" style="color:var(--navy);">${fmt(r.balance)}</td>
   </tr>`).join('');
   renderPagination('mgrLedgerPagination', rows.length, mgrLedgerPage, 'goMgrLedgerPage', MGR_LEDGER_PAGE_SIZE);
+
+  if (mobileEl) {
+    mobileEl.innerHTML = pageRows.map(r => `<div class="mob-card">
+      <div class="mob-card-row">
+        <span class="mob-card-label">📅 Date</span>
+        <span class="mob-card-val">${r.date||'—'}</span>
+      </div>
+      <div class="mob-card-row">
+        <span class="mob-card-label">📝 Details</span>
+        <span class="mob-card-val">${r.label}<div style="font-size:.72rem;color:var(--muted);font-weight:500;">${r.detail}</div></span>
+      </div>
+      <div class="mob-card-row">
+        <span class="mob-card-label">👤 By</span>
+        <span class="mob-card-val"><span class="user-data-badge">${r.by}</span></span>
+      </div>
+      <div class="mob-card-row">
+        <span class="mob-card-label">💰 Amount</span>
+        <span class="mob-card-val fw700" style="color:${r.kind==='in'?'#16a34a':'#dc2626'};">${r.kind==='in'?'+':'−'} ${fmt(r.amount)}</span>
+      </div>
+      <div class="mob-card-row">
+        <span class="mob-card-label">✅ Balance</span>
+        <span class="mob-card-val fw700" style="color:var(--navy);">${fmt(r.balance)}</span>
+      </div>
+    </div>`).join('');
+  }
 }
 
 function getCashRows() {
