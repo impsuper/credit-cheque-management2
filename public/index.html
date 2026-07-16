@@ -901,6 +901,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
     <div class="topbar">
       <h1 id="pageTitle">📊 Dashboard</h1>
       <div class="topbar-right">
+        <button class="btn btn-ghost btn-sm" onclick="doLogout()" title="Logout">🚪 <span class="bk-label">Logout</span></button>
         <button id="pushToggleBtn" class="btn btn-ghost btn-sm hidden" onclick="togglePushNotifications()" title="Push Notifications" data-on="0">🔕 <span class="bk-label">Enable Alerts</span></button>
         <button id="notifSettingsBtn" class="btn btn-ghost btn-sm hidden" onclick="openNotifSettings()" title="Notification Settings">⚙️</button>
         <button class="btn btn-ghost btn-sm" onclick="downloadBackup()" title="Backup">⬇️ <span class="bk-label">Backup</span></button>
@@ -1182,6 +1183,12 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
 
     <!-- SUPPLIERS -->
     <div id="suppliersSection" class="section">
+      <div class="card" style="margin-bottom:1.2rem;">
+        <div style="padding:1rem 1.3rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.6rem;">
+          <div style="font-size:.85rem;font-weight:700;color:var(--navy);">🏪 Registered Suppliers</div>
+          <div style="font-size:1.5rem;font-weight:800;color:var(--navy);" id="supplierCountVal">0</div>
+        </div>
+      </div>
       <div class="card">
         <div class="card-head">
           <div class="card-title">🏪 Suppliers</div>
@@ -1792,6 +1799,23 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
             💡 Reports include all data visible to your account. Admin reports include all users' data.
           </div>
         </div>
+      </div>
+
+      <div class="card" id="mgrCashLedgerCard" style="margin-top:1.2rem;">
+        <div class="card-head">
+          <div class="card-title">🏦 Manager Cash-in-Hand Ledger</div>
+          <div class="card-actions" style="display:flex;align-items:center;gap:.9rem;flex-wrap:wrap;">
+            <span style="font-size:.78rem;color:var(--muted);">🗓️ Last 6 months</span>
+            <div style="font-size:.85rem;">✅ Current Balance: <strong id="mgrLedgerBalance" style="color:#16a34a;">LKR 0.00</strong></div>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>📅 Date</th><th>📝 Details</th><th>👤 By</th><th>💰 Amount</th><th>✅ Balance</th></tr></thead>
+            <tbody id="mgrLedgerBody"></tbody>
+          </table>
+        </div>
+        <div id="mgrLedgerPagination" class="pg-bar-wrap"></div>
       </div>
 
       <div class="card" id="cashSaleHistCard" style="margin-top:1.2rem;">
@@ -3186,7 +3210,7 @@ function showSection(name) {
   if (name === 'overview') renderOverview();
   if (name === 'activity') renderActivityLog();
   if (name === 'cash') { initCashSection(); if($('cl-date')&&!$('cl-date').value)$('cl-date').value=today(); renderCash(); }
-  if (name === 'reports') { renderSalesHistory(); renderCashLog(); }
+  if (name === 'reports') { renderSalesHistory(); renderCashLog(); renderManagerCashLedger(); }
   if (name === 'reload') { if($('rl-date')&&!$('rl-date').value)$('rl-date').value=today(); renderReloadSection(); }
   if (name === 'analytics') initAnalytics();
   if (name === 'pl') { if (!isAdmin()) { showSection('overview'); return; } initPLSection(); }
@@ -3856,6 +3880,7 @@ function renderSupplierRows() {
 }
 
 function renderSuppliers() {
+  if ($('supplierCountVal')) $('supplierCountVal').textContent = getSupplierRows().length;
   const rows = renderSupplierRows();
   const tbody = $('supGrid');
   if (!tbody) return;
@@ -5503,6 +5528,7 @@ function initCashSection() {
   if ($('cashSaleHistCard')) $('cashSaleHistCard').style.display = isCashier() ? 'none' : '';
   if ($('cashLogCard')) $('cashLogCard').style.display = isCashier() ? 'none' : '';
   if ($('cashLogHistCard')) $('cashLogHistCard').style.display = isCashier() ? 'none' : '';
+  if ($('mgrCashLedgerCard')) $('mgrCashLedgerCard').style.display = isCashier() ? 'none' : '';
   if ($('cashSaveBtnsRow')) $('cashSaveBtnsRow').style.display = isCashier() ? 'none' : '';
   if ($('cashierHandoverBtns')) $('cashierHandoverBtns').classList.toggle('hidden', !isCashier());
   // Show pending handovers card for admin/manager
@@ -6451,6 +6477,88 @@ function getCashRowsRaw() {
   return rows;
 }
 
+/* ===== MANAGER CASH-IN-HAND LEDGER (Reports tab, above Cash Sale History) =====
+   A merged, running-balance view of the shared Cash-in-Hand pot:
+     ➕ additions — Net Cash from every Day Sale (cash) entry
+     ➖ reductions — every Cash Disposal Log entry (banked / handed to owner / cash purchase / other)
+   Only the last MGR_LEDGER_MONTHS of activity is kept in THIS ledger — older rows automatically
+   age out of view here as time passes. This does NOT delete the underlying cashEntries / cashLog
+   records, so Cash Sale History, the Cash Disposal Log, PDF Reports and Analytics for older
+   periods are completely unaffected. */
+const MGR_LEDGER_PAGE_SIZE = 20;
+const MGR_LEDGER_MONTHS = 6;
+let mgrLedgerPage = 1;
+
+function getMgrLedgerCutoffDate() {
+  const d = new Date();
+  d.setMonth(d.getMonth() - MGR_LEDGER_MONTHS);
+  return d.toISOString().split('T')[0];
+}
+
+function getManagerCashLedger() {
+  const cutoff = getMgrLedgerCutoffDate();
+  const cashiers = getCashiers();
+  const disposalLabels = {banked:'🏦 Banked',handed_owner:'🤝 Handed to Owner',cash_purchase:'🛒 Cash Purchase',other1:'📝 Other 1',other2:'📝 Other 2',other3:'📝 Other 3'};
+  const items = [];
+
+  // Additions — Net Cash kept in hand from every Day Sale entry
+  getCashRowsRaw().forEach(e => {
+    if (!e.date || e.date < cutoff) return;
+    const cashierName = cashiers[Number(e.cashierIdx)||0] || ('Cashier '+((Number(e.cashierIdx)||0)+1));
+    items.push({
+      date: e.date, id: e.id||'', kind:'in', amount: Number(e.netCash)||0,
+      label: '☀️ Day Sale', detail: cashierName, by: e._owner||'—', byName: e._ownerName||''
+    });
+  });
+
+  // Reductions — Cash Disposal Log entries
+  (getUserByUsername('admin')?.cashLog||[]).forEach(e => {
+    if (!e.date || e.date < cutoff) return;
+    items.push({
+      date: e.date, id: e.id||'', kind:'out', amount: Number(e.amount)||0,
+      label: disposalLabels[e.type]||e.type,
+      detail: e.type==='cash_purchase' ? `🏪 ${e.supplierName||'—'}${e.description?' — '+e.description:''}` : (e.description||'—'),
+      by: e.actor||'—', byName: e.actorName||''
+    });
+  });
+
+  // Chronological pass (oldest → newest) to build the running balance, starting from the
+  // cash-in-hand balance carried forward from before the 6-month window began
+  const opening = calcCashInHandBefore(cutoff);
+  const chrono = items.slice().sort((a,b) => (a.date===b.date) ? (a.id||'').localeCompare(b.id||'') : (a.date||'').localeCompare(b.date||''));
+  let bal = opening;
+  chrono.forEach(it => { bal += (it.kind==='in' ? it.amount : -it.amount); it.balance = bal; });
+
+  // Newest-first for display, matching the rest of the app's history tables
+  return chrono.slice().reverse();
+}
+
+function goMgrLedgerPage(p) { mgrLedgerPage = p; renderManagerCashLedger(); }
+
+function renderManagerCashLedger() {
+  const tbody = $('mgrLedgerBody');
+  if (!tbody) return;
+  if ($('mgrLedgerBalance')) $('mgrLedgerBalance').textContent = fmt(calcCashInHand());
+  const rows = getManagerCashLedger();
+  const totalPages = Math.max(1, Math.ceil(rows.length / MGR_LEDGER_PAGE_SIZE));
+  if (mgrLedgerPage > totalPages) mgrLedgerPage = totalPages;
+  if (mgrLedgerPage < 1) mgrLedgerPage = 1;
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="no-data"><span class="ico">🏦</span>Last 6 මාසය තුළ Cash-in-Hand වෙනස්කම් නැත</td></tr>';
+    renderPagination('mgrLedgerPagination', 0, mgrLedgerPage, 'goMgrLedgerPage', MGR_LEDGER_PAGE_SIZE);
+    return;
+  }
+  const pageRows = rows.slice((mgrLedgerPage-1)*MGR_LEDGER_PAGE_SIZE, mgrLedgerPage*MGR_LEDGER_PAGE_SIZE);
+  tbody.innerHTML = pageRows.map(r => `<tr>
+    <td>${r.date||'—'}</td>
+    <td>${r.label}<div style="font-size:.75rem;color:var(--muted);font-weight:500;">${r.detail}</div></td>
+    <td><span class="user-data-badge">${r.by}</span></td>
+    <td class="fw700" style="color:${r.kind==='in'?'#16a34a':'#dc2626'};">${r.kind==='in'?'+':'−'} ${fmt(r.amount)}</td>
+    <td class="fw700" style="color:var(--navy);">${fmt(r.balance)}</td>
+  </tr>`).join('');
+  renderPagination('mgrLedgerPagination', rows.length, mgrLedgerPage, 'goMgrLedgerPage', MGR_LEDGER_PAGE_SIZE);
+}
+
 function getCashRows() {
   const fMonth = $('cash-filter-month')?.value || '';
   let rows = getCashRowsRaw();
@@ -6974,6 +7082,7 @@ function renderCash() {
   renderSalesHistory();
   renderCashPurchaseHistory();
   renderCashLog();
+  renderManagerCashLedger();
 }
 
 // ============= RELOAD MANAGEMENT =============
