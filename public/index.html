@@ -1479,7 +1479,10 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
             🕓 Temporary Transactions Queue
             <span id="tempCashQueueBadge" class="badge badge-yellow" style="margin-left:.5rem;vertical-align:middle;">0</span>
           </div>
-          <div class="card-actions" style="font-size:.78rem;color:var(--muted);">Saved during the day · not yet part of a Day End</div>
+          <div class="card-actions" style="font-size:.78rem;color:var(--muted);display:flex;flex-direction:column;align-items:flex-end;gap:.2rem;">
+            <span id="tempCashQueueTotal" style="font-weight:700;color:#92400e;font-size:.9rem;"></span>
+            <span>Saved during the day · not yet part of a Day End</span>
+          </div>
         </div>
         <div id="tempCashQueueList" style="padding:1.2rem;"></div>
       </div>
@@ -7097,6 +7100,16 @@ function collectCashSubFormData() {
   return { advSlots, purchaseRows, creditPayRows, expenses };
 }
 
+// Looks up the human-readable bill reference (e.g. "CR0001") for a queued credit
+// payment, so the Temporary Transactions Queue can show *which* credit bill was
+// reduced instead of only the paid amount.
+function getCreditBillRef(ownerUsername, creditId) {
+  if (!creditId) return '—';
+  const owner = getTargetUser(ownerUsername);
+  const credit = owner && (owner.credits || []).find(c => c.id === creditId);
+  return credit ? credit.entryId : creditId;
+}
+
 function summarizeTempRec(rec) {
   const parts = [];
   const advTotal = (rec.advances||[]).reduce((s,a)=>s+(Number(a.amount)||0),0);
@@ -7105,9 +7118,27 @@ function summarizeTempRec(rec) {
   const expTotal = (rec.expenses||[]).reduce((s,e)=>s+(Number(e.amount)||0),0);
   if (advTotal) parts.push(`💸 Advance ${fmt(advTotal)}`);
   if (purTotal) parts.push(`🛒 Purchase ${fmt(purTotal)}`);
-  if (cpTotal) parts.push(`🧾 Credit Pay ${fmt(cpTotal)}`);
+  if (cpTotal) {
+    // Name *which* bill(s) got reduced, not just the total paid — e.g.
+    // "🧾 Credit Pay 500.00 — ABC Traders (CR0001), XYZ Co (CR0002)"
+    const billRefs = (rec.creditPayments||[]).map(p => {
+      const ref = getCreditBillRef(p.ownerUsername, p.creditId);
+      return p.supplierName ? `${p.supplierName} (${ref})` : ref;
+    });
+    parts.push(`🧾 Credit Pay ${fmt(cpTotal)}${billRefs.length ? ' — ' + billRefs.join(', ') : ''}`);
+  }
   if (expTotal) parts.push(`🏦 Banked/Exp ${fmt(expTotal)}`);
   return parts.join(' · ') || 'No amount';
+}
+
+// Sums every amount (advances + purchases + credit payments + banked/expenses) in a
+// single queued temp-cash record — used to build the queue's grand total.
+function sumTempRec(rec) {
+  const advTotal = (rec.advances||[]).reduce((s,a)=>s+(Number(a.amount)||0),0);
+  const purTotal = (rec.purchases||[]).reduce((s,p)=>s+(Number(p.amount)||0),0);
+  const cpTotal = (rec.creditPayments||[]).reduce((s,p)=>s+(Number(p.amount)||0),0);
+  const expTotal = (rec.expenses||[]).reduce((s,e)=>s+(Number(e.amount)||0),0);
+  return advTotal + purTotal + cpTotal + expTotal;
 }
 
 function saveCashEntryTemp() {
@@ -7153,6 +7184,7 @@ function renderTempCashQueue() {
   const card = $('tempCashQueueCard');
   const list = $('tempCashQueueList');
   const badge = $('tempCashQueueBadge');
+  const totalEl = $('tempCashQueueTotal');
   if (!card || !list) return;
   if (isCashier() || !DB.currentUser) { card.style.display = 'none'; return; }
 
@@ -7169,6 +7201,8 @@ function renderTempCashQueue() {
   rows.sort((a,b) => (b.savedAt||'').localeCompare(a.savedAt||''));
 
   if (badge) badge.textContent = String(rows.length);
+  const grandTotal = rows.reduce((s, t) => s + sumTempRec(t), 0);
+  if (totalEl) totalEl.textContent = rows.length ? `💰 Total: ${fmt(grandTotal)}` : '';
   card.style.display = rows.length ? '' : 'none';
   if (!rows.length) { list.innerHTML = ''; return; }
 
