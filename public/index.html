@@ -1456,6 +1456,12 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
           <div id="cashSaveBtnsRow" style="display:flex;gap:.8rem;flex-wrap:wrap;">
             <button class="btn btn-green btn-sm" onclick="saveCashEntry()">💾 Save Entry</button>
             <button class="btn btn-ghost btn-sm" onclick="resetCashForm()">↺ Reset</button>
+            <button class="btn btn-yellow btn-sm" onclick="saveCashEntryTemp()" title="දවස පුරා සිදුවන Advance/Purchase/Credit Payment/Banking එකින් එක තාවකාලිකව Save කරන්න">🕓 Save Temporarily</button>
+            <button class="btn btn-accent btn-sm" onclick="restoreTempCashTransactions()" title="තාවකාලිකව Save කළ සියල්ල මේ දිනයට ආපසු Form එකට ගෙන්වන්න">📥 Restore Temp Transactions</button>
+          </div>
+          <div style="font-size:.76rem;color:var(--muted);margin-top:.5rem;line-height:1.5;" id="tempCashHint">
+            🕓 <strong>Save Temporarily</strong> — දවසේ Advance/Purchase/Credit Payment/Banking සිදුවෙන විටම save කරගන්න (Sales figures නොමැතිව). &nbsp;
+            📥 <strong>Restore Temp Transactions</strong> — Day End කරන විට, ඒ දිනයට save කළ සියල්ල ආපසු මේ Form එකට ගෙන්වා ගන්න.
           </div>
           <!-- Cashier handover buttons — visible for cashier role only -->
           <div id="cashierHandoverBtns" class="hidden" style="margin-top:.75rem;padding:.85rem 1rem;background:linear-gradient(135deg,#f0fdf4,#ecfdf5);border:1.5px solid #86efac;border-radius:12px;">
@@ -1466,6 +1472,16 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
             </div>
           </div>
         </div>
+      </div>
+      <div class="card" id="tempCashQueueCard" style="margin-bottom:1.2rem;display:none;">
+        <div class="card-head" style="background:linear-gradient(135deg,#fffbea,#fef3c7);border-bottom:2px solid #fde68a;">
+          <div class="card-title" style="color:#92400e;">
+            🕓 Temporary Transactions Queue
+            <span id="tempCashQueueBadge" class="badge badge-yellow" style="margin-left:.5rem;vertical-align:middle;">0</span>
+          </div>
+          <div class="card-actions" style="font-size:.78rem;color:var(--muted);">Saved during the day · not yet part of a Day End</div>
+        </div>
+        <div id="tempCashQueueList" style="padding:1.2rem;"></div>
       </div>
       <div class="card" id="cashHistCard">
         <div class="card-head">
@@ -4800,6 +4816,12 @@ function getCashCreditPayTotal() {
 let caRows = [];
 let caRowCounter = 0;
 
+// IDs of tempCashTransactions currently copied into the live form via
+// restoreTempCashTransactions() but not yet committed by a real Save Entry.
+// Purely in-memory (never persisted) — if the page reloads before saving, the
+// underlying temp records are untouched and can simply be restored again.
+let restoredTempIds = [];
+
 function fillEmployeeSelectOptions(id, currentVal) {
   const el = $(id);
   if (!el) return;
@@ -5657,8 +5679,10 @@ function initCashSection() {
   if ($('mgrCashLedgerCard')) $('mgrCashLedgerCard').style.display = isCashier() ? 'none' : '';
   if ($('cashSaveBtnsRow')) $('cashSaveBtnsRow').style.display = isCashier() ? 'none' : '';
   if ($('cashierHandoverBtns')) $('cashierHandoverBtns').classList.toggle('hidden', !isCashier());
+  if ($('tempCashHint')) $('tempCashHint').style.display = isCashier() ? 'none' : '';
   // Show pending handovers card for admin/manager
   renderPendingHandoversCard();
+  renderTempCashQueue();
 }
 
 function getCashLog() {
@@ -6831,6 +6855,10 @@ function resetCashForm() {
   resetCashPurchaseRows();
   resetCashCreditPayRows();
   calcCashNet();
+  // Forget which temp queue items were copied in — they're still safe in storage
+  // (untouched), so this just clears the "in form" marker, nothing is deleted.
+  restoredTempIds = [];
+  renderTempCashQueue();
 }
 
 async function saveCashEntry(handoverTarget) {
@@ -6996,6 +7024,14 @@ async function saveCashEntry(handoverTarget) {
   });
   if (advSlots.length || hadLinkedBefore) savePayrollDB();
 
+  // Any temporary transactions that were 📥 Restored into this save are now
+  // genuinely committed — drop them from the pending queue for good.
+  if (!editId && restoredTempIds.length) {
+    owner.tempCashTransactions = (owner.tempCashTransactions||[]).filter(t => !restoredTempIds.includes(t.id));
+    syncUser(owner);
+    restoredTempIds = [];
+  }
+
   resetCashForm();
   renderCash();
   renderOverview();
@@ -7009,6 +7045,240 @@ async function saveCashEntry(handoverTarget) {
   } else {
     toast(editId ? '✅ Cash entry updated!' : '✅ Cash entry saved!');
   }
+}
+
+/* ===== TEMPORARY CASH TRANSACTIONS =====
+   Lets a manager/admin record Cash Advances, Cash Purchases, Credit Bill Payments and
+   Banked/Other expenses AS THEY HAPPEN during the day — without knowing the day's final
+   Sales Breakdown yet, and without touching the real ledgers (supplier balances, credit
+   balances, payroll advances) until the actual Day End "💾 Save Entry" is done.
+   🕓 Save Temporarily  — snapshots whatever is filled in those 4 sections into
+                           DB.currentUser.tempCashTransactions, then clears just those
+                           sections so the next transaction can be entered fresh.
+   📥 Restore Temp Transactions — copies every queued transaction for the selected date
+                           back into the form (as extra rows / added banking amounts) so
+                           the normal Save Entry can commit everything together as usual. */
+
+function getTempCashQueue(user) {
+  return (user && Array.isArray(user.tempCashTransactions)) ? user.tempCashTransactions : [];
+}
+
+// Reads + validates the Advance / Purchase / Credit-Pay / Banking sections only —
+// deliberately mirrors the equivalent step inside saveCashEntry() but never touches
+// Sales Breakdown, since that total is usually only known once the day is over.
+function collectCashSubFormData() {
+  const advSlots = getCashAdvanceRowsData().filter(a => a.amount > 0);
+  for (const a of advSlots) {
+    if (!a.empId) return { error: '⚠️ Cash Advance එකට සේවකයා තෝරන්න' };
+  }
+  const purchaseRows = cpRows.map(i => {
+    const sel = supSelections['cp'+i];
+    return { supplierId: sel?.id||'', supplierName: sel?.name||'', ownerUsername: sel?.ownerUsername||DB.currentUsername, amount: Number($('cp'+i+'-amount')?.value)||0 };
+  }).filter(p => p.amount > 0);
+  for (const p of purchaseRows) {
+    if (!p.supplierId) return { error: '⚠️ Cash Purchase එකට Supplier කෙනෙක් තෝරන්න' };
+  }
+  const creditPayRows = ccpRows.map(i => {
+    const sel = supSelections['ccp'+i];
+    return { supplierId: sel?.id||'', supplierName: sel?.name||'', ownerUsername: sel?.ownerUsername||DB.currentUsername, creditId: $('ccp'+i+'-bill')?.value||'', amount: Number($('ccp'+i+'-amount')?.value)||0 };
+  }).filter(p => p.amount > 0);
+  for (const p of creditPayRows) {
+    if (!p.supplierId) return { error: '⚠️ Credit Bill Payment එකට Supplier කෙනෙක් තෝරන්න' };
+    if (!p.creditId) return { error: '⚠️ Credit Bill Payment එකට Bill එකක් තෝරන්න' };
+  }
+  const exp1=Number($('cm-exp1')?.value)||0, expr1=$('cm-expr1')?.value||'';
+  const exp2=Number($('cm-exp2')?.value)||0, expr2=$('cm-expr2')?.value||'';
+  const exp3=Number($('cm-exp3')?.value)||0, expr3=$('cm-expr3')?.value||'';
+  const expenses = [
+    {type:'pb', amount:exp1, reason:expr1},
+    {type:'sdb', amount:exp2, reason:expr2},
+    {type:'other', amount:exp3, reason:expr3}
+  ].filter(e => e.amount>0 || e.reason);
+  return { advSlots, purchaseRows, creditPayRows, expenses };
+}
+
+function summarizeTempRec(rec) {
+  const parts = [];
+  const advTotal = (rec.advances||[]).reduce((s,a)=>s+(Number(a.amount)||0),0);
+  const purTotal = (rec.purchases||[]).reduce((s,p)=>s+(Number(p.amount)||0),0);
+  const cpTotal = (rec.creditPayments||[]).reduce((s,p)=>s+(Number(p.amount)||0),0);
+  const expTotal = (rec.expenses||[]).reduce((s,e)=>s+(Number(e.amount)||0),0);
+  if (advTotal) parts.push(`💸 Advance ${fmt(advTotal)}`);
+  if (purTotal) parts.push(`🛒 Purchase ${fmt(purTotal)}`);
+  if (cpTotal) parts.push(`🧾 Credit Pay ${fmt(cpTotal)}`);
+  if (expTotal) parts.push(`🏦 Banked/Exp ${fmt(expTotal)}`);
+  return parts.join(' · ') || 'No amount';
+}
+
+function saveCashEntryTemp() {
+  if ($('cashEditId')?.dataset?.id) { toast('⚠️ Entry එකක් Edit කරන අතරතුර Temporary Save කරන්න බෑ', 'red'); return; }
+  const data = collectCashSubFormData();
+  if (data.error) { toast(data.error, 'red'); return; }
+  const { advSlots, purchaseRows, creditPayRows, expenses } = data;
+  if (!advSlots.length && !purchaseRows.length && !creditPayRows.length && !expenses.length) {
+    toast('⚠️ තාවකාලිකව Save කිරීමට කිසිවක් ඇතුළත් කර නැත', 'red');
+    return;
+  }
+  const cu = DB.currentUser;
+  if (!cu) return;
+  if (!Array.isArray(cu.tempCashTransactions)) cu.tempCashTransactions = [];
+  const rec = {
+    id: uid(),
+    date: $('cm-date')?.value || today(),
+    cashierIdx: isCashier() ? (Number(cu.cashierSlot)||0) : (Number($('cm-cashier')?.value)||0),
+    savedAt: new Date().toISOString(),
+    savedBy: DB.currentUsername,
+    savedByName: cu.name || DB.currentUsername,
+    advances: advSlots.map(a => ({ empId:a.empId, empName:getEmployee(a.empId)?.name||a.empId, amount:a.amount })),
+    purchases: purchaseRows.map(p => ({ supplierId:p.supplierId, supplierName:p.supplierName, ownerUsername:p.ownerUsername, amount:p.amount })),
+    creditPayments: creditPayRows.map(p => ({ supplierId:p.supplierId, supplierName:p.supplierName, creditId:p.creditId, ownerUsername:p.ownerUsername, amount:p.amount })),
+    expenses
+  };
+  cu.tempCashTransactions.push(rec);
+  syncUser(cu);
+  logActivity('CASH_TEMP_SAVE', `${rec.date} · ${summarizeTempRec(rec)}`);
+
+  // Clear just these 4 sections — Sales Breakdown, Date & Cashier stay untouched so the
+  // next mid-day transaction (or the eventual Day End sales entry) starts from a clean slate.
+  resetCashAdvanceRows();
+  resetCashPurchaseRows();
+  resetCashCreditPayRows();
+  ['cm-exp1','cm-expr1','cm-exp2','cm-expr2','cm-exp3','cm-expr3'].forEach(id=>{if($(id))$(id).value='';});
+  calcCashNet();
+  renderTempCashQueue();
+  toast('🕓 තාවකාලිකව Save කළා! තව transactions එකතු කරන්න, නැත්නම් Day End එකේදී 📥 Restore කරන්න.', 'green');
+}
+
+function renderTempCashQueue() {
+  const card = $('tempCashQueueCard');
+  const list = $('tempCashQueueList');
+  const badge = $('tempCashQueueBadge');
+  if (!card || !list) return;
+  if (isCashier() || !DB.currentUser) { card.style.display = 'none'; return; }
+
+  // Admin (and Manager, matching the same cross-business visibility already used for
+  // Cash Sale History / Reports elsewhere in this app) sees every business's queue;
+  // everyone else only ever sees their own.
+  const showAll = isAdmin() || isManager();
+  let rows = [];
+  if (showAll) {
+    DB.users.forEach(u => getTempCashQueue(u).forEach(t => rows.push({...t, _owner:u.username, _ownerName:u.name||u.username, _ownerBiz:u.business||''})));
+  } else {
+    rows = getTempCashQueue(DB.currentUser).map(t => ({...t, _owner:DB.currentUsername, _ownerName:DB.currentUser?.name||'', _ownerBiz:DB.currentUser?.business||''}));
+  }
+  rows.sort((a,b) => (b.savedAt||'').localeCompare(a.savedAt||''));
+
+  if (badge) badge.textContent = String(rows.length);
+  card.style.display = rows.length ? '' : 'none';
+  if (!rows.length) { list.innerHTML = ''; return; }
+
+  list.innerHTML = rows.map(t => {
+    const restored = t._owner === DB.currentUsername && restoredTempIds.includes(t.id);
+    const ownerTag = showAll ? `<span style="font-size:.72rem;color:#7c3aed;font-weight:700;background:#f5f3ff;padding:.15rem .55rem;border-radius:20px;">🏢 ${t._ownerName}${t._ownerBiz?' · '+t._ownerBiz:''}</span>` : '';
+    const restoredTag = restored ? `<span style="font-size:.72rem;color:#166534;font-weight:700;background:#f0fdf4;padding:.15rem .55rem;border-radius:20px;">📥 Form එකේ දැනට තිබෙනවා</span>` : '';
+    const canDelete = isAdmin() || t._owner === DB.currentUsername;
+    return `
+    <div style="border:1px solid #fde68a;background:#fffbeb;border-radius:12px;padding:.85rem 1rem;margin-bottom:.7rem;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:.5rem;margin-bottom:.4rem;">
+        <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
+          <span style="font-weight:700;color:#92400e;">📅 ${t.date}</span>
+          ${ownerTag}
+          ${restoredTag}
+        </div>
+        ${canDelete ? `<button class="btn btn-red btn-sm" onclick="deleteTempCashTransaction('${t.id}','${t._owner}')" title="Delete">🗑️</button>` : ''}
+      </div>
+      <div style="font-size:.85rem;color:var(--text);">${summarizeTempRec(t)}</div>
+      <div style="font-size:.72rem;color:var(--muted);margin-top:.3rem;">🕐 ${new Date(t.savedAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})} · by ${t.savedByName||t.savedBy}</div>
+    </div>`;
+  }).join('');
+}
+
+function deleteTempCashTransaction(id, ownerUsername) {
+  if (!isAdmin() && ownerUsername !== DB.currentUsername) { toast('⚠️ ඔබට වෙනත් අයෙකුගේ Temporary Entry Delete කළ නොහැක', 'red'); return; }
+  if (!confirm('Delete this temporary transaction?')) return;
+  const owner = getTargetUser(ownerUsername);
+  if (!owner) return;
+  owner.tempCashTransactions = (owner.tempCashTransactions||[]).filter(t => t.id !== id);
+  restoredTempIds = restoredTempIds.filter(x => x !== id);
+  syncUser(owner);
+  logActivity('CASH_TEMP_DELETE', `${ownerUsername} · ${id}`);
+  renderTempCashQueue();
+  toast('🗑️ තාවකාලික Entry එක Delete කළා', 'red');
+}
+
+function restoreTempCashTransactions() {
+  if ($('cashEditId')?.dataset?.id) { toast('⚠️ Entry එකක් Edit කරන අතරතුර Restore කරන්න බෑ', 'red'); return; }
+  const cu = DB.currentUser;
+  if (!cu) return;
+  const date = $('cm-date')?.value || today();
+  const queue = getTempCashQueue(cu);
+  const toRestore = queue.filter(t => t.date === date && !restoredTempIds.includes(t.id));
+  if (!toRestore.length) {
+    const otherDates = queue.filter(t => t.date !== date && !restoredTempIds.includes(t.id)).length;
+    toast(otherDates
+      ? `⚠️ ${date} සඳහා තාවකාලික Entries නැත (වෙනත් දිනවලට ${otherDates}ක් තිබේ — Date එක මාරු කර බලන්න)`
+      : '⚠️ Restore කිරීමට තාවකාලික Entries නැත', 'red');
+    return;
+  }
+
+  // Flatten every queued transaction being restored into simple row-lists to append.
+  const newAdvances = [], newPurchases = [], newCreditPays = [];
+  const bankedAdd = { pb:0, sdb:0, other:0 };
+  const bankedReasons = { pb:[], sdb:[], other:[] };
+  toRestore.forEach(t => {
+    (t.advances||[]).forEach(a => newAdvances.push(a));
+    (t.purchases||[]).forEach(p => newPurchases.push(p));
+    (t.creditPayments||[]).forEach(p => newCreditPays.push(p));
+    (t.expenses||[]).forEach(e => {
+      bankedAdd[e.type] = (bankedAdd[e.type]||0) + (Number(e.amount)||0);
+      if (e.reason) bankedReasons[e.type].push(e.reason);
+    });
+    restoredTempIds.push(t.id);
+  });
+
+  // Drop the default blank placeholder row (index 0) first, if it was never touched,
+  // so restored rows don't sit next to a confusing empty one.
+  if (cpRows.length===1 && !supSelections['cp'+cpRows[0]] && !Number($('cp'+cpRows[0]+'-amount')?.value)) cpRows = [];
+  if (ccpRows.length===1 && !supSelections['ccp'+ccpRows[0]] && !Number($('ccp'+ccpRows[0]+'-amount')?.value)) ccpRows = [];
+
+  const advStart = caRows.length, purStart = cpRows.length, cpayStart = ccpRows.length;
+  newAdvances.forEach(() => caRows.push(caRowCounter++));
+  newPurchases.forEach(() => cpRows.push(cpRowCounter++));
+  newCreditPays.forEach(() => ccpRows.push(ccpRowCounter++));
+  if (!cpRows.length) cpRows = [0];
+  if (!ccpRows.length) ccpRows = [0];
+
+  populateEmployeeSelects();
+  renderCashAdvanceRows();
+  renderCashPurchaseRows();
+  renderCashCreditPayRows();
+
+  newAdvances.forEach((a, k) => {
+    const idx = caRows[advStart + k];
+    if ($('cm-adv-emp'+idx)) $('cm-adv-emp'+idx).value = a.empId||'';
+    if ($('cm-adv-amt'+idx)) $('cm-adv-amt'+idx).value = a.amount||'';
+  });
+  newPurchases.forEach((p, k) => {
+    const idx = cpRows[purStart + k];
+    if (p.supplierId) selectSupplier('cp'+idx, p.supplierId, p.supplierName||p.supplierId, p.ownerUsername||DB.currentUsername);
+    if ($('cp'+idx+'-amount')) $('cp'+idx+'-amount').value = p.amount||'';
+  });
+  newCreditPays.forEach((p, k) => {
+    const idx = ccpRows[cpayStart + k];
+    if (p.supplierId) selectSupplier('ccp'+idx, p.supplierId, p.supplierName||p.supplierId, p.ownerUsername||DB.currentUsername);
+    if ($('ccp'+idx+'-bill')) $('ccp'+idx+'-bill').value = p.creditId||'';
+    if ($('ccp'+idx+'-amount')) $('ccp'+idx+'-amount').value = p.amount||'';
+  });
+  [['pb','cm-exp1','cm-expr1'], ['sdb','cm-exp2','cm-expr2'], ['other','cm-exp3','cm-expr3']].forEach(([type, amtId, reasonId]) => {
+    if (!bankedAdd[type]) return;
+    const amtEl = $(amtId), reasonEl = $(reasonId);
+    if (amtEl) amtEl.value = (Number(amtEl.value)||0) + bankedAdd[type];
+    if (reasonEl && bankedReasons[type].length) reasonEl.value = [reasonEl.value, ...bankedReasons[type]].filter(Boolean).join('; ');
+  });
+
+  calcCashNet();
+  renderTempCashQueue();
+  toast(`📥 තාවකාලික Transactions ${toRestore.length}ක් Form එකට Restore කළා!`, 'green');
 }
 
 function editCashEntry(id, ownerUsername) {
@@ -8495,7 +8765,7 @@ function renderActivityLog() {
     renderPagination('activityPagination', 0, activityLogPage, 'goActivityLogPage', ACTIVITY_PAGE_SIZE);
     return;
   }
-  const icons={ADD_CREDIT:'💳',EDIT_CREDIT:'✏️',DEL_CREDIT:'🗑️',ADD_CHEQUE:'✅',EDIT_CHEQUE:'✏️',DEL_CHEQUE:'🗑️',ADD_PAYMENT:'💰',DEL_PAYMENT:'💰',ADD_SUPPLIER:'🏪',EDIT_SUPPLIER:'✏️',DEL_SUPPLIER:'🗑️',ADD_USER:'👥',EDIT_USER:'✏️',DEL_USER:'🗑️',LOGIN:'🔓',LOGOUT:'🔒',REGISTER:'✨',BACKUP:'📥',CHEQUE_LINK:'🔗',ADD_EMPLOYEE:'🧑‍💼',EDIT_EMPLOYEE:'✏️',DEL_EMPLOYEE:'🗑️',ADD_ADVANCE:'💸',DEL_ADVANCE:'🗑️',PROCESS_PAYROLL:'🧮',DEL_PAYROLL:'🗑️',DEL_CASH_PURCHASE:'🛒',MARK_ATTENDANCE:'🗓️',EDIT_ATTENDANCE:'✏️',DEL_ATTENDANCE:'🗑️',CASH_LOG:'💵',EDIT_CASH_LOG:'✏️',DEL_CASH_LOG:'🗑️',ADD_CASH:'💵',EDIT_CASH:'✏️',DEL_CASH:'🗑️',ADD_RELOAD:'📶',EDIT_RELOAD:'✏️',DEL_RELOAD:'🗑️'};
+  const icons={ADD_CREDIT:'💳',EDIT_CREDIT:'✏️',DEL_CREDIT:'🗑️',ADD_CHEQUE:'✅',EDIT_CHEQUE:'✏️',DEL_CHEQUE:'🗑️',ADD_PAYMENT:'💰',DEL_PAYMENT:'💰',ADD_SUPPLIER:'🏪',EDIT_SUPPLIER:'✏️',DEL_SUPPLIER:'🗑️',ADD_USER:'👥',EDIT_USER:'✏️',DEL_USER:'🗑️',LOGIN:'🔓',LOGOUT:'🔒',REGISTER:'✨',BACKUP:'📥',CHEQUE_LINK:'🔗',ADD_EMPLOYEE:'🧑‍💼',EDIT_EMPLOYEE:'✏️',DEL_EMPLOYEE:'🗑️',ADD_ADVANCE:'💸',DEL_ADVANCE:'🗑️',PROCESS_PAYROLL:'🧮',DEL_PAYROLL:'🗑️',DEL_CASH_PURCHASE:'🛒',MARK_ATTENDANCE:'🗓️',EDIT_ATTENDANCE:'✏️',DEL_ATTENDANCE:'🗑️',CASH_LOG:'💵',EDIT_CASH_LOG:'✏️',DEL_CASH_LOG:'🗑️',ADD_CASH:'💵',EDIT_CASH:'✏️',DEL_CASH:'🗑️',ADD_RELOAD:'📶',EDIT_RELOAD:'✏️',DEL_RELOAD:'🗑️',CASH_TEMP_SAVE:'🕓',CASH_TEMP_DELETE:'🗑️'};
   const pageLogs = filtered.slice((activityLogPage-1)*ACTIVITY_PAGE_SIZE, activityLogPage*ACTIVITY_PAGE_SIZE);
   tbody.innerHTML = pageLogs.map(e=>`<tr>
     <td style="font-size:.78rem;white-space:nowrap;">${e.ts?new Date(e.ts).toLocaleString():'—'}</td>
