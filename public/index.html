@@ -1423,6 +1423,13 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
             <span style="font-weight:700;color:#6d28d9;">🛒 Total Cash Purchases</span>
             <span id="cm-total-purchase" style="font-size:1.1rem;font-weight:700;color:#6d28d9;">LKR 0.00</span>
           </div>
+          <p style="font-weight:700;color:#0f766e;margin:.8rem 0 .5rem;">🧾 Pay Credit Bills (Cash)</p>
+          <div id="cash-creditpay-rows"></div>
+          <button type="button" class="btn btn-ghost btn-sm" style="margin-bottom:.6rem;" onclick="addCashCreditPayRow()">➕ Add Credit Bill Payment</button>
+          <div style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:10px;padding:.8rem 1.1rem;margin:.6rem 0;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-weight:700;color:#0f766e;">🧾 Total Credit Bill Payments</span>
+            <span id="cm-total-creditpay" style="font-size:1.1rem;font-weight:700;color:#0f766e;">LKR 0.00</span>
+          </div>
           <p style="font-weight:700;color:var(--red);margin:.8rem 0 .5rem;">💸 Expenses And Withdraws (up to 3)</p>
           <div style="display:grid;grid-template-columns:150px minmax(0,1fr);gap:.6rem;margin-bottom:.5rem;">
             <div class="form-group" style="margin:0;"><label>Banked (PB)</label><input type="number" id="cm-exp1" placeholder="0.00" step="0.01" min="0" oninput="calcCashNet()"></div>
@@ -1497,6 +1504,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
                 <option value="banked">🏦 Banked</option>
                 <option value="handed_owner">👑 Handed to Owner</option>
                 <option value="cash_purchase">🛒 Cash Purchase (Supplier)</option>
+                <option value="credit_payment">🧾 Pay Credit Bill (Cash)</option>
                 <option value="other1">📝 Other Reason 1</option>
                 <option value="other2">📝 Other Reason 2</option>
                 <option value="other3">📝 Other Reason 3</option>
@@ -1516,6 +1524,24 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
                 <button type="button" onclick="clearSupSelection('clp')" title="Change">✕</button>
               </div>
             </div>
+          </div>
+          <div class="form-group hidden" id="cl-credit-supplier-group" style="max-width:420px;">
+            <label>🏪 Supplier</label>
+            <div class="sup-search-wrap">
+              <input type="text" id="clc-sup-search" class="sup-search-input" placeholder="🔍 Search supplier..."
+                     autocomplete="off" onfocus="openSupDropdown('clc')" oninput="filterSupDropdown('clc')">
+              <input type="hidden" id="clc-sup-id">
+              <div id="clc-sup-dropdown" class="sup-dropdown"></div>
+              <div id="clc-sup-selected" class="sup-selected-tag" style="display:none;">
+                <span id="clc-sup-selected-name"></span>
+                <button type="button" onclick="clearSupSelection('clc')" title="Change">✕</button>
+              </div>
+            </div>
+          </div>
+          <div class="form-group hidden" id="cl-credit-bill-wrap" style="max-width:420px;">
+            <label>🧾 Credit Bill</label>
+            <select id="clc-bill"><option value="">— Select supplier first —</option></select>
+            <div style="font-size:.78rem;color:var(--muted);margin-top:.4rem;">⚡ Amount will be recorded as a payment against this bill, and deducted from Cash-in-Hand</div>
           </div>
           <input type="hidden" id="cl-edit-id">
           <div style="display:flex;gap:.6rem;align-items:center;">
@@ -2567,7 +2593,7 @@ const ETF_EMPLOYER_RATE = 0.03;
 let fdb = null;
 let usersCol = null;
 let liveUnsub = null;
-let supSelections = { cr: null, ch: null, clp: null };
+let supSelections = { cr: null, ch: null, clp: null, clc: null };
 
 function firebaseReady() {
   return typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length > 0 && !!fdb;
@@ -4558,6 +4584,7 @@ function selectSupplier(prefix, id, name, ownerUsername) {
   $(`${prefix}-sup-selected-name`).textContent = '🏪 ' + name + (ownerUsername && isAdmin() ? ' (' + ownerUsername + ')' : '');
   selDiv.style.display = 'flex';
   if (prefix === 'ch') updateChequeCreditLink(id, ownerUsername || DB.currentUsername);
+  if (prefix === 'clc' || prefix.indexOf('ccp') === 0) updateCreditBillOptions(prefix, id, ownerUsername || DB.currentUsername);
 }
 
 function clearSupSelection(prefix) {
@@ -4567,6 +4594,22 @@ function clearSupSelection(prefix) {
   $(`${prefix}-sup-search`).style.display = '';
   $(`${prefix}-sup-selected`).style.display = 'none';
   $(`${prefix}-sup-dropdown`).classList.remove('open');
+  const billSel = $(`${prefix}-bill`);
+  if (billSel) billSel.innerHTML = '<option value="">— Select supplier first —</option>';
+}
+
+// Populates a "<prefix>-bill" <select> with the chosen supplier's outstanding (unsettled)
+// credit bills — used both by the Cash Disposal Log's "Pay Credit Bill (Cash)" type and by
+// the daily Cash Management entry's "Pay Credit Bills (Cash)" rows.
+function updateCreditBillOptions(prefix, supplierId, ownerUsername) {
+  const sel = $(`${prefix}-bill`);
+  if (!sel) return;
+  if (!supplierId) { sel.innerHTML = '<option value="">— Select supplier first —</option>'; return; }
+  const owner = getTargetUser(ownerUsername || DB.currentUsername);
+  const actives = owner ? (owner.credits || []).filter(c => c.supplierId === supplierId && !isCreditSettled(c)) : [];
+  if (!actives.length) { sel.innerHTML = '<option value="">— No outstanding bills —</option>'; return; }
+  sel.innerHTML = '<option value="">— Select a credit bill —</option>' +
+    actives.map(c => `<option value="${c.id}">${c.entryId} · ${fmt(c.amount)} · Bal: ${fmt(getCreditBalance(c))}</option>`).join('');
 }
 
 /* ===== CASH PURCHASE (dynamic rows within the Cash tab daily entry form) ===== */
@@ -4671,6 +4714,86 @@ function resetCashPurchaseRows() {
 
 function getCashPurchaseTotal() {
   return cpRows.reduce((sum, i) => sum + (Number($('cp' + i + '-amount')?.value) || 0), 0);
+}
+
+/* ===== PAY CREDIT BILLS WITH CASH (dynamic rows within the Cash tab daily entry form) =====
+   Same UI pattern as Cash Purchase rows above, but instead of recording a fresh purchase,
+   each row pays down a specific EXISTING credit bill for a chosen supplier straight out of
+   today's cash — reducing both today's Net Cash and (through it) Manager Cash-in-Hand. */
+let ccpRows = [0];
+let ccpRowCounter = 1;
+
+function renderCashCreditPayRows() {
+  const wrap = $('cash-creditpay-rows');
+  if (!wrap) return;
+  // Same rebuild-then-restore approach as renderCashPurchaseRows — preserves amounts and
+  // the chosen credit bill in every OTHER row while this one rebuilds.
+  const amounts = {}, bills = {};
+  ccpRows.forEach(i => {
+    const a = $('ccp'+i+'-amount'); if (a) amounts[i] = a.value;
+    const b = $('ccp'+i+'-bill'); if (b) bills[i] = b.value;
+  });
+  wrap.innerHTML = ccpRows.map(i => `
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 110px auto;gap:.6rem;margin-bottom:.6rem;align-items:end;">
+      <div class="form-group" style="margin:0;">
+        <label>Supplier</label>
+        <div class="sup-search-wrap">
+          <input type="text" id="ccp${i}-sup-search" class="sup-search-input" placeholder="🔍 Search supplier..." autocomplete="off" onfocus="openCashPurchaseSupDropdown('ccp${i}')" oninput="filterCashPurchaseSupplierDropdown('ccp${i}')">
+          <input type="hidden" id="ccp${i}-sup-id">
+          <div id="ccp${i}-sup-dropdown" class="sup-dropdown"></div>
+          <div id="ccp${i}-sup-selected" class="sup-selected-tag" style="display:none;">
+            <span id="ccp${i}-sup-selected-name"></span>
+            <button type="button" onclick="clearSupSelection('ccp${i}')" title="Change" style="background:none;border:none;cursor:pointer;color:var(--navy3);font-weight:700;">✕</button>
+          </div>
+        </div>
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label>Credit Bill</label>
+        <select id="ccp${i}-bill" onchange="calcCashNet()"><option value="">— Select supplier first —</option></select>
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label>Amount (LKR)</label>
+        <input type="number" id="ccp${i}-amount" placeholder="0.00" step="0.01" min="0" oninput="calcCashNet()">
+      </div>
+      <button type="button" class="btn btn-red btn-sm" onclick="removeCashCreditPayRow(${i})" title="Remove row" style="height:47px;${ccpRows.length <= 1 ? 'visibility:hidden;' : ''}">🗑️</button>
+    </div>
+  `).join('');
+  ccpRows.forEach(i => {
+    const sel = supSelections['ccp'+i];
+    if (sel) {
+      $(`ccp${i}-sup-id`).value = sel.id;
+      $(`ccp${i}-sup-search`).style.display = 'none';
+      $(`ccp${i}-sup-selected-name`).textContent = '🏪 ' + sel.name + (sel.ownerUsername && isAdmin() ? ' (' + sel.ownerUsername + ')' : '');
+      $(`ccp${i}-sup-selected`).style.display = 'flex';
+      updateCreditBillOptions('ccp'+i, sel.id, sel.ownerUsername);
+    }
+    if (bills[i] && $('ccp'+i+'-bill')) $('ccp'+i+'-bill').value = bills[i];
+    if (amounts[i]) { const el = $('ccp'+i+'-amount'); if (el) el.value = amounts[i]; }
+  });
+}
+
+function addCashCreditPayRow() {
+  ccpRows.push(ccpRowCounter++);
+  renderCashCreditPayRows();
+}
+
+function removeCashCreditPayRow(i) {
+  if (ccpRows.length <= 1) return;
+  supSelections['ccp' + i] = null;
+  ccpRows = ccpRows.filter(r => r !== i);
+  renderCashCreditPayRows();
+  calcCashNet();
+}
+
+function resetCashCreditPayRows() {
+  ccpRows.forEach(i => { supSelections['ccp' + i] = null; });
+  ccpRows = [0];
+  ccpRowCounter = 1;
+  renderCashCreditPayRows();
+}
+
+function getCashCreditPayTotal() {
+  return ccpRows.reduce((sum, i) => sum + (Number($('ccp' + i + '-amount')?.value) || 0), 0);
 }
 
 /* ===== CASH ADVANCE TO EMPLOYEES (dynamic rows within the Cash tab daily entry form) ===== */
@@ -5500,6 +5623,7 @@ function saveCashierSettings() {
 function initCashSection() {
   populateEmployeeSelects();
   if ($('cash-purchase-rows') && !$('cash-purchase-rows').innerHTML.trim()) renderCashPurchaseRows();
+  if ($('cash-creditpay-rows') && !$('cash-creditpay-rows').innerHTML.trim()) renderCashCreditPayRows();
   if ($('cash-advance-rows') && !$('cash-advance-rows').innerHTML.trim()) renderCashAdvanceRows();
   const cm=$('cm-date');
   if (cm) {
@@ -5545,12 +5669,20 @@ function getCashLog() {
 function onCashLogTypeChange() {
   const type = $('cl-type')?.value || 'banked';
   const grp = $('cl-supplier-group');
-  if (!grp) return;
+  const cgrp = $('cl-credit-supplier-group');
+  const bgrp = $('cl-credit-bill-wrap');
+  if (!grp || !cgrp || !bgrp) return;
   if (type === 'cash_purchase') {
     grp.classList.remove('hidden');
-  } else {
+    cgrp.classList.add('hidden'); bgrp.classList.add('hidden');
+    clearSupSelection('clc');
+  } else if (type === 'credit_payment') {
+    cgrp.classList.remove('hidden'); bgrp.classList.remove('hidden');
     grp.classList.add('hidden');
     clearSupSelection('clp');
+  } else {
+    grp.classList.add('hidden'); cgrp.classList.add('hidden'); bgrp.classList.add('hidden');
+    clearSupSelection('clp'); clearSupSelection('clc');
   }
 }
 
@@ -5567,8 +5699,12 @@ function editCashLogEntry(id) {
   onCashLogTypeChange();
   if (entry.type === 'cash_purchase' && entry.supplierId) {
     selectSupplier('clp', entry.supplierId, entry.supplierName || '', entry.supplierOwnerUsername || DB.currentUsername);
+  } else if (entry.type === 'credit_payment' && entry.supplierId) {
+    selectSupplier('clc', entry.supplierId, entry.supplierName || '', entry.creditOwnerUsername || DB.currentUsername);
+    if ($('clc-bill')) $('clc-bill').value = entry.creditId || '';
   } else {
     clearSupSelection('clp');
+    clearSupSelection('clc');
   }
   if ($('cl-save-btn')) $('cl-save-btn').innerHTML = '💾 Update Log Entry';
   $('cl-cancel-btn')?.classList.remove('hidden');
@@ -5592,6 +5728,33 @@ function saveCashLogEntry() {
   const type=$('cl-type')?.value||'banked', desc=$('cl-desc')?.value||'';
   if (!date||!amount){toast('Date and Amount required','red');return;}
 
+  const admin=getUserByUsername('admin');
+  if (!admin) return;
+  if (!admin.cashLog) admin.cashLog=[];
+  const editId = $('cl-edit-id')?.value || '';
+  const existingEntry = editId ? admin.cashLog.find(e => e.id === editId) : null;
+
+  // If editing, strip out whatever this entry previously mirrored elsewhere (a cash purchase
+  // ledger row, or a payment against a credit bill) BEFORE validating the new values below —
+  // the type / supplier / bill / amount may all have changed since the entry was created.
+  if (editId && existingEntry) {
+    if (existingEntry.type === 'cash_purchase' && existingEntry.supplierOwnerUsername) {
+      const oldSupOwner = getUserByUsername(existingEntry.supplierOwnerUsername);
+      if (oldSupOwner && oldSupOwner.cashPurchases) {
+        oldSupOwner.cashPurchases = oldSupOwner.cashPurchases.filter(p => p.cashLogId !== editId);
+        syncUser(oldSupOwner);
+      }
+    }
+    if (existingEntry.type === 'credit_payment' && existingEntry.creditOwnerUsername) {
+      const oldOwner = getUserByUsername(existingEntry.creditOwnerUsername);
+      const oldCredit = oldOwner && (oldOwner.credits||[]).find(c => c.id === existingEntry.creditId);
+      if (oldCredit && oldCredit.payments) {
+        oldCredit.payments = oldCredit.payments.filter(p => p.cashLogId !== editId);
+        syncUser(oldOwner);
+      }
+    }
+  }
+
   // Cash purchases made straight from cash-in-hand (not via a cashier's daily register)
   let supplierId='', supplierName='', supplierOwnerUsername='';
   if (type === 'cash_purchase') {
@@ -5600,27 +5763,29 @@ function saveCashLogEntry() {
     supplierId = sel.id; supplierName = sel.name; supplierOwnerUsername = sel.ownerUsername || DB.currentUsername;
   }
 
-  const admin=getUserByUsername('admin');
-  if (!admin) return;
-  if (!admin.cashLog) admin.cashLog=[];
+  // Credit bill payments made straight from cash-in-hand — validated against the bill's
+  // CURRENT balance, which by now already excludes this same entry's own old contribution
+  let creditId='', creditOwnerUsername='';
+  if (type === 'credit_payment') {
+    const sel = supSelections['clc'];
+    if (!sel || !sel.id) { toast('⚠️ Credit Bill Payment එකට Supplier කෙනෙක් තෝරන්න', 'red'); return; }
+    creditId = $('clc-bill')?.value || '';
+    if (!creditId) { toast('⚠️ Credit Bill Payment එකට Bill එකක් තෝරන්න', 'red'); return; }
+    supplierId = sel.id; supplierName = sel.name; supplierOwnerUsername = sel.ownerUsername || DB.currentUsername;
+    creditOwnerUsername = supplierOwnerUsername;
+    const creditOwner = getUserByUsername(creditOwnerUsername);
+    const credit = creditOwner && (creditOwner.credits||[]).find(c => c.id === creditId);
+    if (!credit) { toast('⚠️ Credit bill not found', 'red'); return; }
+    const bal = getCreditBalance(credit);
+    if (amount > bal + 0.001) { toast('⚠️ මුදල ක්‍රෙඩිට් බිල් ශේෂයට වඩා වැඩියි! ශේෂය: '+fmt(bal), 'red'); return; }
+  }
 
-  const editId = $('cl-edit-id')?.value || '';
-  const existingEntry = editId ? admin.cashLog.find(e => e.id === editId) : null;
   let logId = editId;
-
   if (editId && existingEntry) {
-    // Remove any mirrored supplier-ledger entry from BEFORE the edit — the type,
-    // supplier, or amount may have changed, so the old mirror can't just be updated in place.
-    if (existingEntry.type === 'cash_purchase' && existingEntry.supplierOwnerUsername) {
-      const oldSupOwner = getUserByUsername(existingEntry.supplierOwnerUsername);
-      if (oldSupOwner && oldSupOwner.cashPurchases) {
-        oldSupOwner.cashPurchases = oldSupOwner.cashPurchases.filter(p => p.cashLogId !== editId);
-        syncUser(oldSupOwner);
-      }
-    }
     Object.assign(existingEntry, {
       date, type, amount, description: desc,
       supplierId: supplierId||undefined, supplierName: supplierName||undefined, supplierOwnerUsername: supplierOwnerUsername||undefined,
+      creditId: creditId||undefined, creditOwnerUsername: creditOwnerUsername||undefined,
       updatedAt: new Date().toISOString(), updatedBy: DB.currentUsername, updatedByName: DB.currentUser?.name||''
     });
   } else {
@@ -5628,6 +5793,7 @@ function saveCashLogEntry() {
     admin.cashLog.unshift({
       id:logId, date, type, amount, description:desc,
       supplierId: supplierId||undefined, supplierName: supplierName||undefined, supplierOwnerUsername: supplierOwnerUsername||undefined,
+      creditId: creditId||undefined, creditOwnerUsername: creditOwnerUsername||undefined,
       actor:DB.currentUsername, actorName:DB.currentUser?.name||''
     });
   }
@@ -5649,19 +5815,34 @@ function saveCashLogEntry() {
     }
   }
 
+  // Record this as a payment against the linked credit bill — the bill's balance drops as
+  // if it had been paid off directly, and the amount already left Cash-in-Hand via cashLog
+  if (type === 'credit_payment' && creditId) {
+    const creditOwner = getUserByUsername(creditOwnerUsername);
+    const credit = creditOwner && (creditOwner.credits||[]).find(c => c.id === creditId);
+    if (credit) {
+      if (!credit.payments) credit.payments = [];
+      credit.payments.push({ id: uid(), amount, date, note: '💰 Paid via Cash Disposal Log (Cash-in-Hand)', cashLogId: logId });
+      touchSupplier(creditOwner, supplierId);
+      syncUser(creditOwner);
+    }
+  }
+
   // If Manager hands to Owner — create confirmation notification for Admin
   if (!editId && type === 'handed_owner' && isManager()) {
     createHandoverNotification('owner', amount, date);
     toast('✅ Log entry added + Owner notified 👑', 'green');
   } else if (!editId && type === 'cash_purchase') {
     toast('✅ Cash purchase recorded from Cash-in-Hand!', 'green');
+  } else if (!editId && type === 'credit_payment') {
+    toast('✅ Credit bill payment recorded from Cash-in-Hand!', 'green');
   } else {
     toast(editId ? '✅ Log entry updated!' : '✅ Log entry added!');
   }
 
   cancelEditCashLogEntry();
   cashLogPage = 1;
-  renderCashLog(); renderOverview();
+  renderCashLog(); renderOverview(); renderCredits();
   if (typeof renderCashPurchaseHistory === 'function') renderCashPurchaseHistory();
   if (DB.analyticsOpen) renderSupplierAnalytics();
 }
@@ -5683,7 +5864,16 @@ function deleteCashLogEntry(id) {
       syncUser(supOwner);
     }
   }
-  renderCashLog(); renderOverview();
+  // Clean up the linked credit bill payment, if this was a credit_payment entry
+  if (entry && entry.type === 'credit_payment' && entry.creditOwnerUsername) {
+    const creditOwner = getUserByUsername(entry.creditOwnerUsername);
+    const credit = creditOwner && (creditOwner.credits||[]).find(c => c.id === entry.creditId);
+    if (credit && credit.payments) {
+      credit.payments = credit.payments.filter(p => p.cashLogId !== id);
+      syncUser(creditOwner);
+    }
+  }
+  renderCashLog(); renderOverview(); renderCredits();
   if (typeof renderCashPurchaseHistory === 'function') renderCashPurchaseHistory();
   if (DB.analyticsOpen) renderSupplierAnalytics();
   toast('🗑️ Log entry deleted','red');
@@ -6430,9 +6620,16 @@ function renderPagination(containerId, totalRows, currentPage, fnName, pageSize)
 function goCashLogPage(p) { cashLogPage = p; renderCashLog(); }
 
 function buildCashLogRowHtml(e, labels) {
-  const descText = e.type === 'cash_purchase'
-    ? `🏪 ${e.supplierName||'—'}${isAdmin() && e.supplierOwnerUsername ? ` <span class="user-data-badge">${e.supplierOwnerUsername}</span>` : ''}${e.description ? ` — ${e.description}` : ''}`
-    : (e.description||'—');
+  let descText;
+  if (e.type === 'cash_purchase') {
+    descText = `🏪 ${e.supplierName||'—'}${isAdmin() && e.supplierOwnerUsername ? ` <span class="user-data-badge">${e.supplierOwnerUsername}</span>` : ''}${e.description ? ` — ${e.description}` : ''}`;
+  } else if (e.type === 'credit_payment') {
+    const creditOwner = e.creditOwnerUsername ? getUserByUsername(e.creditOwnerUsername) : null;
+    const credit = creditOwner ? (creditOwner.credits||[]).find(c => c.id === e.creditId) : null;
+    descText = `🏪 ${e.supplierName||'—'}${credit ? ` <span class="entry-id">${credit.entryId}</span>` : ''}${isAdmin() && e.creditOwnerUsername ? ` <span class="user-data-badge">${e.creditOwnerUsername}</span>` : ''}${e.description ? ` — ${e.description}` : ''}`;
+  } else {
+    descText = e.description||'—';
+  }
   return `<tr>
     <td>${e.date||'—'}</td><td>${labels[e.type]||e.type}</td>
     <td class="fw700">${fmt(e.amount)}</td>
@@ -6447,7 +6644,7 @@ function renderCashLog() {
   if($('cashInHandDisplay'))$('cashInHandDisplay').textContent=fmt(cih);
   if($('ov-cash-inhand'))$('ov-cash-inhand').textContent=fmt(cih);
   const logs=getCashLog();
-  const labels={banked:'🏦 Banked',handed_owner:'🤝 Handed to Owner',cash_purchase:'🛒 Cash Purchase',other1:'📝 Other 1',other2:'📝 Other 2',other3:'📝 Other 3'};
+  const labels={banked:'🏦 Banked',handed_owner:'🤝 Handed to Owner',cash_purchase:'🛒 Cash Purchase',credit_payment:'🧾 Credit Bill Payment',other1:'📝 Other 1',other2:'📝 Other 2',other3:'📝 Other 3'};
 
   // Cash page — quick glance: 3 most recent disposal log entries
   const recentBody = $('cashLogRecentBody');
@@ -6500,7 +6697,7 @@ function getMgrLedgerCutoffDate() {
 function getManagerCashLedger() {
   const cutoff = getMgrLedgerCutoffDate();
   const cashiers = getCashiers();
-  const disposalLabels = {banked:'🏦 Banked',handed_owner:'🤝 Handed to Owner',cash_purchase:'🛒 Cash Purchase',other1:'📝 Other 1',other2:'📝 Other 2',other3:'📝 Other 3'};
+  const disposalLabels = {banked:'🏦 Banked',handed_owner:'🤝 Handed to Owner',cash_purchase:'🛒 Cash Purchase',credit_payment:'🧾 Credit Bill Payment',other1:'📝 Other 1',other2:'📝 Other 2',other3:'📝 Other 3'};
   const items = [];
 
   // Additions — Net Cash kept in hand from every Day Sale entry
@@ -6519,7 +6716,7 @@ function getManagerCashLedger() {
     items.push({
       date: e.date, id: e.id||'', kind:'out', amount: Number(e.amount)||0,
       label: disposalLabels[e.type]||e.type,
-      detail: e.type==='cash_purchase' ? `🏪 ${e.supplierName||'—'}${e.description?' — '+e.description:''}` : (e.description||'—'),
+      detail: (e.type==='cash_purchase' || e.type==='credit_payment') ? `🏪 ${e.supplierName||'—'}${e.description?' — '+e.description:''}` : (e.description||'—'),
       by: e.actor||'—', byName: e.actorName||''
     });
   });
@@ -6608,14 +6805,16 @@ function calcCashNet() {
   const totalSales = cash+credit+card+qr+cheque;
   const totalAdv = getCashAdvanceTotal();
   const totalPurchase = getCashPurchaseTotal();
+  const totalCreditPay = getCashCreditPayTotal();
   const exp1 = Number($('cm-exp1')?.value)||0;
   const exp2 = Number($('cm-exp2')?.value)||0;
   const exp3 = Number($('cm-exp3')?.value)||0;
   const totalExp = exp1+exp2+exp3;
-  const netCash = cash-totalAdv-totalPurchase-totalExp;
+  const netCash = cash-totalAdv-totalPurchase-totalCreditPay-totalExp;
   if($('cm-total-sales'))$('cm-total-sales').textContent = fmt(totalSales);
   if($('cm-total-adv'))$('cm-total-adv').textContent = fmt(totalAdv);
   if($('cm-total-purchase'))$('cm-total-purchase').textContent = fmt(totalPurchase);
+  if($('cm-total-creditpay'))$('cm-total-creditpay').textContent = fmt(totalCreditPay);
   if($('cm-total-exp'))$('cm-total-exp').textContent = fmt(totalExp);
   if($('cm-net-cash'))$('cm-net-cash').textContent = fmt(netCash);
 }
@@ -6630,6 +6829,7 @@ function resetCashForm() {
   const ei=$('cashEditId'); if(ei){ei.dataset.id='';ei.dataset.owner='';}
   resetCashAdvanceRows();
   resetCashPurchaseRows();
+  resetCashCreditPayRows();
   calcCashNet();
 }
 
@@ -6669,6 +6869,32 @@ async function saveCashEntry(handoverTarget) {
   }
   const totalPurchase = purchaseRows.reduce((s,p)=>s+p.amount,0);
 
+  // Credit bill payments entered against this cash entry (dynamic rows, one per supplier bill) —
+  // validated WITHOUT mutating anything yet (this entry's own old linked payments, if editing,
+  // are excluded from the balance check below, but not actually stripped until after all
+  // validation passes, so an aborted save never leaves a bill's payment history half-changed).
+  const creditPayRows = ccpRows.map(i => {
+    const sel = supSelections['ccp'+i];
+    return { supplierId: sel?.id||'', supplierName: sel?.name||'', ownerUsername: sel?.ownerUsername||editOwner, creditId: $('ccp'+i+'-bill')?.value||'', amount: Number($('ccp'+i+'-amount')?.value)||0 };
+  }).filter(p => p.amount > 0);
+  for (const p of creditPayRows) {
+    if (!p.supplierId) { toast('⚠️ Credit Bill Payment එකට Supplier කෙනෙක් තෝරන්න', 'red'); return; }
+    if (!p.creditId) { toast('⚠️ Credit Bill Payment එකට Bill එකක් තෝරන්න', 'red'); return; }
+  }
+  const creditBalanceTracker = {};
+  for (const p of creditPayRows) {
+    const creditOwner = getTargetUser(p.ownerUsername);
+    const credit = creditOwner && (creditOwner.credits||[]).find(c => c.id === p.creditId);
+    if (!credit) { toast('⚠️ Credit bill not found', 'red'); return; }
+    if (!(p.creditId in creditBalanceTracker)) {
+      const ownOldContribution = editId ? (credit.payments||[]).filter(pay => pay.cashEntryId === editId).reduce((s,pay)=>s+(Number(pay.amount)||0),0) : 0;
+      creditBalanceTracker[p.creditId] = getCreditBalance(credit) + ownOldContribution;
+    }
+    creditBalanceTracker[p.creditId] -= p.amount;
+    if (creditBalanceTracker[p.creditId] < -0.001) { toast(`⚠️ ${p.supplierName} credit bill ශේෂයට වඩා මුදල වැඩියි!`, 'red'); return; }
+  }
+  const totalCreditPay = creditPayRows.reduce((s,p)=>s+p.amount,0);
+
   // Guard: if editing, block if any previously-linked advance was already used in a processed payroll
   if (editId) {
     const linkedSettled = PDB.advances.some(a => a.cashEntryId === editId && a.settled);
@@ -6676,7 +6902,7 @@ async function saveCashEntry(handoverTarget) {
   }
 
   const exp1=Number($('cm-exp1')?.value)||0, exp2=Number($('cm-exp2')?.value)||0, exp3=Number($('cm-exp3')?.value)||0;
-  const totalExp=exp1+exp2+exp3, netCash=cash-totalAdv-totalPurchase-totalExp;
+  const totalExp=exp1+exp2+exp3, netCash=cash-totalAdv-totalPurchase-totalCreditPay-totalExp;
   const cashierIdx = isCashier() ? (Number(DB.currentUser?.cashierSlot) || 0) : (Number($('cm-cashier')?.value)||0);
   const owner = editId ? (getTargetUser(editOwner)||DB.currentUser) : DB.currentUser;
   if (!owner) return;
@@ -6688,12 +6914,13 @@ async function saveCashEntry(handoverTarget) {
     qrPayments:qr, chequeReceived:cheque, totalSales,
     advances: advSlots.map(a => ({ empId:a.empId, empName:getEmployee(a.empId)?.name||a.empId, amount:a.amount })),
     purchases: purchaseRows.map(p => ({ supplierId:p.supplierId, supplierName:p.supplierName, amount:p.amount })),
+    creditPayments: creditPayRows.map(p => ({ supplierId:p.supplierId, supplierName:p.supplierName, creditId:p.creditId, ownerUsername:p.ownerUsername, amount:p.amount })),
     expenses:[
       {type:'pb', amount:exp1, reason:$('cm-expr1')?.value||''},
       {type:'sdb', amount:exp2, reason:$('cm-expr2')?.value||''},
       {type:'other', amount:exp3, reason:$('cm-expr3')?.value||''}
     ].filter(e=>e.amount>0||e.reason),
-    cashierIdx, totalExpenses:totalExp, totalAdvances:totalAdv, totalPurchases:totalPurchase, netCash
+    cashierIdx, totalExpenses:totalExp, totalAdvances:totalAdv, totalPurchases:totalPurchase, totalCreditPayments:totalCreditPay, netCash
   };
   if (editId) {
     const idx=owner.cashEntries.findIndex(e=>e.id===editId);
@@ -6706,6 +6933,7 @@ async function saveCashEntry(handoverTarget) {
     const breakdownParts = [];
     if (totalAdv > 0) breakdownParts.push(`💸 Advances: ${fmt(totalAdv)}`);
     if (totalPurchase > 0) breakdownParts.push(`🛒 Purchases: ${fmt(totalPurchase)}`);
+    if (totalCreditPay > 0) breakdownParts.push(`🧾 Credit Bill Pay: ${fmt(totalCreditPay)}`);
     const banked = exp1 + exp2;
     if (banked > 0) breakdownParts.push(`🏦 Banked: ${fmt(banked)}`);
     if (exp3 > 0) breakdownParts.push(`📉 Other Exp: ${fmt(exp3)}`);
@@ -6732,6 +6960,28 @@ async function saveCashEntry(handoverTarget) {
   });
   syncUser(owner);
   touchedSupOwners.forEach(u => { if (u.username !== owner.username) syncUser(u); });
+
+  // Now that the cash entry itself is committed, sync the credit-bill payments: strip out
+  // any of THIS entry's old linked payments (edit case) and push the fresh ones — may span
+  // multiple business owners since a cashier can pay off any of their own business's bills.
+  DB.users.forEach(u => (u.credits||[]).forEach(c => {
+    if (c.payments && c.payments.some(p => p.cashEntryId === recId)) {
+      c.payments = c.payments.filter(p => p.cashEntryId !== recId);
+    }
+  }));
+  const touchedCreditOwners = new Set();
+  creditPayRows.forEach(p => {
+    const creditOwner = getTargetUser(p.ownerUsername) || owner;
+    const credit = (creditOwner.credits||[]).find(c => c.id === p.creditId);
+    if (credit) {
+      if (!credit.payments) credit.payments = [];
+      credit.payments.push({ id: uid(), amount: p.amount, date, note: '💰 Paid via Cash Management (Daily Cash)', cashEntryId: recId });
+      touchSupplier(creditOwner, p.supplierId);
+      touchedCreditOwners.add(creditOwner);
+    }
+  });
+  touchedCreditOwners.forEach(u => syncUser(u));
+  if (typeof renderCredits === 'function') renderCredits();
 
   // Sync these cash-tab advances into the shared Payroll advances store
   const hadLinkedBefore = PDB.advances.some(a => a.cashEntryId === recId);
@@ -6791,6 +7041,15 @@ function editCashEntry(id, ownerUsername) {
     if (p.supplierId) selectSupplier('cp'+idx, p.supplierId, p.supplierName||p.supplierId, ownerUsername);
     if ($('cp'+idx+'-amount')) $('cp'+idx+'-amount').value = p.amount||'';
   });
+  const creditPayments = e.creditPayments||[];
+  if (creditPayments.length) { ccpRows = creditPayments.map((_,idx)=>idx); ccpRowCounter = creditPayments.length; }
+  else { ccpRows = [0]; ccpRowCounter = 1; }
+  renderCashCreditPayRows();
+  creditPayments.forEach((p,idx) => {
+    if (p.supplierId) selectSupplier('ccp'+idx, p.supplierId, p.supplierName||p.supplierId, p.ownerUsername||ownerUsername);
+    if ($('ccp'+idx+'-bill')) $('ccp'+idx+'-bill').value = p.creditId||'';
+    if ($('ccp'+idx+'-amount')) $('ccp'+idx+'-amount').value = p.amount||'';
+  });
   const exps=e.expenses||[];
   const pb=getExpByType(exps,'pb',0), sdb=getExpByType(exps,'sdb',1), other=getExpByType(exps,'other',2);
   if($('cm-exp1'))$('cm-exp1').value=pb.amount||'';
@@ -6817,6 +7076,16 @@ async function deleteCashEntry(id, ownerUsername) {
   const hadLinkedPurchases = (owner.cashPurchases||[]).some(p => p.cashEntryId === id);
   if (hadLinkedPurchases) owner.cashPurchases = (owner.cashPurchases||[]).filter(p => p.cashEntryId !== id);
   syncUser(owner);
+  // Clean up any credit bill payments linked to this cash entry (may span multiple business owners)
+  const touchedCreditOwners = new Set();
+  DB.users.forEach(u => (u.credits||[]).forEach(c => {
+    if (c.payments && c.payments.some(p => p.cashEntryId === id)) {
+      c.payments = c.payments.filter(p => p.cashEntryId !== id);
+      touchedCreditOwners.add(u);
+    }
+  }));
+  touchedCreditOwners.forEach(u => syncUser(u));
+  if (typeof renderCredits === 'function') renderCredits();
   const hadLinked = PDB.advances.some(a => a.cashEntryId === id);
   if (hadLinked) { PDB.advances = PDB.advances.filter(a => a.cashEntryId !== id); savePayrollDB(); }
   renderCash();
