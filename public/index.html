@@ -796,6 +796,11 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
 .ov-dot{width:8px;height:8px;border-radius:50%;background:var(--border);cursor:pointer;transition:all .25s ease;}
 .ov-dot:hover{background:#b9c4d1;}
 .ov-dot.active{background:var(--accent);width:22px;border-radius:5px;}
+
+/* ===== Chart.js / ApexCharts dashboard chart containers ===== */
+.mini-chartjs-wrap{position:relative;width:100%;height:200px;}
+.mini-apex-wrap{width:100%;min-height:170px;}
+.mini-apex-wrap .apexcharts-canvas{margin:0 auto;}
 </style>
 </head>
 <body>
@@ -957,7 +962,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
           </select>
         </div>
         <div style="padding:1rem 1.2rem;">
-          <div id="ov-daily-sales-chart" class="simple-chart" style="min-height:170px;"></div>
+          <div id="ov-daily-sales-chart" class="simple-chart mini-apex-wrap" style="min-height:170px;"></div>
         </div>
       </div>
       <!-- Rotating carousel: cycles the 5 dashboard mini-charts, one at a time, every 4s -->
@@ -972,11 +977,11 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
                 <option value="12">Last 12 Months</option>
               </select>
             </div>
-            <div id="ov-credit-chart" class="simple-chart" style="min-height:160px;"></div>
+            <div id="ov-credit-chart" class="simple-chart mini-chartjs-wrap" style="min-height:160px;"></div>
           </div>
           <div class="ov-carousel-slide" data-slide="1">
             <div class="card-head"><div class="card-title">📊 Cheque Status Overview</div></div>
-            <div id="ov-cheque-chart" class="simple-chart" style="min-height:160px;"></div>
+            <div id="ov-cheque-chart" class="simple-chart mini-apex-wrap" style="min-height:160px;"></div>
           </div>
           <div class="ov-carousel-slide" data-slide="2" id="ov-sales-row">
             <div class="card-head">
@@ -990,21 +995,21 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
                 <a onclick="showSection('analytics')" style="font-size:.8rem;color:var(--accent);cursor:pointer;font-weight:600;">View Full Analytics →</a>
               </div>
             </div>
-            <div id="ov-sales-chart" class="simple-chart" style="min-height:160px;"></div>
+            <div id="ov-sales-chart" class="simple-chart mini-chartjs-wrap" style="min-height:160px;"></div>
           </div>
           <div class="ov-carousel-slide" data-slide="3" id="ov-payment-row">
             <div class="card-head">
               <div class="card-title">💳 Payment Breakdown</div>
               <select id="ov-payment-month" onchange="renderOverview()" style="padding:.35rem .7rem;border:1.5px solid var(--border);border-radius:7px;font-size:.78rem;background:#fff;"></select>
             </div>
-            <div id="ov-payment-chart" class="simple-chart" style="min-height:160px;padding:1rem 1.2rem;"></div>
+            <div id="ov-payment-chart" class="simple-chart mini-apex-wrap" style="min-height:160px;padding:1rem 1.2rem;"></div>
           </div>
           <div class="ov-carousel-slide" data-slide="4">
             <div class="card-head">
               <div class="card-title">🛒 Purchases Breakdown</div>
               <select id="ov-purch-month" onchange="renderPurchasesBreakdown()" style="padding:.35rem .7rem;border:1.5px solid var(--border);border-radius:7px;font-size:.78rem;background:#fff;"></select>
             </div>
-            <div id="ov-purchases-breakdown" class="simple-chart" style="min-height:140px;padding:1rem 1.2rem;"></div>
+            <div id="ov-purchases-breakdown" class="simple-chart" style="min-height:140px;padding:.6rem 1.2rem 1rem;"></div>
           </div>
         </div>
         <div class="ov-carousel-dots" id="ov-carousel-dots">
@@ -2712,6 +2717,9 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<!-- Dashboard chart libraries: Chart.js for bar charts, ApexCharts for donut/area charts -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/apexcharts/3.45.2/apexcharts.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging-compat.js"></script>
@@ -3883,6 +3891,134 @@ function renderBarChart(elId, items, valueLabel) {
   `).join('');
 }
 
+// ===== Chart.js / ApexCharts powered dashboard charts (Overview page) =====
+// Registries so charts get destroyed & recreated cleanly instead of piling up
+// hidden instances every time renderOverview() runs.
+const __ovChartJS = {};
+const __ovApex = {};
+
+// Chart.js bar chart — used for Monthly Credit Trend & Monthly Sales Trend,
+// where a simple, punchy bar comparison across a handful of months works best.
+function renderBarChartJS(elId, items, valueLabel, colorHex) {
+  const el = $(elId);
+  if (!el) return;
+  if (!items.length) {
+    if (__ovChartJS[elId]) { try { __ovChartJS[elId].destroy(); } catch (e) {} delete __ovChartJS[elId]; }
+    el.innerHTML = '<div class="no-data" style="padding:2.2rem;"><span class="ico">📭</span>No data</div>';
+    return;
+  }
+  if (!el.querySelector('canvas')) el.innerHTML = '<canvas></canvas>';
+  const canvas = el.querySelector('canvas');
+  const color = colorHex || '#2563eb';
+  const labels = items.map(i => i.label);
+  const data = items.map(i => i.value);
+  if (__ovChartJS[elId]) {
+    const ch = __ovChartJS[elId];
+    ch.data.labels = labels;
+    ch.data.datasets[0].data = data;
+    ch.data.datasets[0].backgroundColor = color + 'cc';
+    ch.data.datasets[0].hoverBackgroundColor = color;
+    ch.update();
+  } else {
+    __ovChartJS[elId] = new Chart(canvas.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          data,
+          backgroundColor: color + 'cc',
+          hoverBackgroundColor: color,
+          borderRadius: 6,
+          maxBarThickness: 46
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 450 },
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => valueLabel(ctx.parsed.y) } }
+        },
+        scales: {
+          y: { beginAtZero: true, ticks: { callback: v => valueLabel(v) }, grid: { color: '#eef2f6' } },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+  }
+}
+
+// ApexCharts donut — used for Cheque Status, Payment Breakdown & Purchases
+// Breakdown, where seeing each slice's share of the whole matters more than
+// comparing absolute bar lengths.
+function renderDonutApex(elId, items) {
+  const el = $(elId);
+  if (!el) return;
+  if (__ovApex[elId]) { try { __ovApex[elId].destroy(); } catch (e) {} delete __ovApex[elId]; }
+  if (!items.length) {
+    el.innerHTML = '<div class="no-data" style="padding:2.2rem;"><span class="ico">📭</span>No data</div>';
+    return;
+  }
+  el.innerHTML = '';
+  const labels = items.map(i => i.label);
+  const series = items.map(i => i.value);
+  const colors = items.map(i => i.color || '#2563eb');
+  __ovApex[elId] = new ApexCharts(el, {
+    chart: { type: 'donut', height: 230, fontFamily: 'inherit', animations: { speed: 400 } },
+    series, labels, colors,
+    legend: { position: 'bottom', fontSize: '12px', markers: { radius: 4 } },
+    dataLabels: { enabled: true, formatter: v => v.toFixed(1) + '%', style: { fontSize: '11px', fontWeight: 700 } },
+    plotOptions: { pie: { donut: { size: '62%', labels: { show: true, total: {
+      show: true, label: 'Total', formatter: w => fmt(w.globals.seriesTotals.reduce((a, b) => a + b, 0))
+    } } } } },
+    stroke: { width: 2, colors: ['#fff'] },
+    tooltip: { y: { formatter: v => fmt(v) } }
+  });
+  __ovApex[elId].render();
+}
+
+// ApexCharts gradient area chart — used for the Daily Total Sales trend,
+// where a smooth time-series with zoom-free gradient fill reads better than
+// a bar-per-day view once the range grows to 30–90 days.
+function renderAreaApex(elId, items, valueLabel) {
+  const el = $(elId);
+  if (!el) return;
+  if (__ovApex[elId]) { try { __ovApex[elId].destroy(); } catch (e) {} delete __ovApex[elId]; }
+  if (!items.length) {
+    el.innerHTML = '<div class="no-data" style="padding:1.5rem;"><span class="ico">📭</span>No data</div>';
+    return;
+  }
+  el.innerHTML = '';
+  __ovApex[elId] = new ApexCharts(el, {
+    chart: { type: 'area', height: 230, toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'inherit', animations: { speed: 350 } },
+    series: [{ name: 'Total Sales', data: items.map(i => i.value) }],
+    xaxis: { categories: items.map(i => i.label), labels: { style: { fontSize: '10px' }, rotate: -45 } },
+    yaxis: { labels: { formatter: v => valueLabel(v) } },
+    colors: ['#0e7490'],
+    stroke: { curve: 'smooth', width: 2.5 },
+    fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: .35, opacityTo: 0, stops: [0, 90, 100] } },
+    dataLabels: { enabled: false },
+    grid: { borderColor: '#eef2f6', strokeDashArray: 3 },
+    tooltip: { y: { formatter: v => valueLabel(v) } },
+    markers: { size: 3, strokeColors: '#fff', strokeWidth: 1.5, hover: { size: 5 } }
+  });
+  __ovApex[elId].render();
+}
+
+// Nudges a chart to recompute its size once its carousel slide becomes
+// visible again — needed because charts created while their slide was
+// display:none can end up with a 0-width canvas.
+function ovRefreshChartVisibility(idx) {
+  try {
+    if (idx === 0 && __ovChartJS['ov-credit-chart']) __ovChartJS['ov-credit-chart'].resize();
+    if (idx === 2 && __ovChartJS['ov-sales-chart']) __ovChartJS['ov-sales-chart'].resize();
+    if (idx === 1 && __ovApex['ov-cheque-chart']) __ovApex['ov-cheque-chart'].updateOptions({}, false, true);
+    if (idx === 3 && __ovApex['ov-payment-chart']) __ovApex['ov-payment-chart'].updateOptions({}, false, true);
+    if (idx === 4 && __ovApex['ov-purchases-donut']) __ovApex['ov-purchases-donut'].updateOptions({}, false, true);
+  } catch (e) {}
+}
+
 function openSupplierAnalytics(ownerUsername, supplierId) {
   DB.analyticsOpen = { ownerUsername, supplierId };
   DB.analyticsTrendMonths = 3;
@@ -4199,27 +4335,19 @@ function renderOverview() {
     const label = new Date(y, mo - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
     return { label, value: monthMap.get(k) };
   });
-  if (monthItems.length) {
-    renderBarChart('ov-credit-chart', monthItems, v => fmt(v));
-  } else {
-    $('ov-credit-chart').innerHTML = '<div class="no-data" style="padding:2.5rem;"><span class="ico">📭</span>No credit data yet</div>';
-  }
+  renderBarChartJS('ov-credit-chart', monthItems, v => fmt(v), '#2563eb');
 
   // Chart 2: Cheque Status Overview
   const pending = cheques.filter(c => c.status === 'pending').length;
   const cleared = cheques.filter(c => c.status === 'cleared').length;
   const bounced = cheques.filter(c => c.status === 'bounced').length;
   const chequeItems = [
-    { label: '⏳ Pending', value: pending },
-    { label: '✅ Cleared', value: cleared },
-    { label: '❌ Bounced', value: bounced },
-    { label: '⚠️ Overdue', value: overdue.length }
+    { label: '⏳ Pending', value: pending, color: '#f59e0b' },
+    { label: '✅ Cleared', value: cleared, color: '#15803d' },
+    { label: '❌ Bounced', value: bounced, color: '#b91c1c' },
+    { label: '⚠️ Overdue', value: overdue.length, color: '#ea580c' }
   ].filter(i => i.value > 0);
-  if (chequeItems.length) {
-    renderBarChart('ov-cheque-chart', chequeItems, v => String(v) + ' cheque' + (v !== 1 ? 's' : ''));
-  } else {
-    $('ov-cheque-chart').innerHTML = '<div class="no-data" style="padding:2.5rem;"><span class="ico">✅</span>No cheque data yet</div>';
-  }
+  renderDonutApex('ov-cheque-chart', chequeItems);
 
   // Mini Sales Charts on Dashboard
   const allCash = getAllCashEntries ? getAllCashEntries() : [];
@@ -4239,7 +4367,7 @@ function renderOverview() {
       const [y, m] = k.split('-');
       return { label: new Date(y, m - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }), value: mSales.get(k) };
     });
-    if ($('ov-sales-chart') && mItems.length) renderBarChart('ov-sales-chart', mItems, v => fmt(v));
+    renderBarChartJS('ov-sales-chart', mItems, v => fmt(v), '#15803d');
 
     // Payment breakdown — default to the current month, with a dropdown to view past months
     const paySel = $('ov-payment-month');
@@ -4264,16 +4392,8 @@ function renderOverview() {
     const totQR2    = payCash.reduce((a,e)=>a+(Number(e.qrPayments)||0),0);
     const totChq2   = payCash.reduce((a,e)=>a+(Number(e.chequeReceived)||0),0);
     const totCr2    = payCash.reduce((a,e)=>a+(Number(e.creditSales)||0),0);
-    const ptMax2    = Math.max(totCash2,totCard2,totQR2,totChq2,totCr2,1);
-    const ptTotal2  = (totCash2+totCard2+totQR2+totChq2+totCr2)||1;
-    const ptypes2   = [{label:'💵 Cash',val:totCash2,color:'#2563eb'},{label:'💳 Card DFCC',val:totCard2,color:'#0e7490'},{label:'📱 QR',val:totQR2,color:'#f59e0b'},{label:'🏦 Cheque',val:totChq2,color:'#8b5cf6'},{label:'💳 Card SDB',val:totCr2,color:'#e63946'}].filter(p=>p.val>0);
-    if ($('ov-payment-chart')) $('ov-payment-chart').innerHTML = ptypes2.map(p=>`
-      <div class="ptype-bar-row">
-        <span class="ptype-label">${p.label}</span>
-        <div class="ptype-bar-track"><div class="ptype-bar-fill" style="width:${(p.val/ptMax2*100).toFixed(1)}%;background:${p.color};"></div></div>
-        <span class="ptype-val">${fmt(p.val)}</span>
-        <span class="ptype-pct">${(p.val/ptTotal2*100).toFixed(1)}%</span>
-      </div>`).join('') || '<div class="no-data" style="padding:2rem;">No payment data for this month</div>';
+    const ptypes2 = [{label:'💵 Cash',value:totCash2,color:'#2563eb'},{label:'💳 Card DFCC',value:totCard2,color:'#0e7490'},{label:'📱 QR',value:totQR2,color:'#f59e0b'},{label:'🏦 Cheque',value:totChq2,color:'#8b5cf6'},{label:'💳 Card SDB',value:totCr2,color:'#e63946'}].filter(p=>p.value>0);
+    renderDonutApex('ov-payment-chart', ptypes2);
   }
   renderPurchasesBreakdown();
   ovInitCarousel();
@@ -4312,6 +4432,9 @@ function ovShowSlide(idx) {
   slides.forEach((s, i) => s.classList.toggle('active', i === idx));
   dots.forEach((d, i) => d.classList.toggle('active', i === idx));
   ovCarouselIndex = idx;
+  // Chart.js/ApexCharts instances created while their slide was display:none
+  // can end up with a 0-width canvas — nudge them to resize now that they're visible.
+  requestAnimationFrame(() => ovRefreshChartVisibility(idx));
 }
 
 function ovGoToSlide(idx) {
@@ -4405,16 +4528,19 @@ function renderPurchasesBreakdown() {
     { key: 'cash', label: '💵 Cash', val: cashAmt, color: '#2563eb' },
     { key: 'credit', label: '📋 Credit', val: creditAmt, color: '#e63946' },
     { key: 'cheque', label: '🏦 Cheque', val: chequeAmt, color: '#8b5cf6' }
-  ];
-  el.innerHTML = rows.map(r => `
-      <div class="ptype-bar-row">
-        <span class="ptype-label">${r.label}</span>
-        <div class="ptype-bar-track"><div class="ptype-bar-fill" style="width:${(r.val / total * 100).toFixed(1)}%;background:${r.color};"></div></div>
-        <span class="ptype-val">${fmt(r.val)}</span>
-        <span class="ptype-pct">${(r.val / total * 100).toFixed(1)}%</span>
-        ${r.val > 0 ? `<a onclick="ovGoToPurchaseList('${r.key}','${monthKey}')" style="font-size:.74rem;color:var(--accent);font-weight:700;cursor:pointer;white-space:nowrap;">View List →</a>` : `<span style="min-width:70px;"></span>`}
+  ].filter(r => r.val > 0);
+  el.innerHTML = `<div id="ov-purchases-donut" class="mini-apex-wrap"></div>
+    <div id="ov-purchases-list"></div>`;
+  renderDonutApex('ov-purchases-donut', rows.map(r => ({ label: r.label, value: r.val, color: r.color })));
+  $('ov-purchases-list').innerHTML = rows.map(r => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:.4rem 0;border-bottom:1px solid var(--border);font-size:.82rem;">
+        <span>${r.label}</span>
+        <span style="display:flex;align-items:center;gap:.7rem;">
+          <b>${fmt(r.val)}</b>
+          <a onclick="ovGoToPurchaseList('${r.key}','${monthKey}')" style="font-size:.78rem;color:var(--accent);font-weight:700;cursor:pointer;white-space:nowrap;">View →</a>
+        </span>
       </div>`).join('') + `
-      <div style="margin-top:.7rem;padding-top:.6rem;border-top:1.5px solid var(--border);display:flex;justify-content:space-between;font-weight:700;color:var(--navy);font-size:.92rem;">
+      <div style="margin-top:.6rem;padding-top:.55rem;display:flex;justify-content:space-between;font-weight:700;color:var(--navy);font-size:.92rem;">
         <span>💰 Total Purchases</span><span>${fmt(total)}</span>
       </div>`;
 }
@@ -6840,7 +6966,7 @@ function renderDailySalesChart() {
     const label = d.toLocaleDateString('en-US', { day: '2-digit', month: 'short' });
     items.push({ label, value: dayMap.get(key) });
   }
-  renderLineChart('ov-daily-sales-chart', items, v => fmt(v));
+  renderAreaApex('ov-daily-sales-chart', items, v => fmt(v));
   ovPlayFadeIn(el);
 }
 
