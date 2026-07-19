@@ -1139,6 +1139,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
           <button class="sort-pill" data-col="amount" onclick="setSortPill('credits','amount')">💵 Amount</button>
           <button class="sort-pill" data-col="balance" onclick="setSortPill('credits','balance')">⚖️ Balance</button>
           <button class="sort-pill" data-col="totalPaid" onclick="setSortPill('credits','totalPaid')">✅ Paid</button>
+          <button class="sort-pill" data-col="age" onclick="setSortPill('credits','age')">⏳ Age</button>
         </div>
         <div id="credit-tab-content-active" class="tab-content show">
           <div class="table-wrap">
@@ -1151,6 +1152,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
                   <th onclick="sortTable('credits','amount')" data-col="amount">💵 Amount<span class="sort-ico"></span></th>
                   <th onclick="sortTable('credits','totalPaid')" data-col="totalPaid">✅ Paid<span class="sort-ico"></span></th>
                   <th onclick="sortTable('credits','balance')" data-col="balance">⚖️ Balance<span class="sort-ico"></span></th>
+                  <th onclick="sortTable('credits','age')" data-col="age">⏳ Age<span class="sort-ico"></span></th>
                   <th>⚙️ Actions</th>
                 </tr>
               </thead>
@@ -1170,6 +1172,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
                   <th onclick="sortTable('credits','amount')" data-col="amount">💵 Amount<span class="sort-ico"></span></th>
                   <th onclick="sortTable('credits','totalPaid')" data-col="totalPaid">✅ Paid<span class="sort-ico"></span></th>
                   <th onclick="sortTable('credits','balance')" data-col="balance">⚖️ Balance<span class="sort-ico"></span></th>
+                  <th onclick="sortTable('credits','age')" data-col="age">⏳ Age<span class="sort-ico"></span></th>
                   <th>⚙️ Actions</th>
                 </tr>
               </thead>
@@ -2814,7 +2817,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
         <div class="table-wrap">
           <table>
             <thead><tr>
-              <th>🆔 ID</th><th>📅 Date</th><th>💵 Amount</th><th>✅ Paid</th><th>⚖️ Balance</th><th>📝 Notes</th><th>⚙️</th>
+              <th>🆔 ID</th><th>📅 Date</th><th>💵 Amount</th><th>✅ Paid</th><th>⚖️ Balance</th><th>⏳ Age</th><th>📝 Notes</th><th>⚙️</th>
             </tr></thead>
             <tbody id="sup-credit-list"></tbody>
           </table>
@@ -3028,6 +3031,24 @@ function getCreditBalance(c) {
 
 function isCreditSettled(c) {
   return getCreditBalance(c) <= 0.001;
+}
+
+// Age of a credit bill in days, i.e. how many days have passed since the bill's
+// own date. Used for the "⏳ Age" column shown between Balance and Actions.
+function getCreditAgeDays(c) {
+  if (!c.date) return null;
+  const d = Math.floor((Date.now() - new Date(c.date).getTime()) / 86400000);
+  return d >= 0 ? d : 0;
+}
+
+// Small colored "Xd" label for a credit bill's age, using the same 30d/60d
+// thresholds as the risk-alert engine (aiComputeRiskAlerts) so the color here
+// always matches whether that bill would show up as a watch/high-risk alert.
+function formatCreditAge(c) {
+  const days = getCreditAgeDays(c);
+  if (days === null) return '—';
+  const cls = days > 60 ? 'text-red' : (days > 30 ? 'text-yellow' : '');
+  return `<span class="${cls}">${days}d</span>`;
 }
 
 // Portion of this credit bill that has already been paid off by a Cheque linked
@@ -3846,7 +3867,8 @@ function renderCredits() {
       owner: `${c._ownerName || ''} (${c._ownerUsername || ''})`,
       amount: c.amount || 0,
       totalPaid: paid,
-      balance: bal
+      balance: bal,
+      age: getCreditAgeDays(c) ?? -1
     };
     return map[key] ?? '';
   });
@@ -3870,6 +3892,7 @@ function renderCredits() {
       <td class="fw700">${fmt(c.amount)}</td>
       <td class="text-green fw700">${fmt(paid)}</td>
       <td class="${balClass} fw700">${fmt(bal)}</td>
+      <td class="fw700">${formatCreditAge(c)}</td>
       <td>${actions}</td>
     </tr>`;
   };
@@ -3890,6 +3913,10 @@ function renderCredits() {
         <span class="mob-card-label">⚖️ Balance</span>
         <span class="mob-card-val ${balClass} fw700">${fmt(bal)}</span>
       </div>
+      <div class="mob-card-row">
+        <span class="mob-card-label">⏳ Age</span>
+        <span class="mob-card-val fw700">${formatCreditAge(c)}</span>
+      </div>
       <div class="mob-card-actions">
         <button class="btn btn-ghost btn-sm" onclick="openPayHist('${c.id}','${c._ownerUsername}')">📜 View</button>
         ${bal > 0.001 && (isAdmin() || c._ownerUsername === DB.currentUsername) ? `<button class="btn btn-accent btn-sm" onclick="openPayCheque('${c.id}','${c._ownerUsername}')">🖐️ Pay via Cheque</button>` : ''}
@@ -3904,7 +3931,7 @@ function renderCredits() {
     const mobileEl = $(mobileId);
     if (!tbody) return;
     if (!arr.length) {
-      tbody.innerHTML = `<tr><td colspan="7" class="no-data"><span class="ico">💳</span>No records</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8" class="no-data"><span class="ico">💳</span>No records</td></tr>`;
       if (mobileEl) mobileEl.innerHTML = '<div class="mob-no-data"><span class="ico">💳</span>No records</div>';
       return;
     }
@@ -3923,6 +3950,7 @@ function renderCredits() {
       <td>${fmt(totAmt)}</td>
       <td>${fmt(totPaid)}</td>
       <td class="${totBal > 0 ? 'text-red' : 'text-green'}">${fmt(totBal)}</td>
+      <td></td>
       <td></td>
     </tr>`;
     if (mobileEl) mobileEl.innerHTML = sorted.map(renderMobileCredit).join('');
@@ -4402,6 +4430,7 @@ function renderSupplierAnalytics() {
       <td class="fw700">${fmt(c.amount)}</td>
       <td class="text-green fw700">${fmt(paid)}${paidNote}</td>
       <td class="${balClass} fw700">${fmt(cbal)}</td>
+      <td class="fw700">${formatCreditAge(c)}</td>
       <td style="font-size:.8rem;color:var(--muted);">${c.notes || '—'}</td>
       <td>
         <div class="flex gap1" style="justify-content:flex-end;flex-wrap:wrap;">
@@ -4411,7 +4440,7 @@ function renderSupplierAnalytics() {
         </div>
       </td>
     </tr>`;
-  }).join('') : `<tr><td colspan="7" class="no-data"><span class="ico">💳</span>No credit bills yet</td></tr>`;
+  }).join('') : `<tr><td colspan="8" class="no-data"><span class="ico">💳</span>No credit bills yet</td></tr>`;
 
   // Cheques list
   const statusMap = {
@@ -6599,25 +6628,56 @@ function aiMonthlySeries() {
   getAllCashEntries().forEach(e => {
     if (!e.date) return;
     const k = e.date.slice(0, 7);
-    const prev = map.get(k) || { month: k, sales: 0, net: 0, exp: 0 };
+    const prev = map.get(k) || { month: k, sales: 0, net: 0, exp: 0, dateSet: new Set() };
     prev.sales += Number(e.totalSales) || 0;
     prev.net += Number(e.netCash) || 0;
     prev.exp += Number(e.expenses) || 0;
+    prev.dateSet.add(e.date);
     map.set(k, prev);
   });
-  return [...map.values()].sort((a, b) => a.month.localeCompare(b.month));
+  // Expose both the raw monthly totals AND the per-logged-day averages. A month
+  // that only has a handful of days logged (e.g. the very first month after
+  // Cash Management was started, mid-month) will otherwise show a much lower
+  // total than a fully-logged month even if the business performed the same
+  // day-to-day — the averages let comparisons/forecasting stay fair.
+  return [...map.values()].map(m => {
+    const days = m.dateSet.size || 1;
+    return {
+      month: m.month,
+      days,
+      sales: m.sales,
+      net: m.net,
+      exp: m.exp,
+      avgSales: m.sales / days,
+      avgNet: m.net / days,
+      avgExp: m.exp / days
+    };
+  }).sort((a, b) => a.month.localeCompare(b.month));
 }
 
-// Simple linear regression (least squares) over the last `maxPoints` months of
-// Net Cash to project the following month. Falls back to a plain average when
-// there isn't enough history for a meaningful trend line.
+function daysInCalendarMonth(yyyyMm) {
+  const [y, m] = yyyyMm.split('-').map(Number);
+  return new Date(y, m, 0).getDate();
+}
+
+// Simple linear regression (least squares) over the last `maxPoints` months'
+// per-day-average Net Cash to project the following month's total. The trend
+// line is fit on daily averages — not raw monthly totals — so a partial month
+// (only a few days logged) contributes a fair "typical day" figure instead of
+// dragging the whole trend down/up just because it has fewer days of data.
+// The forecast average is then scaled up by however many days are actually in
+// the upcoming calendar month to produce a total figure.
 function aiForecastNextMonth(series, maxPoints = 6) {
   const pts = series.slice(-maxPoints);
   if (!pts.length) return null;
-  if (pts.length === 1) return pts[0].net;
+  const [ly, lm] = pts[pts.length - 1].month.split('-').map(Number);
+  const nd = new Date(ly, lm - 1, 1); nd.setMonth(nd.getMonth() + 1);
+  const nextMonthKey = `${nd.getFullYear()}-${String(nd.getMonth() + 1).padStart(2, '0')}`;
+  const nextMonthDays = daysInCalendarMonth(nextMonthKey);
+  if (pts.length === 1) return pts[0].avgNet * nextMonthDays;
   const n = pts.length;
   const xs = pts.map((_, i) => i);
-  const ys = pts.map(p => p.net);
+  const ys = pts.map(p => p.avgNet);
   const sumX = xs.reduce((a, b) => a + b, 0);
   const sumY = ys.reduce((a, b) => a + b, 0);
   const sumXY = xs.reduce((a, x, i) => a + x * ys[i], 0);
@@ -6625,7 +6685,8 @@ function aiForecastNextMonth(series, maxPoints = 6) {
   const denom = (n * sumXX - sumX * sumX) || 1;
   const slope = (n * sumXY - sumX * sumY) / denom;
   const intercept = (sumY - slope * sumX) / n;
-  return intercept + slope * n; // predict at x = n (the month right after the window)
+  const forecastAvgNet = intercept + slope * n; // predict at x = n (the month right after the window)
+  return forecastAvgNet * nextMonthDays;
 }
 
 // Risk alerts: overdue cheques, cheques due within 7 days, and credit bills
@@ -6712,12 +6773,19 @@ function aiGenerateSummary(series, alerts, curMonthLabel) {
   const prev = series.length > 1 ? series[series.length - 2] : null;
   const pct = (a, b) => (b ? (((a - b) / Math.abs(b)) * 100).toFixed(1) : null);
   let parts = [];
-  parts.push(`<b>${curMonthLabel}</b> මාසයේ Total Sales ${fmt(cur.sales)}, Net Cash ${fmt(cur.net)}.`);
+  parts.push(`<b>${curMonthLabel}</b> මාසයේ Total Sales ${fmt(cur.sales)}, Net Cash ${fmt(cur.net)} (දත්ත ඇතුළත් කළ දින ${cur.days}).`);
   if (prev) {
-    const salesPct = pct(cur.sales, prev.sales);
-    const netPct = pct(cur.net, prev.net);
-    if (salesPct !== null) parts.push(`Sales පසුගිය මාසයට සාපේක්ෂව ${salesPct >= 0 ? 'වැඩිවෙලා' : 'අඩුවෙලා'} <b>${Math.abs(salesPct)}%</b>.`);
-    if (netPct !== null) parts.push(`Net Cash ${netPct >= 0 ? 'වර්ධනයක්' : 'පහළ යාමක්'} පෙන්නුවා (<b>${Math.abs(netPct)}%</b>).`);
+    // Compare average-per-logged-day figures rather than raw monthly totals.
+    // If last month only had data for a few days (e.g. logging only started
+    // partway through it), its raw total would look artificially tiny next to
+    // a fully-logged month, making the % change here meaningless. Comparing
+    // "typical day" figures instead keeps the comparison fair.
+    const salesPct = pct(cur.avgSales, prev.avgSales);
+    const netPct = pct(cur.avgNet, prev.avgNet);
+    if (salesPct !== null) parts.push(`Sales (දිනකට සාමාන්‍යය) පසුගිය මාසයට සාපේක්ෂව ${salesPct >= 0 ? 'වැඩිවෙලා' : 'අඩුවෙලා'} <b>${Math.abs(salesPct)}%</b>.`);
+    if (netPct !== null) parts.push(`Net Cash (දිනකට සාමාන්‍යය) ${netPct >= 0 ? 'වර්ධනයක්' : 'පහළ යාමක්'} පෙන්නුවා (<b>${Math.abs(netPct)}%</b>).`);
+    const thinMonth = prev.days < 10 ? prev : (cur.days < 10 ? cur : null);
+    if (thinMonth) parts.push(`ℹ️ ${thinMonth === prev ? 'පසුගිය' : 'මේ'} මාසයේ දත්ත ඇත්තේ දින ${thinMonth.days}ක් සඳහා පමණි — එබැවින් මෙම සංසන්දනය දළ ඇස්තමේන්තුවක් පමණි.`);
   }
   const highRisk = alerts.filter(a => a.severity === 'high').length;
   if (highRisk > 0) parts.push(`⚠️ දැනට <b>${highRisk}</b> high-priority risk alert(s) තියෙනවා — පහළින් බලන්න.`);
