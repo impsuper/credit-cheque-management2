@@ -487,6 +487,12 @@ tr:hover td{background:#eef6fb;}
   .toolbar input[type=text]{min-width:0;flex:1 1 100%;width:100%;}
   .toolbar select,.clear-btn{flex:1 1 auto;}
   .auth-card{padding:1.8rem 1.4rem;}
+  /* 🕓 Temp Transactions Queue: stack + left-align on mobile so the badge/total
+     block doesn't get squeezed to the right and clipped by .card{overflow:hidden} */
+  #tempCashQueueCard .card-head{flex-direction:column;align-items:flex-start;}
+  #tempCashQueueCard .card-title{width:100%;}
+  #tempCashQueueCard .card-actions{width:100%;align-items:flex-start!important;text-align:left;}
+  #tempCashQueueTotal{font-size:.82rem!important;}
 }
 @media(max-width:420px){
   .stats-grid{grid-template-columns:1fr;}
@@ -1497,7 +1503,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
             <table>
               <thead><tr>
                 <th>📅 Date</th><th>👤 Cashier</th><th>💵 Cash</th><th>💳 Card SDB</th><th>💳 Card DFCC</th>
-                <th>💰 Total</th><th>💸 Advance</th><th>🏦 Total Banked Cash</th><th>🛒 Total Purchase</th><th>✅ Net Cash</th><th>⚙️</th>
+                <th>💰 Total</th><th>💸 Advance</th><th>🏦 Total Banked Cash</th><th>🛒 Total Purchase</th><th>🧾 Pay Credit Bills (Cash)</th><th>✅ Net Cash</th><th>⚙️</th>
               </tr></thead>
               <tbody id="cashBody"></tbody>
             </table>
@@ -1877,7 +1883,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
           <table>
             <thead><tr>
               <th>📅 Date</th><th>👤 Cashier</th><th>💵 Cash</th><th>💳 Card SDB</th><th>💳 Card DFCC</th><th>📱 QR</th><th>🏦 Cheque</th>
-              <th>💰 Total</th><th>💸 Advance</th><th>🏦 Banked (PB)</th><th>🏦 Banked (SDB)</th><th>📝 Other</th><th>✅ Net Cash</th><th>👤 By</th><th>⚙️</th>
+              <th>💰 Total</th><th>💸 Advance</th><th>🧾 Pay Credit Bills (Cash)</th><th>🏦 Banked (PB)</th><th>🏦 Banked (SDB)</th><th>📝 Other</th><th>✅ Net Cash</th><th>👤 By</th><th>⚙️</th>
             </tr></thead>
             <tbody id="cashHistBody"></tbody>
           </table>
@@ -4989,7 +4995,9 @@ function openPayHist(creditId, ownerUsername) {
   $('ph-date').value = today();
   $('ph-note').value = '';
   const _creditOwnedByCurrent = ((ownerUsername || DB.currentUsername) === DB.currentUsername);
-  $('payHistAddBox').style.display = (isAdmin() || _creditOwnedByCurrent) ? '' : 'none';
+  // Managers are locked out of paying credit bills (partial or full) — Admin only.
+  // Managers can still open this modal to *view* the payment history, just without the Add Payment box.
+  $('payHistAddBox').style.display = (!isManager() && (isAdmin() || _creditOwnedByCurrent)) ? '' : 'none';
   renderPayHist();
   $('payHistModal').classList.add('show');
 }
@@ -5031,6 +5039,11 @@ function renderPayHist() {
 }
 
 function addPayment() {
+  // Managers are locked out of paying credit bills (partial or full) — Admin only.
+  if (isManager()) {
+    toast('⚠️ Managers cannot add credit bill payments. Contact Admin.', 'red');
+    return;
+  }
   const _payOwnedByCurrent = (DB.activePayHistOwnerUsername === DB.currentUsername);
   if (!isAdmin() && !_payOwnedByCurrent) {
     toast('Admin only', 'red');
@@ -7107,7 +7120,7 @@ function getCreditBillRef(ownerUsername, creditId) {
   if (!creditId) return '—';
   const owner = getTargetUser(ownerUsername);
   const credit = owner && (owner.credits || []).find(c => c.id === creditId);
-  return credit ? credit.entryId : creditId;
+  return credit ? credit.entryId : '⚠️ Bill Removed';
 }
 
 function summarizeTempRec(rec) {
@@ -7457,6 +7470,21 @@ function buildCashRowsHtml(rows, cashiers, opts) {
       <div style="font-size:.72rem;color:var(--muted);font-weight:500;white-space:normal;">${names}</div>
     </td>`;
   };
+  // 🧾 Pay Credit Bills (Cash) cell — total on top, and *which* bill(s) got reduced
+  // underneath (supplier + bill reference), same idea as the Temp Queue breakdown.
+  const creditPayCell = (creditPayments, ownerUsername) => {
+    const list = (creditPayments||[]).filter(p => p && (Number(p.amount)>0));
+    if (!list.length) return '<td style="color:var(--muted);">—</td>';
+    const total = list.reduce((s,p)=>s+(Number(p.amount)||0),0);
+    const lines = list.map(p => {
+      const ref = getCreditBillRef(p.ownerUsername || ownerUsername, p.creditId);
+      return `${escHtml(p.supplierName||p.supplierId||'')} (${escHtml(ref)}): ${fmt(p.amount)}`;
+    }).join('<br>');
+    return `<td style="color:#0d9488;">
+      <div class="fw700">${fmt(total)}</div>
+      <div style="font-size:.72rem;color:var(--muted);font-weight:500;white-space:normal;">${lines}</div>
+    </td>`;
+  };
   const rowsHtml = rows.map(e => {
     const pb = getExpByType(e.expenses, 'pb', 0);
     const sdb = getExpByType(e.expenses, 'sdb', 1);
@@ -7472,6 +7500,10 @@ function buildCashRowsHtml(rows, cashiers, opts) {
       : expCell(pb,'var(--navy3)') + expCell(sdb,'var(--navy3)');
     const otherCell = opts.compact ? '' : expCell(other,'var(--red)');
     const byCell = opts.compact ? '' : `<td><span class="user-data-badge">${e._owner||'—'}</span></td>`;
+    // 🧾 Pay Credit Bills (Cash): compact mode places it right after Total Purchase
+    // (matching the Advance → Purchase → Credit Pay order used everywhere else);
+    // full mode places it right after Advance, since that table has no Purchase column.
+    const creditPaySection = creditPayCell(e.creditPayments, e._owner);
     return `<tr>
       <td>${e.date||'—'}</td>
       <td><span class="user-data-badge">${cashierName}</span></td>
@@ -7479,7 +7511,9 @@ function buildCashRowsHtml(rows, cashiers, opts) {
       ${cardCells}
       <td class="fw700">${fmt(e.totalSales)}</td>
       ${advCell(e.advances)}
+      ${opts.compact ? '' : creditPaySection}
       ${bankedSection}
+      ${opts.compact ? creditPaySection : ''}
       ${otherCell}
       <td class="fw700" style="color:#16a34a;">${fmt(e.netCash)}</td>
       ${byCell}
@@ -7488,7 +7522,7 @@ function buildCashRowsHtml(rows, cashiers, opts) {
   }).join('');
   if (opts.showSummary === false) return rowsHtml;
   const summaryRows = opts.summaryRows || rows;
-  let tCash=0, tCardSDB=0, tCardDFCC=0, tSales=0, tAdv=0, tPurchase=0, tPB=0, tSDB=0, tOther=0, tNet=0;
+  let tCash=0, tCardSDB=0, tCardDFCC=0, tSales=0, tAdv=0, tPurchase=0, tCreditPay=0, tPB=0, tSDB=0, tOther=0, tNet=0;
   summaryRows.forEach(e => {
     const pb = getExpByType(e.expenses, 'pb', 0);
     const sdb = getExpByType(e.expenses, 'sdb', 1);
@@ -7496,6 +7530,7 @@ function buildCashRowsHtml(rows, cashiers, opts) {
     tCash+=Number(e.totalCash)||0; tCardSDB+=Number(e.creditSales)||0; tCardDFCC+=Number(e.cardPayments)||0; tSales+=Number(e.totalSales)||0;
     tAdv+=(e.advances||[]).reduce((s,a)=>s+(Number(a.amount)||0),0);
     tPurchase+=(e.purchases||[]).reduce((s,p)=>s+(Number(p.amount)||0),0);
+    tCreditPay+=(e.creditPayments||[]).reduce((s,p)=>s+(Number(p.amount)||0),0);
     tPB+=Number(pb.amount)||0; tSDB+=Number(sdb.amount)||0; tOther+=Number(other.amount)||0;
     tNet+=Number(e.netCash)||0;
   });
@@ -7506,11 +7541,13 @@ function buildCashRowsHtml(rows, cashiers, opts) {
     <td style="color:#b45309;">${fmt(tAdv)}</td>
     <td style="color:var(--navy3);">${fmt(tPB+tSDB)}</td>
     <td style="color:#7c3aed;">${fmt(tPurchase)}</td>
+    <td style="color:#0d9488;">${fmt(tCreditPay)}</td>
     <td class="fw700" style="color:#16a34a;">${fmt(tNet)}</td><td></td>
   </tr>` : `<tr class="summary-row">
     <td>📊 Total (${summaryRows.length})</td><td></td><td class="fw700">${fmt(tCash)}</td><td colspan="4"></td>
     <td class="fw700">${fmt(tSales)}</td>
     <td style="color:#b45309;">${fmt(tAdv)}</td>
+    <td style="color:#0d9488;">${fmt(tCreditPay)}</td>
     <td style="color:var(--navy3);">${fmt(tPB)}</td>
     <td style="color:var(--navy3);">${fmt(tSDB)}</td>
     <td style="color:var(--red);">${fmt(tOther)}</td>
@@ -7540,11 +7577,11 @@ function renderCashCurrentMonth() {
   const openingHtml = (showOpening && opening !== 0)
     ? `<tr style="background:#eff6ff;">
         <td colspan="8" style="font-weight:700;color:#1d4ed8;">🔄 Opening Balance <span style="font-weight:500;color:var(--muted);">(Cash in Hand carried from previous month)</span></td>
-        <td class="fw700" style="color:#1d4ed8;">${fmt(opening)}</td><td colspan="2"></td>
+        <td class="fw700" style="color:#1d4ed8;">${fmt(opening)}</td><td colspan="3"></td>
       </tr>`
     : '';
   if (!recentRows.length) {
-    tbody.innerHTML = openingHtml + `<tr><td colspan="11" class="no-data"><span class="ico">💰</span>No cash entries yet this month</td></tr>`;
+    tbody.innerHTML = openingHtml + `<tr><td colspan="12" class="no-data"><span class="ico">💰</span>No cash entries yet this month</td></tr>`;
     return;
   }
   tbody.innerHTML = openingHtml + buildCashRowsHtml(recentRows, cashiers, {showSummary:false, compact:true});
@@ -7562,7 +7599,7 @@ function renderSalesHistory() {
   if (cashHistPage > totalPages) cashHistPage = totalPages;
   if (cashHistPage < 1) cashHistPage = 1;
   if (!allRows.length) {
-    tbody.innerHTML='<tr><td colspan="15" class="no-data"><span class="ico">📜</span>No sales history yet</td></tr>';
+    tbody.innerHTML='<tr><td colspan="16" class="no-data"><span class="ico">📜</span>No sales history yet</td></tr>';
     renderPagination('cashHistPagination', 0, cashHistPage, 'goCashHistPage');
     return;
   }
