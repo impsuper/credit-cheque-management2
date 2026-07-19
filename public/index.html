@@ -200,8 +200,8 @@ tr:hover td{background:#f8fafc;}
 .badge-yellow{background:#fef9e7;color:var(--yellow);}
 .badge-blue{background:#e8f4fd;color:#2980b9;}
 .badge-grey{background:#f0f0f0;color:var(--muted);}
-.tab-bar{display:flex;gap:.2rem;padding:1rem 1.5rem .5rem;border-bottom:2px solid var(--border);background:var(--white);}
-.tab{padding:.6rem 1.2rem;border-radius:8px 8px 0 0;cursor:pointer;font-size:.88rem;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;transition:all .2s;}
+.tab-bar{display:flex;gap:.2rem;padding:1rem 1.5rem .5rem;border-bottom:2px solid var(--border);background:var(--white);overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.tab{padding:.6rem 1.2rem;border-radius:8px 8px 0 0;cursor:pointer;font-size:.88rem;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;flex-shrink:0;}
 .tab:hover{color:var(--navy);}
 .tab.active{color:var(--navy);border-bottom-color:var(--navy);background:var(--bg);}
 .tab-count{display:inline-block;padding:.1rem .5rem;border-radius:10px;background:var(--bg);font-size:.75rem;margin-left:.4rem;}
@@ -1102,6 +1102,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
         <div class="tab-bar">
           <div class="tab active" onclick="switchChequeTab('active')" id="cheque-tab-active">⏳ Active <span class="tab-count" id="cnt-active">0</span></div>
           <div class="tab" onclick="switchChequeTab('settled')" id="cheque-tab-settled">✅ Settled <span class="tab-count" id="cnt-settled">0</span></div>
+          <div class="tab" onclick="switchChequeTab('inhand')" id="cheque-tab-inhand">🖐️ In Manager's Hand <span class="tab-count" id="cnt-inhand">0</span></div>
         </div>
         <div class="toolbar">
           <input type="text" id="ch-search" placeholder="🔍 Search..." oninput="renderCheques()">
@@ -1183,6 +1184,38 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
             </table>
           </div>
           <div class="mobile-cards" id="chequesSettledMobile"></div>
+        </div>
+        <div id="cheque-tab-content-inhand" class="tab-content">
+          <div class="toolbar">
+            <input type="text" id="chb-search" placeholder="🔍 Search bank / number / manager..." oninput="renderChequeBookTab()">
+            <select id="chb-filter-status" onchange="renderChequeBookTab()">
+              <option value="">All Status</option>
+              <option value="available">🟢 Available</option>
+              <option value="used">✅ Used</option>
+            </select>
+            <select id="chb-filter-user" onchange="renderChequeBookTab()" class="hidden">
+              <option value="">All Managers</option>
+            </select>
+            <button id="registerChequeBookBtn" class="btn btn-navy btn-sm" onclick="openModal('chequeBookModal')" style="display:none;">➕ Register Cheques</button>
+          </div>
+          <div style="padding:0 1.5rem 0;font-size:.78rem;color:var(--muted);">📌 These are blank cheques currently in a manager's physical hand — registered here by Admin so managers can only issue cheques from real, tracked cheque numbers.</div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>👤 Manager</th>
+                  <th>🏦 Bank</th>
+                  <th>🔢 Cheque #</th>
+                  <th>📊 Status</th>
+                  <th>📅 Added Date</th>
+                  <th>🔗 Used In</th>
+                  <th>⚙️ Action</th>
+                </tr>
+              </thead>
+              <tbody id="chequeBookBody"></tbody>
+            </table>
+          </div>
+          <div class="mobile-cards" id="chequeBookMobile"></div>
         </div>
       </div>
     </div>
@@ -2199,7 +2232,15 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
           </div>
         </div>
       </div>
-      <div class="form-row">
+      <div class="form-group" id="ch-book-wrap" style="display:none;">
+        <label>🖐️ Select Cheque (from Manager's Hand)</label>
+        <select id="ch-book-select" onchange="applyChequeBookSelection()">
+          <option value="">— Select a cheque —</option>
+        </select>
+        <input type="hidden" id="ch-book-id">
+        <div id="ch-book-empty-msg" style="display:none;font-size:.78rem;color:var(--red);margin-top:.4rem;">⚠️ No available cheques left in this manager's hand. Ask Admin to register more cheque numbers.</div>
+      </div>
+      <div class="form-row" id="ch-manual-wrap">
         <div class="form-group">
           <label>🔢 Cheque Number</label>
           <input type="text" id="ch-num" placeholder="e.g. 001234">
@@ -2242,6 +2283,42 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
     <div class="modal-foot">
       <button class="btn btn-ghost" onclick="closeModal('chequeModal')">Cancel</button>
       <button class="btn btn-green" onclick="saveCheque()">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ===== CHEQUE BOOK MODAL (ADMIN ONLY) — register cheques into a manager's hand ===== -->
+<div id="chequeBookModal" class="overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>🖐️ Register Cheques to Manager's Hand</h3>
+      <button class="modal-close" onclick="closeModal('chequeBookModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>👤 Manager</label>
+        <select id="cb-owner"></select>
+      </div>
+      <div class="form-group">
+        <label>🏦 Bank</label>
+        <input type="text" id="cb-bank" placeholder="e.g. BOC, Sampath, HNB, Commercial...">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>🔢 Cheque Number (or "From", for a range)</label>
+          <input type="text" id="cb-from" placeholder="e.g. 001234">
+        </div>
+        <div class="form-group">
+          <label>🔢 To Cheque Number (optional)</label>
+          <input type="text" id="cb-to" placeholder="leave blank for a single cheque">
+        </div>
+      </div>
+      <div style="font-size:.78rem;color:var(--muted);">📌 Leave "To" blank to register just one cheque. Fill both to register a whole range (e.g. 001200 → 001250) at once — each number becomes one selectable cheque in that manager's hand.</div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('chequeBookModal')">Cancel</button>
+      <button class="btn btn-green" onclick="saveChequeBook()">💾 Save</button>
     </div>
   </div>
 </div>
@@ -2754,6 +2831,39 @@ function isChequeSettled(ch) {
 
 function isOverdue(ch) {
   return !!(ch.dueDate && ch.dueDate < today() && ch.status !== 'cleared');
+}
+
+// ============= CHEQUES IN MANAGER'S HAND (blank-cheque pool) =============
+// Each manager account can carry a `chequeBook` array — individual blank cheques
+// (bank + number) that Admin has registered as physically being in that manager's
+// hand. Managers can only VIEW this pool; only Admin can add to it. When a manager
+// (or Admin, acting on a manager's behalf) writes a real cheque via the Add Cheque
+// form, they must pick one of the available pool entries instead of free-typing a
+// bank/number — this keeps every issued cheque tied to a real, tracked cheque leaf.
+
+function escHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function getManagerUsers() {
+  return DB.users.filter(u => u.role === 'manager' || u.role === 'user');
+}
+
+// Expands a "from" / optional "to" cheque-number pair into an inclusive list of
+// zero-padded number strings, e.g. ("001200","001202") -> ["001200","001201","001202"].
+// Returns [] if `from` is empty, or null if the range itself is invalid.
+function expandChequeNumberRange(fromStr, toStr) {
+  const from = String(fromStr || '').trim();
+  const to = String(toStr || '').trim();
+  if (!from) return [];
+  if (!to || to === from) return [from];
+  const fromNum = parseInt(from, 10);
+  const toNum = parseInt(to, 10);
+  if (isNaN(fromNum) || isNaN(toNum) || toNum < fromNum) return null;
+  const pad = from.length;
+  const out = [];
+  for (let n = fromNum; n <= toNum; n++) out.push(String(n).padStart(pad, '0'));
+  return out;
 }
 
 function syncUser(user) {
@@ -3660,6 +3770,7 @@ function renderCheques() {
   renderBody(settledData, 'settledChequesBody', 'chequesSettledMobile');
   syncChequeTabUI();
   updateSortPills('cheques');
+  renderChequeBookTab();
 }
 
 function getSupplierHistoryTarget(ownerUsername, supplierId) {
@@ -4325,6 +4436,21 @@ function openModal(id) {
     clearSupSelection('ch');
     const nextNum = (DB.currentUser.counters?.cheque || 0) + 1;
     $('ch-entry-id').value = 'CHQ' + String(nextNum).padStart(4, '0');
+    $('ch-book-id').value = '';
+    if ($('ch-book-wrap')) $('ch-book-wrap').style.display = 'none';
+    if ($('ch-manual-wrap')) $('ch-manual-wrap').style.display = '';
+    // Managers know their own owner straight away; admins only find out once a
+    // supplier is picked (see selectSupplier's 'ch' hook), so leave it as manual
+    // entry until then.
+    if (!isAdmin()) syncChequeBookPicker(DB.currentUsername);
+  }
+
+  if (id === 'chequeBookModal') {
+    if (!isAdmin()) { toast('Admin only', 'red'); return; }
+    $('cb-bank').value = '';
+    $('cb-from').value = '';
+    $('cb-to').value = '';
+    populateChequeBookOwnerSelect();
   }
 
   if (id === 'supplierModal') {
@@ -4608,7 +4734,7 @@ function selectSupplier(prefix, id, name, ownerUsername) {
   const selDiv = $(`${prefix}-sup-selected`);
   $(`${prefix}-sup-selected-name`).textContent = '🏪 ' + name + (ownerUsername && isAdmin() ? ' (' + ownerUsername + ')' : '');
   selDiv.style.display = 'flex';
-  if (prefix === 'ch') updateChequeCreditLink(id, ownerUsername || DB.currentUsername);
+  if (prefix === 'ch') { updateChequeCreditLink(id, ownerUsername || DB.currentUsername); syncChequeBookPicker(ownerUsername || DB.currentUsername); }
   if (prefix === 'clc' || prefix.indexOf('ccp') === 0) updateCreditBillOptions(prefix, id, ownerUsername || DB.currentUsername);
 }
 
@@ -5173,6 +5299,9 @@ function editCheque(id, ownerUsername) {
   $('ch-due').value = c.dueDate || '';
   $('ch-status').value = c.status || 'pending';
   $('ch-notes').value = c.notes || '';
+  $('ch-book-id').value = c.chequeBookId || '';
+  if ($('ch-book-wrap')) $('ch-book-wrap').style.display = 'none';
+  if ($('ch-manual-wrap')) $('ch-manual-wrap').style.display = '';
   const sup = (owner.suppliers || []).find(s => s.id === c.supplierId);
   if (sup) { selectSupplier('ch', sup.id, sup.name, owner.username); setTimeout(()=>{ if($('ch-link-credit'))$('ch-link-credit').value=c.linkedCreditId||''; },60); }
   $('chequeModal').classList.add('show');
@@ -5197,6 +5326,12 @@ function delCheque(id, ownerUsername) {
       if (pIdx !== -1) linkedCredit.payments.splice(pIdx, 1);
     }
   }
+  // If this cheque was issued from the manager's-hand pool, free that cheque
+  // number back up so it can be selected again for a future cheque.
+  if (_dch?.chequeBookId) {
+    const poolEntry = (owner.chequeBook || []).find(e => e.id === _dch.chequeBookId);
+    if (poolEntry) { poolEntry.status = 'available'; poolEntry.usedChequeId = ''; poolEntry.usedDate = ''; }
+  }
   owner.cheques = (owner.cheques || []).filter(c => c.id !== id);
   logActivity('DEL_CHEQUE', `${_dch?.entryId||id} deleted`);
   syncUser(owner);
@@ -5220,6 +5355,177 @@ function quickClearCheque(id, ownerUsername) {
   renderOverview();
   if (DB.analyticsOpen) renderSupplierAnalytics();
   toast('✅ Cheque marked as Cleared!');
+}
+
+function populateChequeBookOwnerSelect() {
+  const sel = $('cb-owner');
+  if (!sel) return;
+  const managers = getManagerUsers();
+  sel.innerHTML = managers.length
+    ? managers.map(u => `<option value="${u.username}">${escHtml(u.name)} (${escHtml(u.username)})</option>`).join('')
+    : '<option value="">— No managers found —</option>';
+}
+
+function saveChequeBook() {
+  if (!isAdmin()) { toast('Admin only', 'red'); return; }
+  const ownerUsername = $('cb-owner')?.value || '';
+  const bank = ($('cb-bank')?.value || '').trim();
+  const from = ($('cb-from')?.value || '').trim();
+  const to = ($('cb-to')?.value || '').trim();
+  if (!ownerUsername || !bank || !from) { toast('Please fill all required fields', 'yellow'); return; }
+  const owner = getTargetUser(ownerUsername);
+  if (!owner) { toast('Manager not found', 'red'); return; }
+  const numbers = expandChequeNumberRange(from, to);
+  if (numbers === null) { toast('⚠️ "To" number must be a valid number ≥ "From"', 'red'); return; }
+  if (numbers.length > 500) { toast('⚠️ Range too large (max 500 cheques at a time)', 'red'); return; }
+  if (!owner.chequeBook) owner.chequeBook = [];
+  const existing = new Set(owner.chequeBook.map(e => `${e.bank}::${e.number}`));
+  const batchId = uid();
+  let added = 0, skipped = 0;
+  numbers.forEach(num => {
+    const key = `${bank}::${num}`;
+    if (existing.has(key)) { skipped++; return; }
+    owner.chequeBook.push({
+      id: uid(), batchId, bank, number: num, status: 'available',
+      addedDate: today(), addedBy: DB.currentUsername,
+      usedChequeId: '', usedDate: ''
+    });
+    existing.add(key);
+    added++;
+  });
+  logActivity('ADD_CHEQUE_BOOK', `${added} cheque${added === 1 ? '' : 's'} · ${bank} · ${owner.name}${skipped ? ` (${skipped} duplicate skipped)` : ''}`);
+  syncUser(owner);
+  closeModal('chequeBookModal');
+  $('cb-bank').value = ''; $('cb-from').value = ''; $('cb-to').value = '';
+  renderCheques();
+  toast(added ? `✅ ${added} cheque${added === 1 ? '' : 's'} registered!` : '⚠️ All those cheque numbers were already registered', added ? 'green' : 'yellow');
+}
+
+function deleteChequeBookEntry(ownerUsername, id) {
+  if (!isAdmin()) { toast('Admin only', 'red'); return; }
+  const owner = getTargetUser(ownerUsername);
+  if (!owner) return;
+  const e = (owner.chequeBook || []).find(x => x.id === id);
+  if (!e) return;
+  if (e.status !== 'available') { toast('⚠️ Cannot remove — this cheque has already been used', 'red'); return; }
+  if (!confirm(`Remove cheque #${e.number} (${e.bank}) from ${owner.name}'s hand?`)) return;
+  owner.chequeBook = (owner.chequeBook || []).filter(x => x.id !== id);
+  logActivity('DEL_CHEQUE_BOOK', `#${e.number} · ${e.bank} · ${owner.name}`);
+  syncUser(owner);
+  renderCheques();
+  toast('🗑️ Cheque removed from hand', 'red');
+}
+
+// Populates the "select a cheque" dropdown on the Add Cheque form from `ownerUsername`'s
+// pool, and swaps the manual bank/number fields out for it — but only once that manager
+// actually has a tracked pool (so accounts that haven't adopted this feature yet keep
+// working exactly as before). Edit mode always keeps the manual fields (admin correction).
+function syncChequeBookPicker(ownerUsername) {
+  const bookWrap = $('ch-book-wrap');
+  const manualWrap = $('ch-manual-wrap');
+  const sel = $('ch-book-select');
+  const emptyMsg = $('ch-book-empty-msg');
+  if (!bookWrap || !manualWrap || !sel) return;
+  if ($('ch-edit-id')?.value) { bookWrap.style.display = 'none'; manualWrap.style.display = ''; return; }
+  const owner = getTargetUser(ownerUsername);
+  const pool = (owner?.chequeBook || []);
+  if (!pool.length) { bookWrap.style.display = 'none'; manualWrap.style.display = ''; return; }
+  manualWrap.style.display = 'none';
+  bookWrap.style.display = '';
+  const available = pool.filter(e => e.status === 'available');
+  sel.innerHTML = '<option value="">— Select a cheque —</option>' +
+    available.map(e => `<option value="${e.id}">🏦 ${escHtml(e.bank)} — #${escHtml(e.number)}</option>`).join('');
+  $('ch-book-id').value = '';
+  $('ch-num').value = '';
+  $('ch-bank').value = '';
+  if (emptyMsg) emptyMsg.style.display = available.length ? 'none' : '';
+}
+
+function applyChequeBookSelection() {
+  const id = $('ch-book-select')?.value || '';
+  $('ch-book-id').value = id;
+  if (!id) { $('ch-num').value = ''; $('ch-bank').value = ''; return; }
+  const ownerUsername = DB.addBillContext?.ownerUsername || supSelections['ch']?.ownerUsername || DB.currentUsername;
+  const owner = getTargetUser(ownerUsername);
+  const entry = (owner?.chequeBook || []).find(e => e.id === id);
+  if (entry) { $('ch-num').value = entry.number; $('ch-bank').value = entry.bank; }
+}
+
+function getChequeEntryIdById(ownerUsername, chequeId) {
+  const owner = getTargetUser(ownerUsername);
+  const c = (owner?.cheques || []).find(x => x.id === chequeId);
+  return c ? (c.entryId || '—') : '—';
+}
+
+function renderChequeBookTab() {
+  const registerBtn = $('registerChequeBookBtn');
+  if (registerBtn) registerBtn.style.display = isAdmin() ? '' : 'none';
+
+  const q = (($('chb-search')?.value || '') + '').toLowerCase();
+  const statFilter = $('chb-filter-status')?.value || '';
+  const userFilter = $('chb-filter-user')?.value || '';
+
+  const userFilterEl = $('chb-filter-user');
+  if (userFilterEl) {
+    userFilterEl.classList.toggle('hidden', !isAdmin());
+    if (isAdmin()) {
+      const val = userFilterEl.value;
+      userFilterEl.innerHTML = '<option value="">All Managers</option>' +
+        getManagerUsers().map(u => `<option value="${u.username}" ${val === u.username ? 'selected' : ''}>${escHtml(u.name)} (${escHtml(u.username)})</option>`).join('');
+    }
+  }
+
+  const rows = [];
+  getScopeUsers().forEach(u => {
+    (u.chequeBook || []).forEach(e => rows.push({ ...e, _ownerUsername: u.username, _ownerName: u.name }));
+  });
+
+  const filtered = rows.filter(e => {
+    const matchQ = !q || (e.bank || '').toLowerCase().includes(q) || (e.number || '').toLowerCase().includes(q) || (e._ownerName || '').toLowerCase().includes(q);
+    const matchStat = !statFilter || e.status === statFilter;
+    const matchUser = !userFilter || e._ownerUsername === userFilter;
+    return matchQ && matchStat && matchUser;
+  });
+
+  if ($('cnt-inhand')) $('cnt-inhand').textContent = rows.filter(e => e.status === 'available').length;
+
+  filtered.sort((a, b) => {
+    if (a.status !== b.status) return a.status === 'available' ? -1 : 1;
+    return (b.addedDate || '').localeCompare(a.addedDate || '');
+  });
+
+  const statusBadge = e => e.status === 'available'
+    ? '<span class="badge badge-green">🟢 Available</span>'
+    : '<span class="badge badge-grey">✅ Used</span>';
+
+  const renderRow = e => `
+    <tr>
+      <td>${e._ownerName || '—'}${isAdmin() ? ` <span class="user-data-badge">${e._ownerUsername || '—'}</span>` : ''}</td>
+      <td>${e.bank || '—'}</td>
+      <td class="fw700">${e.number || '—'}</td>
+      <td>${statusBadge(e)}</td>
+      <td>${e.addedDate || '—'}</td>
+      <td>${e.usedChequeId ? getChequeEntryIdById(e._ownerUsername, e.usedChequeId) : '—'}</td>
+      <td>${isAdmin() && e.status === 'available' ? `<button class="btn btn-red btn-sm" onclick="deleteChequeBookEntry('${e._ownerUsername}','${e.id}')">🗑️</button>` : ''}</td>
+    </tr>`;
+
+  const renderMobile = e => `<div class="mob-card">
+      <div class="mob-card-row"><span class="mob-card-label">👤 Manager</span><span class="mob-card-val">${e._ownerName || '—'}</span></div>
+      <div class="mob-card-row"><span class="mob-card-label">🏦 Bank</span><span class="mob-card-val">${e.bank || '—'}</span></div>
+      <div class="mob-card-row"><span class="mob-card-label">🔢 Number</span><span class="mob-card-val fw700">${e.number || '—'}</span></div>
+      <div class="mob-card-row"><span class="mob-card-label">📊 Status</span><span class="mob-card-val">${statusBadge(e)}</span></div>
+      <div class="mob-card-row"><span class="mob-card-label">📅 Added</span><span class="mob-card-val">${e.addedDate || '—'}</span></div>
+      ${isAdmin() && e.status === 'available' ? `<div class="mob-card-actions"><button class="btn btn-red btn-sm" onclick="deleteChequeBookEntry('${e._ownerUsername}','${e.id}')">🗑️ Remove</button></div>` : ''}
+    </div>`;
+
+  const tbody = $('chequeBookBody');
+  const mobileEl = $('chequeBookMobile');
+  if (tbody) {
+    tbody.innerHTML = filtered.length ? filtered.map(renderRow).join('') : `<tr><td colspan="7" class="no-data"><span class="ico">🖐️</span>No cheques registered yet</td></tr>`;
+  }
+  if (mobileEl) {
+    mobileEl.innerHTML = filtered.length ? filtered.map(renderMobile).join('') : '<div class="mob-no-data"><span class="ico">🖐️</span>No cheques registered yet</div>';
+  }
 }
 
 function editSupplier(id, ownerUsername) {
@@ -5363,6 +5669,18 @@ function saveCheque() {
     toast('Admin only', 'red');
     return;
   }
+  // If this manager has a tracked cheque pool, a new cheque MUST come from it —
+  // no free-typed bank/number. (Edits stay manual — see editCheque().)
+  const bookId = $('ch-book-id')?.value || '';
+  let poolEntry = null;
+  if (!editId && (owner.chequeBook || []).length) {
+    if (!bookId) { toast('🖐️ Please select a cheque from the manager\'s hand', 'yellow'); return; }
+    poolEntry = owner.chequeBook.find(e => e.id === bookId);
+    if (!poolEntry || poolEntry.status !== 'available') {
+      toast('⚠️ That cheque is no longer available — please pick another', 'red');
+      return;
+    }
+  }
   const rec = {
     id: editId || uid(),
     entryId: editId ? (owner.cheques || []).find(c => c.id === editId)?.entryId || '' : nextEntryId(owner, 'cheque'),
@@ -5374,7 +5692,8 @@ function saveCheque() {
     amount,
     dueDate: $('ch-due').value,
     status: $('ch-status').value,
-    notes: $('ch-notes').value
+    notes: $('ch-notes').value,
+    chequeBookId: editId ? ((owner.cheques || []).find(c => c.id === editId)?.chequeBookId || '') : (poolEntry ? poolEntry.id : '')
   };
   if (!owner.cheques) owner.cheques = [];
   if (editId) {
@@ -5382,6 +5701,11 @@ function saveCheque() {
     if (idx !== -1) owner.cheques[idx] = rec;
   } else {
     owner.cheques.push(rec);
+  }
+  if (poolEntry) {
+    poolEntry.status = 'used';
+    poolEntry.usedChequeId = rec.id;
+    poolEntry.usedDate = today();
   }
   if (!editId && rec.linkedCreditId) autoSettleLinkedCredit(rec, owner);
   logActivity(editId ? 'EDIT_CHEQUE' : 'ADD_CHEQUE', `${rec.entryId} · ${fmt(rec.amount)}`);
@@ -8836,7 +9160,7 @@ function renderActivityLog() {
     renderPagination('activityPagination', 0, activityLogPage, 'goActivityLogPage', ACTIVITY_PAGE_SIZE);
     return;
   }
-  const icons={ADD_CREDIT:'💳',EDIT_CREDIT:'✏️',DEL_CREDIT:'🗑️',ADD_CHEQUE:'✅',EDIT_CHEQUE:'✏️',DEL_CHEQUE:'🗑️',ADD_PAYMENT:'💰',DEL_PAYMENT:'💰',ADD_SUPPLIER:'🏪',EDIT_SUPPLIER:'✏️',DEL_SUPPLIER:'🗑️',ADD_USER:'👥',EDIT_USER:'✏️',DEL_USER:'🗑️',LOGIN:'🔓',LOGOUT:'🔒',REGISTER:'✨',BACKUP:'📥',CHEQUE_LINK:'🔗',ADD_EMPLOYEE:'🧑‍💼',EDIT_EMPLOYEE:'✏️',DEL_EMPLOYEE:'🗑️',ADD_ADVANCE:'💸',DEL_ADVANCE:'🗑️',PROCESS_PAYROLL:'🧮',DEL_PAYROLL:'🗑️',DEL_CASH_PURCHASE:'🛒',MARK_ATTENDANCE:'🗓️',EDIT_ATTENDANCE:'✏️',DEL_ATTENDANCE:'🗑️',CASH_LOG:'💵',EDIT_CASH_LOG:'✏️',DEL_CASH_LOG:'🗑️',ADD_CASH:'💵',EDIT_CASH:'✏️',DEL_CASH:'🗑️',ADD_RELOAD:'📶',EDIT_RELOAD:'✏️',DEL_RELOAD:'🗑️',CASH_TEMP_SAVE:'🕓',CASH_TEMP_DELETE:'🗑️'};
+  const icons={ADD_CREDIT:'💳',EDIT_CREDIT:'✏️',DEL_CREDIT:'🗑️',ADD_CHEQUE:'✅',EDIT_CHEQUE:'✏️',DEL_CHEQUE:'🗑️',ADD_CHEQUE_BOOK:'🖐️',DEL_CHEQUE_BOOK:'🗑️',ADD_PAYMENT:'💰',DEL_PAYMENT:'💰',ADD_SUPPLIER:'🏪',EDIT_SUPPLIER:'✏️',DEL_SUPPLIER:'🗑️',ADD_USER:'👥',EDIT_USER:'✏️',DEL_USER:'🗑️',LOGIN:'🔓',LOGOUT:'🔒',REGISTER:'✨',BACKUP:'📥',CHEQUE_LINK:'🔗',ADD_EMPLOYEE:'🧑‍💼',EDIT_EMPLOYEE:'✏️',DEL_EMPLOYEE:'🗑️',ADD_ADVANCE:'💸',DEL_ADVANCE:'🗑️',PROCESS_PAYROLL:'🧮',DEL_PAYROLL:'🗑️',DEL_CASH_PURCHASE:'🛒',MARK_ATTENDANCE:'🗓️',EDIT_ATTENDANCE:'✏️',DEL_ATTENDANCE:'🗑️',CASH_LOG:'💵',EDIT_CASH_LOG:'✏️',DEL_CASH_LOG:'🗑️',ADD_CASH:'💵',EDIT_CASH:'✏️',DEL_CASH:'🗑️',ADD_RELOAD:'📶',EDIT_RELOAD:'✏️',DEL_RELOAD:'🗑️',CASH_TEMP_SAVE:'🕓',CASH_TEMP_DELETE:'🗑️'};
   const pageLogs = filtered.slice((activityLogPage-1)*ACTIVITY_PAGE_SIZE, activityLogPage*ACTIVITY_PAGE_SIZE);
   tbody.innerHTML = pageLogs.map(e=>`<tr>
     <td style="font-size:.78rem;white-space:nowrap;">${e.ts?new Date(e.ts).toLocaleString():'—'}</td>
