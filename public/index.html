@@ -209,7 +209,7 @@ tr:hover td{background:#f8fafc;}
 .tab-content{display:none;}
 .tab-content.show{display:block;}
 .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:500;align-items:center;justify-content:center;padding:1rem;}
-#creditModal,#chequeModal,#supplierModal,#payHistModal{z-index:520;}
+#creditModal,#chequeModal,#supplierModal,#payHistModal,#payChequeModal{z-index:520;}
 .overlay.show{display:flex;}
 .modal{background:var(--white);border-radius:14px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow2);}
 .modal-lg{max-width:680px;}
@@ -542,6 +542,11 @@ tr:hover td{background:#eef6fb;}
 /* REPORTS */
 .report-card{cursor:pointer;}
 .report-card:hover{transform:translateY(-5px);box-shadow:0 14px 30px rgba(15,23,42,.14)!important;}
+.reports-mobile-note{display:none;}
+@media(max-width:768px){
+  #reportsSection .stats-grid{display:none;}
+  #reportsSection .reports-mobile-note{display:flex;}
+}
 /* RELOAD */
 .network-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:.7rem;padding:.9rem 1.2rem;}
 .network-card{border-radius:10px;padding:.75rem 1rem;border:2px solid var(--border);background:#fff;transition:all .2s;position:relative;overflow:hidden;}
@@ -1199,23 +1204,48 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
             <button id="registerChequeBookBtn" class="btn btn-navy btn-sm" onclick="openModal('chequeBookModal')" style="display:none;">➕ Register Cheques</button>
           </div>
           <div style="padding:0 1.5rem 0;font-size:.78rem;color:var(--muted);">📌 These are blank cheques currently in a manager's physical hand — registered here by Admin so managers can only issue cheques from real, tracked cheque numbers.</div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>👤 Manager</th>
-                  <th>🏦 Bank</th>
-                  <th>🔢 Cheque #</th>
-                  <th>📊 Status</th>
-                  <th>📅 Added Date</th>
-                  <th>🔗 Used In</th>
-                  <th>⚙️ Action</th>
-                </tr>
-              </thead>
-              <tbody id="chequeBookBody"></tbody>
-            </table>
+
+          <!-- AVAILABLE CHEQUES -->
+          <div id="chb-available-block">
+            <div style="padding:1.1rem 1.5rem .5rem;font-weight:700;font-size:.85rem;color:var(--navy);">🟢 Available Cheques <span class="tab-count" id="cnt-chb-available">0</span></div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>👤 Manager</th>
+                    <th>🏦 Bank</th>
+                    <th>🔢 Cheque #</th>
+                    <th>📅 Added Date</th>
+                    <th>⚙️ Action</th>
+                  </tr>
+                </thead>
+                <tbody id="chequeBookAvailableBody"></tbody>
+              </table>
+            </div>
+            <div class="mobile-cards" id="chequeBookAvailableMobile"></div>
           </div>
-          <div class="mobile-cards" id="chequeBookMobile"></div>
+
+          <!-- USED CHEQUES -->
+          <div id="chb-used-block">
+            <div style="padding:1.1rem 1.5rem .5rem;font-weight:700;font-size:.85rem;color:var(--navy);border-top:1px solid var(--border);margin-top:.5rem;">✅ Used Cheques <span class="tab-count" id="cnt-chb-used">0</span></div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>👤 Manager</th>
+                    <th>🏦 Bank</th>
+                    <th>🔢 Cheque #</th>
+                    <th>📅 Added Date</th>
+                    <th>📅 Used Date</th>
+                    <th>🏪 Issued For</th>
+                    <th>🔗 Used In</th>
+                  </tr>
+                </thead>
+                <tbody id="chequeBookUsedBody"></tbody>
+              </table>
+            </div>
+            <div class="mobile-cards" id="chequeBookUsedMobile"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -1880,6 +1910,9 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
               <div class="stat-sub">Month-wise credit & payment totals</div>
             </div>
           </div>
+          <div class="reports-mobile-note" style="align-items:center;gap:.6rem;padding:1.2rem 1.4rem;background:#f8fafc;border-radius:10px;border:1.5px dashed var(--border);color:var(--muted);font-size:.85rem;margin-bottom:1.5rem;">
+            💻 PDF report downloads are available from the desktop view.
+          </div>
           <div style="padding:1rem;background:#f8fafc;border-radius:10px;border-left:3px solid var(--navy3);font-size:.88rem;color:var(--muted);">
             💡 Reports include all data visible to your account. Admin reports include all users' data.
           </div>
@@ -2497,6 +2530,44 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
     </div>
     <div class="modal-foot">
       <button class="btn btn-ghost" onclick="closeModal('payHistModal');clearPayHistoryState();">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PAY CREDIT WITH CHEQUE (from Manager's Hand) ===== -->
+<div id="payChequeModal" class="overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>🖐️ Pay Credit with Cheque</h3>
+      <button class="modal-close" onclick="closeModal('payChequeModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="pcInfo" style="margin-bottom:1rem;padding:.9rem 1rem;background:#f8fafc;border-radius:10px;border-left:4px solid var(--navy3);"></div>
+      <div class="form-group">
+        <label>🖐️ Select Cheque (from Manager's Hand)</label>
+        <select id="pc-book-select">
+          <option value="">— Select a cheque —</option>
+        </select>
+        <div id="pc-book-empty-msg" style="display:none;font-size:.78rem;color:var(--red);margin-top:.4rem;">⚠️ No available cheques left in your hand. Ask Admin to register more cheque numbers.</div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>💵 Amount to Pay (LKR)</label>
+          <input type="number" id="pc-amount" placeholder="0.00" step="0.01" min="0">
+        </div>
+        <div class="form-group">
+          <label>📅 Cheque Due Date</label>
+          <input type="date" id="pc-due">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>📝 Notes</label>
+        <textarea id="pc-notes" rows="2" placeholder="Optional notes..."></textarea>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('payChequeModal')">Cancel</button>
+      <button class="btn btn-green" onclick="payCreditWithCheque()">💾 Pay with Cheque</button>
     </div>
   </div>
 </div>
@@ -3552,9 +3623,11 @@ function renderCredits() {
     const paid = getTotalPaid(c);
     const bal = getCreditBalance(c);
     const balClass = bal > 0 ? 'text-red' : 'text-green';
+    const canPayCheque = bal > 0.001 && (isAdmin() || c._ownerUsername === DB.currentUsername);
     const actions = `
       <div class="flex gap1" style="justify-content:flex-end;flex-wrap:wrap;">
         <button class="btn btn-ghost btn-sm" onclick="openPayHist('${c.id}','${c._ownerUsername}')">📜 View</button>
+        ${canPayCheque ? `<button class="btn btn-accent btn-sm" onclick="openPayCheque('${c.id}','${c._ownerUsername}')">🖐️ Pay via Cheque</button>` : ''}
         ${isAdmin() ? `<button class="btn btn-yellow btn-sm" onclick="editCredit('${c.id}','${c._ownerUsername}')">✏️</button>
         <button class="btn btn-red btn-sm" onclick="delCredit('${c.id}','${c._ownerUsername}')">🗑️</button>` : ''}
       </div>`;
@@ -3587,6 +3660,7 @@ function renderCredits() {
       </div>
       <div class="mob-card-actions">
         <button class="btn btn-ghost btn-sm" onclick="openPayHist('${c.id}','${c._ownerUsername}')">📜 View</button>
+        ${bal > 0.001 && (isAdmin() || c._ownerUsername === DB.currentUsername) ? `<button class="btn btn-accent btn-sm" onclick="openPayCheque('${c.id}','${c._ownerUsername}')">🖐️ Pay via Cheque</button>` : ''}
         ${isAdmin() ? `<button class="btn btn-yellow btn-sm" onclick="editCredit('${c.id}','${c._ownerUsername}')">✏️</button>
         <button class="btn btn-red btn-sm" onclick="delCredit('${c.id}','${c._ownerUsername}')">🗑️</button>` : ''}
       </div>
@@ -5232,6 +5306,114 @@ function deletePayment(pid) {
   toast('🗑️ Payment deleted', 'red');
 }
 
+// ===== PAY CREDIT WITH CHEQUE (from Manager's Hand) =====
+// Lets a manager (or Admin) settle a credit bill by issuing a real, tracked
+// cheque straight out of that manager's chequeBook pool — the cheque is
+// created and linked to the credit in one step, same as picking a cheque
+// from the hand when adding a cheque manually.
+function openPayCheque(creditId, ownerUsername) {
+  if (!creditId) return;
+  const owner = getTargetUser(ownerUsername || DB.currentUsername);
+  if (!owner) return;
+  if (isManager() && (ownerUsername || DB.currentUsername) !== DB.currentUsername) {
+    toast('Admin only', 'red');
+    return;
+  }
+  const c = (owner.credits || []).find(x => x.id === creditId);
+  if (!c) return;
+  const bal = getCreditBalance(c);
+  if (bal <= 0.001) { toast('This credit bill is already settled', 'yellow'); return; }
+
+  DB.activePayChequeCreditId = creditId;
+  DB.activePayChequeOwnerUsername = owner.username;
+
+  $('pcInfo').innerHTML = `
+    <div class="flex gap2" style="flex-wrap:wrap;">
+      <div><span class="entry-id">${c.entryId || '—'}</span> &nbsp; <strong>${getSupplierName(c.supplierId, owner)}</strong> &nbsp; ${c.date || '—'}</div>
+    </div>
+    <div class="flex gap2" style="margin-top:.5rem;flex-wrap:wrap;">
+      <div>💵 Bill: <strong>${fmt(c.amount)}</strong></div>
+      <div>✅ Paid: <strong class="text-green">${fmt(getTotalPaid(c))}</strong></div>
+      <div>⚖️ Balance: <strong class="text-red">${fmt(bal)}</strong></div>
+    </div>`;
+
+  const available = (owner.chequeBook || []).filter(e => e.status === 'available');
+  const sel = $('pc-book-select');
+  sel.innerHTML = '<option value="">— Select a cheque —</option>' +
+    available.map(e => `<option value="${e.id}">🏦 ${e.bank || '—'} · #${e.number || '—'}</option>`).join('');
+  $('pc-book-empty-msg').style.display = available.length ? 'none' : '';
+
+  $('pc-amount').value = bal.toFixed(2);
+  $('pc-due').value = '';
+  $('pc-notes').value = '';
+
+  $('payChequeModal').classList.add('show');
+}
+
+function payCreditWithCheque() {
+  const creditId = DB.activePayChequeCreditId;
+  const ownerUsername = DB.activePayChequeOwnerUsername;
+  const owner = getTargetUser(ownerUsername);
+  if (!owner) return;
+  if (isManager() && ownerUsername !== DB.currentUsername) {
+    toast('Admin only', 'red');
+    return;
+  }
+  const c = (owner.credits || []).find(x => x.id === creditId);
+  if (!c) return;
+
+  const bookId = $('pc-book-select')?.value || '';
+  if (!bookId) { toast('🖐️ Please select a cheque from the manager\'s hand', 'yellow'); return; }
+  const poolEntry = (owner.chequeBook || []).find(e => e.id === bookId);
+  if (!poolEntry || poolEntry.status !== 'available') {
+    toast('⚠️ That cheque is no longer available — please pick another', 'red');
+    openPayCheque(creditId, ownerUsername);
+    return;
+  }
+
+  const amount = parseFloat($('pc-amount').value) || 0;
+  const dueDate = $('pc-due').value;
+  if (!amount || !dueDate) { toast('Amount & Due Date required', 'yellow'); return; }
+  const bal = getCreditBalance(c);
+  if (amount > bal + 0.001) { toast('Amount exceeds remaining balance!', 'red'); return; }
+
+  const rec = {
+    id: uid(),
+    entryId: nextEntryId(owner, 'cheque'),
+    date: today(),
+    supplierId: c.supplierId,
+    number: poolEntry.number,
+    bank: poolEntry.bank || '',
+    linkedCreditId: c.id,
+    amount,
+    dueDate,
+    status: 'pending',
+    notes: $('pc-notes').value || '',
+    chequeBookId: poolEntry.id
+  };
+  if (!owner.cheques) owner.cheques = [];
+  owner.cheques.push(rec);
+
+  poolEntry.status = 'used';
+  poolEntry.usedChequeId = rec.id;
+  poolEntry.usedDate = today();
+
+  autoSettleLinkedCredit(rec, owner);
+
+  logActivity('ADD_CHEQUE', `${rec.entryId} · ${fmt(rec.amount)} · Paid Credit ${c.entryId}`);
+  if (isManager()) {
+    queuePushEvent('cheque', '🏦 Credit Paid with Cheque', `${DB.currentUser?.name || DB.currentUsername} · ${getSupplierName(c.supplierId, owner)} · ${fmt(rec.amount)} · Due ${rec.dueDate}`);
+  }
+  touchSupplier(owner, c.supplierId);
+  syncUser(owner);
+  closeModal('payChequeModal');
+  renderCredits();
+  renderCheques();
+  renderOverview();
+  if (DB.analyticsOpen) renderSupplierAnalytics();
+  toast('✅ Credit paid with cheque!');
+}
+
 function editCredit(id, ownerUsername) {
   if (!isAdmin()) {
     toast('Admin only', 'red');
@@ -5482,50 +5664,85 @@ function renderChequeBookTab() {
 
   const filtered = rows.filter(e => {
     const matchQ = !q || (e.bank || '').toLowerCase().includes(q) || (e.number || '').toLowerCase().includes(q) || (e._ownerName || '').toLowerCase().includes(q);
-    const matchStat = !statFilter || e.status === statFilter;
     const matchUser = !userFilter || e._ownerUsername === userFilter;
-    return matchQ && matchStat && matchUser;
+    return matchQ && matchUser;
   });
 
   if ($('cnt-inhand')) $('cnt-inhand').textContent = rows.filter(e => e.status === 'available').length;
 
-  filtered.sort((a, b) => {
-    if (a.status !== b.status) return a.status === 'available' ? -1 : 1;
-    return (b.addedDate || '').localeCompare(a.addedDate || '');
-  });
+  // Split into two separate lists — Available cheques still in hand, and
+  // Used cheques that have already been issued to a supplier.
+  const availableRows = filtered.filter(e => e.status === 'available')
+    .sort((a, b) => (b.addedDate || '').localeCompare(a.addedDate || ''));
+  const usedRows = filtered.filter(e => e.status === 'used')
+    .sort((a, b) => (b.usedDate || '').localeCompare(a.usedDate || ''));
 
-  const statusBadge = e => e.status === 'available'
-    ? '<span class="badge badge-green">🟢 Available</span>'
-    : '<span class="badge badge-grey">✅ Used</span>';
+  if ($('cnt-chb-available')) $('cnt-chb-available').textContent = availableRows.length;
+  if ($('cnt-chb-used')) $('cnt-chb-used').textContent = usedRows.length;
 
-  const renderRow = e => `
+  // The status filter now toggles which of the two sections is shown,
+  // instead of mixing available/used rows together in one table.
+  const availBlock = $('chb-available-block');
+  const usedBlock = $('chb-used-block');
+  if (availBlock) availBlock.style.display = statFilter === 'used' ? 'none' : '';
+  if (usedBlock) usedBlock.style.display = statFilter === 'available' ? 'none' : '';
+
+  // For a used cheque, look up the real cheque record it became to find
+  // which supplier it was issued for.
+  const getIssuedFor = e => {
+    if (!e.usedChequeId) return '—';
+    const owner = getTargetUser(e._ownerUsername);
+    const c = (owner?.cheques || []).find(x => x.id === e.usedChequeId);
+    return c ? getSupplierName(c.supplierId, owner) : '—';
+  };
+
+  const renderAvailRow = e => `
     <tr>
       <td>${e._ownerName || '—'}${isAdmin() ? ` <span class="user-data-badge">${e._ownerUsername || '—'}</span>` : ''}</td>
       <td>${e.bank || '—'}</td>
       <td class="fw700">${e.number || '—'}</td>
-      <td>${statusBadge(e)}</td>
       <td>${e.addedDate || '—'}</td>
-      <td>${e.usedChequeId ? getChequeEntryIdById(e._ownerUsername, e.usedChequeId) : '—'}</td>
-      <td>${isAdmin() && e.status === 'available' ? `<button class="btn btn-red btn-sm" onclick="deleteChequeBookEntry('${e._ownerUsername}','${e.id}')">🗑️</button>` : ''}</td>
+      <td>${isAdmin() ? `<button class="btn btn-red btn-sm" onclick="deleteChequeBookEntry('${e._ownerUsername}','${e.id}')">🗑️</button>` : ''}</td>
     </tr>`;
 
-  const renderMobile = e => `<div class="mob-card">
+  const renderAvailMobile = e => `<div class="mob-card">
       <div class="mob-card-row"><span class="mob-card-label">👤 Manager</span><span class="mob-card-val">${e._ownerName || '—'}</span></div>
       <div class="mob-card-row"><span class="mob-card-label">🏦 Bank</span><span class="mob-card-val">${e.bank || '—'}</span></div>
       <div class="mob-card-row"><span class="mob-card-label">🔢 Number</span><span class="mob-card-val fw700">${e.number || '—'}</span></div>
-      <div class="mob-card-row"><span class="mob-card-label">📊 Status</span><span class="mob-card-val">${statusBadge(e)}</span></div>
       <div class="mob-card-row"><span class="mob-card-label">📅 Added</span><span class="mob-card-val">${e.addedDate || '—'}</span></div>
-      ${isAdmin() && e.status === 'available' ? `<div class="mob-card-actions"><button class="btn btn-red btn-sm" onclick="deleteChequeBookEntry('${e._ownerUsername}','${e.id}')">🗑️ Remove</button></div>` : ''}
+      ${isAdmin() ? `<div class="mob-card-actions"><button class="btn btn-red btn-sm" onclick="deleteChequeBookEntry('${e._ownerUsername}','${e.id}')">🗑️ Remove</button></div>` : ''}
     </div>`;
 
-  const tbody = $('chequeBookBody');
-  const mobileEl = $('chequeBookMobile');
-  if (tbody) {
-    tbody.innerHTML = filtered.length ? filtered.map(renderRow).join('') : `<tr><td colspan="7" class="no-data"><span class="ico">🖐️</span>No cheques registered yet</td></tr>`;
-  }
-  if (mobileEl) {
-    mobileEl.innerHTML = filtered.length ? filtered.map(renderMobile).join('') : '<div class="mob-no-data"><span class="ico">🖐️</span>No cheques registered yet</div>';
-  }
+  const renderUsedRow = e => `
+    <tr>
+      <td>${e._ownerName || '—'}${isAdmin() ? ` <span class="user-data-badge">${e._ownerUsername || '—'}</span>` : ''}</td>
+      <td>${e.bank || '—'}</td>
+      <td class="fw700">${e.number || '—'}</td>
+      <td>${e.addedDate || '—'}</td>
+      <td>${e.usedDate || '—'}</td>
+      <td>${getIssuedFor(e)}</td>
+      <td>${e.usedChequeId ? getChequeEntryIdById(e._ownerUsername, e.usedChequeId) : '—'}</td>
+    </tr>`;
+
+  const renderUsedMobile = e => `<div class="mob-card">
+      <div class="mob-card-row"><span class="mob-card-label">👤 Manager</span><span class="mob-card-val">${e._ownerName || '—'}</span></div>
+      <div class="mob-card-row"><span class="mob-card-label">🏦 Bank</span><span class="mob-card-val">${e.bank || '—'}</span></div>
+      <div class="mob-card-row"><span class="mob-card-label">🔢 Number</span><span class="mob-card-val fw700">${e.number || '—'}</span></div>
+      <div class="mob-card-row"><span class="mob-card-label">🏪 Issued For</span><span class="mob-card-val">${getIssuedFor(e)}</span></div>
+      <div class="mob-card-row"><span class="mob-card-label">🔗 Used In</span><span class="mob-card-val">${e.usedChequeId ? getChequeEntryIdById(e._ownerUsername, e.usedChequeId) : '—'}</span></div>
+      <div class="mob-card-row"><span class="mob-card-label">📅 Added</span><span class="mob-card-val">${e.addedDate || '—'}</span></div>
+      <div class="mob-card-row"><span class="mob-card-label">📅 Used</span><span class="mob-card-val">${e.usedDate || '—'}</span></div>
+    </div>`;
+
+  const availTbody = $('chequeBookAvailableBody');
+  const availMobileEl = $('chequeBookAvailableMobile');
+  if (availTbody) availTbody.innerHTML = availableRows.length ? availableRows.map(renderAvailRow).join('') : `<tr><td colspan="5" class="no-data"><span class="ico">🖐️</span>No available cheques</td></tr>`;
+  if (availMobileEl) availMobileEl.innerHTML = availableRows.length ? availableRows.map(renderAvailMobile).join('') : '<div class="mob-no-data"><span class="ico">🖐️</span>No available cheques</div>';
+
+  const usedTbody = $('chequeBookUsedBody');
+  const usedMobileEl = $('chequeBookUsedMobile');
+  if (usedTbody) usedTbody.innerHTML = usedRows.length ? usedRows.map(renderUsedRow).join('') : `<tr><td colspan="7" class="no-data"><span class="ico">✅</span>No used cheques yet</td></tr>`;
+  if (usedMobileEl) usedMobileEl.innerHTML = usedRows.length ? usedRows.map(renderUsedMobile).join('') : '<div class="mob-no-data"><span class="ico">✅</span>No used cheques yet</div>';
 }
 
 function editSupplier(id, ownerUsername) {
