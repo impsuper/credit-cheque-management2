@@ -319,6 +319,46 @@ tr:hover td{background:#f8fafc;}
 .sa-rank.bronze{background:linear-gradient(135deg,#b45309,#92400e);}
 .sa-no-data{text-align:center;padding:2.5rem;color:var(--muted);font-size:.9rem;}
 .sa-no-data .ico{font-size:2rem;display:block;margin-bottom:.5rem;}
+
+/* ===== SYNC STATUS BADGE ===== */
+.sync-badge{display:flex;align-items:center;gap:.4rem;background:var(--white);padding:.5rem .9rem;border-radius:8px;font-size:.8rem;color:var(--muted);box-shadow:var(--shadow);white-space:nowrap;}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0;transition:background .3s;}
+.sync-dot.syncing{background:var(--yellow);animation:syncPulse 1s ease-in-out infinite;}
+.sync-dot.offline{background:var(--red);}
+@keyframes syncPulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+
+/* ===== AI INSIGHTS ===== */
+.ai-summary-box{background:linear-gradient(135deg,#eff6ff 0%,#ecfdf5 100%);border:1px solid var(--border);border-radius:14px;padding:1.4rem 1.6rem;line-height:1.7;font-size:.92rem;color:var(--text);}
+.ai-summary-box b{color:var(--navy);}
+.risk-card{background:var(--white);border-radius:12px;border:1px solid var(--border);box-shadow:var(--shadow);overflow:hidden;}
+.risk-card-head{padding:.9rem 1.2rem;font-weight:700;font-size:.88rem;color:var(--navy);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--bg);}
+.risk-row{display:flex;align-items:center;justify-content:space-between;gap:.8rem;padding:.75rem 1.2rem;border-bottom:1px solid var(--border);font-size:.85rem;}
+.risk-row:last-child{border-bottom:none;}
+.risk-row .rr-main{font-weight:600;color:var(--text);}
+.risk-row .rr-sub{font-size:.76rem;color:var(--muted);margin-top:.1rem;}
+.risk-row .rr-amt{font-weight:700;white-space:nowrap;}
+.ai-kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin-bottom:1.2rem;}
+.ai-kpi-card{background:var(--white);border-radius:14px;padding:1.2rem 1.3rem;box-shadow:var(--shadow);border-top:3px solid var(--navy3);}
+.ai-kpi-card.green{border-top-color:var(--green);}
+.ai-kpi-card.red{border-top-color:var(--red);}
+.ai-kpi-card.yellow{border-top-color:var(--yellow);}
+.ai-kpi-card .aik-label{font-size:.78rem;color:var(--muted);font-weight:600;margin-bottom:.3rem;}
+.ai-kpi-card .aik-val{font-size:1.3rem;font-weight:700;color:var(--navy);letter-spacing:-.4px;}
+.ai-kpi-card .aik-sub{font-size:.74rem;color:var(--muted);margin-top:.25rem;}
+.ai-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;}
+@media(max-width:900px){.ai-grid-2{grid-template-columns:1fr;}}
+.risk-level{display:inline-block;padding:.2rem .6rem;border-radius:20px;font-size:.72rem;font-weight:700;}
+.risk-level.good{background:#e8f8f0;color:var(--green);}
+.risk-level.watch{background:#fef9e7;color:var(--yellow);}
+.risk-level.high{background:#fde8e8;color:var(--red);}
+
+/* ===== CLOUD BACKUPS ===== */
+.backup-row{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 1.2rem;border-bottom:1px solid var(--border);flex-wrap:wrap;}
+.backup-row:last-child{border-bottom:none;}
+.backup-row .bk-main{font-weight:600;color:var(--navy);font-size:.92rem;}
+.backup-row .bk-sub{font-size:.78rem;color:var(--muted);margin-top:.2rem;}
+.backup-actions{display:flex;gap:.5rem;flex-shrink:0;}
+.backup-info-box{background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:.9rem 1.1rem;font-size:.84rem;color:var(--navy2);margin-bottom:1.2rem;line-height:1.6;}
 .sa-table-nav{display:flex;align-items:center;gap:.4rem;}
 .sa-table-nav input[type="month"]{padding:.4rem .7rem;border:1.5px solid var(--border);border-radius:8px;font-size:.82rem;background:#fff;color:var(--text);}
 .sa-sortable{cursor:pointer;user-select:none;white-space:nowrap;}
@@ -778,11 +818,11 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
   50%{transform:translateY(-5px);}
 }
 #overviewSection .stat-card,
-#ov-daily-sales-card{
+#ov-carousel2-card{
   animation:ovFloat 4.5s ease-in-out infinite;
 }
 #overviewSection .stat-card:hover,
-#ov-daily-sales-card:hover{
+#ov-carousel2-card:hover{
   animation:none;
 }
 #overviewSection .stat-card:nth-child(1){animation-delay:0s;}
@@ -791,7 +831,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
 #overviewSection .stat-card:nth-child(4){animation-delay:1.05s;}
 #overviewSection .stat-card:nth-child(5){animation-delay:1.4s;}
 #overviewSection .stat-card:nth-child(6){animation-delay:1.75s;}
-#ov-daily-sales-card{animation-delay:2.1s;}
+#ov-carousel2-card{animation-delay:1.85s;}
 .ov-carousel-dots{display:flex;justify-content:center;align-items:center;gap:.5rem;padding:.9rem 0 1.1rem;border-top:1px solid var(--border);background:var(--bg);}
 .ov-dot{width:8px;height:8px;border-radius:50%;background:var(--border);cursor:pointer;transition:all .25s ease;}
 .ov-dot:hover{background:#b9c4d1;}
@@ -895,6 +935,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
     <div class="sb-link" onclick="showSection('suppliers')"><span class="ico">🏪</span><span>Suppliers</span></div>
     <div class="sb-link" onclick="showSection('reports')"><span class="ico">📋</span><span>Reports</span></div>
     <div class="sb-link" onclick="showSection('analytics')"><span class="ico">📈</span><span>Analytics</span></div>
+    <div class="sb-link" onclick="showSection('aiinsights')"><span class="ico">🤖</span><span>AI Insights</span></div>
     <div class="sb-link hidden" id="plNavLink" onclick="showSection('pl')"><span class="ico">💹</span><span>Profit &amp; Loss</span></div>
     <div class="sb-link" onclick="showSection('reload')"><span class="ico">📱</span><span>Reload</span></div>
     <div class="sb-link hidden" id="cashNavLink" onclick="showSection('cash')"><span class="ico">💰</span><span>Cash</span></div>
@@ -904,6 +945,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
       <div class="sb-section">Admin</div>
       <div class="sb-link" onclick="showSection('users')"><span class="ico">👥</span><span>Manage Users</span></div>
       <div class="sb-link" onclick="showSection('activity')"><span class="ico">🕐</span><span>Activity</span></div>
+      <div class="sb-link" onclick="showSection('backups')"><span class="ico">☁️</span><span>Cloud Backups</span></div>
     </div>
     <div class="sb-link sb-mob-logout" onclick="doLogout()"><span class="ico">🚪</span><span>Out</span></div>
     <div style="flex:1"></div>
@@ -924,6 +966,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
         <button class="btn btn-ghost btn-sm" onclick="downloadBackup()" title="Backup">⬇️ <span class="bk-label">Backup</span></button>
         <button id="restoreBtn" class="btn btn-ghost btn-sm hidden" onclick="$('restoreInput').click()" title="Restore">⬆️ <span class="bk-label">Restore</span></button>
         <input type="file" id="restoreInput" accept=".json" style="display:none" onchange="restoreBackup(event)">
+        <div class="sync-badge" id="syncBadge" title="Cloud sync status"><span class="sync-dot" id="syncDot"></span><span id="syncText" class="bk-label">Synced</span></div>
         <div class="date-badge" id="dateEl">—</div>
       </div>
     </div>
@@ -949,20 +992,59 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
         <div class="stat-card accent" id="rlStatTotal"><div class="stat-label">📱 Total Reload Balance</div><div class="stat-val" id="ov-rl-total">LKR 0</div></div>
         <div class="stat-card green" id="rlStatCash"><div class="stat-label">💵 Reload Cash in Hand</div><div class="stat-val" id="ov-rl-cash">LKR 0</div></div>
       </div>
-      <!-- Daily Total Sales line chart (default: last 30 days, adjustable) — kept close to the tiles -->
-      <div class="card hidden" id="ov-daily-sales-card" style="margin-top:.6rem;margin-bottom:1.2rem;">
-        <div class="card-head">
-          <div class="card-title">📈 Daily Total Sales</div>
-          <select id="ov-daily-sales-range" onchange="renderDailySalesChart()" style="padding:.4rem .8rem;border:1.5px solid var(--border);border-radius:8px;font-size:.82rem;background:#fff;">
-            <option value="7">Last 7 Days</option>
-            <option value="14">Last 14 Days</option>
-            <option value="30" selected>Last 30 Days</option>
-            <option value="60">Last 60 Days</option>
-            <option value="90">Last 90 Days</option>
-          </select>
+      <!-- Rotating carousel 2: cycles Monthly Sales Growth / Daily Total Sales / Daily Sales
+           Comparison, one slide at a time, every 6s (same rotation as the mini-chart carousel
+           below). Monthly Sales Growth is a cumulative line chart per month; Daily Sales
+           Comparison is a bar chart comparing the same day-of-month across the current month
+           and recent months, so e.g. the 15th of this month vs the 15th of last month is a
+           quick glance away. -->
+      <div class="card ov-carousel hidden" id="ov-carousel2-card" style="margin-top:.6rem;margin-bottom:1.2rem;">
+        <div class="ov-carousel-slides" id="ov-carousel2-slides">
+          <div class="ov-carousel-slide active" data-slide="0">
+            <div class="card-head">
+              <div class="card-title">📊 Monthly Sales Growth</div>
+              <select id="ov-monthly-growth-range" onchange="renderMonthlySalesGrowthChart()" style="padding:.4rem .8rem;border:1.5px solid var(--border);border-radius:8px;font-size:.82rem;background:#fff;">
+                <option value="1">Current Month Only</option>
+                <option value="3" selected>Last 3 Months</option>
+                <option value="6">Last 6 Months</option>
+              </select>
+            </div>
+            <div style="padding:1rem 1.2rem;">
+              <div id="ov-monthly-growth-chart" class="simple-chart mini-apex-wrap" style="min-height:230px;"></div>
+            </div>
+          </div>
+          <div class="ov-carousel-slide" data-slide="1">
+            <div class="card-head">
+              <div class="card-title">📈 Daily Total Sales</div>
+              <select id="ov-daily-sales-range" onchange="renderDailySalesChart()" style="padding:.4rem .8rem;border:1.5px solid var(--border);border-radius:8px;font-size:.82rem;background:#fff;">
+                <option value="7">Last 7 Days</option>
+                <option value="14">Last 14 Days</option>
+                <option value="30" selected>Last 30 Days</option>
+                <option value="60">Last 60 Days</option>
+                <option value="90">Last 90 Days</option>
+              </select>
+            </div>
+            <div style="padding:1rem 1.2rem;">
+              <div id="ov-daily-sales-chart" class="simple-chart mini-apex-wrap" style="min-height:170px;"></div>
+            </div>
+          </div>
+          <div class="ov-carousel-slide" data-slide="2">
+            <div class="card-head">
+              <div class="card-title">📊 Daily Sales Comparison</div>
+              <select id="ov-sales-comparison-range" onchange="renderDailySalesComparisonChart()" style="padding:.4rem .8rem;border:1.5px solid var(--border);border-radius:8px;font-size:.82rem;background:#fff;">
+                <option value="4" selected>Current + Last 3 Months</option>
+                <option value="6">Current + Last 5 Months</option>
+              </select>
+            </div>
+            <div style="padding:1rem 1.2rem;">
+              <div id="ov-sales-comparison-chart" class="simple-chart mini-apex-wrap" style="min-height:230px;"></div>
+            </div>
+          </div>
         </div>
-        <div style="padding:1rem 1.2rem;">
-          <div id="ov-daily-sales-chart" class="simple-chart mini-apex-wrap" style="min-height:170px;"></div>
+        <div class="ov-carousel-dots" id="ov-carousel2-dots">
+          <span class="ov-dot active" onclick="ovGoToSlide2(0)" title="Monthly Sales Growth"></span>
+          <span class="ov-dot" onclick="ovGoToSlide2(1)" title="Daily Total Sales"></span>
+          <span class="ov-dot" onclick="ovGoToSlide2(2)" title="Daily Sales Comparison"></span>
         </div>
       </div>
       <!-- Rotating carousel: cycles the 5 dashboard mini-charts, one at a time, every 4s -->
@@ -2086,6 +2168,65 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
       </div>
     </div>
 
+    <!-- AI INSIGHTS (Local Smart Analytics) -->
+    <div id="aiinsightsSection" class="section">
+      <div class="backup-info-box">🤖 <b>Smart Insights</b> — මේ දත්ත ඔබේ Credits/Cheques/Cash records වලින්ම ස්වයංක්‍රීයව ගණනය කරන ලද ඒවා. සියලුම ගණනය කිරීම් ඔබේ device/cloud එකේම සිදුවෙනවා — කිසිම දත්තයක් පිටස්තර service එකකට යන්නේ නෑ.</div>
+
+      <div class="ai-kpi-grid" id="ai-kpi-row"></div>
+
+      <div class="card" style="margin-bottom:1.2rem;">
+        <div class="card-head"><div class="card-title">📝 Business Summary</div><span id="ai-summary-period" style="font-size:.78rem;color:var(--muted);"></span></div>
+        <div style="padding:1.2rem 1.5rem;"><div class="ai-summary-box" id="ai-summary-text">—</div></div>
+      </div>
+
+      <div class="ai-grid-2" style="margin-bottom:1.2rem;">
+        <div class="risk-card">
+          <div class="risk-card-head"><span>⚠️ Risk Alerts</span><span id="ai-risk-count" class="badge badge-red">0</span></div>
+          <div id="ai-risk-list"></div>
+        </div>
+        <div class="risk-card">
+          <div class="risk-card-head"><span>🚨 Anomalies (Last 60 Days)</span><span id="ai-anomaly-count" class="badge badge-yellow">0</span></div>
+          <div id="ai-anomaly-list"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:1.2rem;">
+        <div class="card-head"><div class="card-title">📈 Net Cash Forecast</div><span style="font-size:.78rem;color:var(--muted);">Historical + Next Month Prediction</span></div>
+        <div style="padding:1rem 1.2rem;"><div id="ai-forecast-chart"></div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><div class="card-title">🏪 Supplier Risk Scoring</div></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>🏪 Supplier</th>
+              <th>💵 Total Credit</th>
+              <th>⏳ Outstanding</th>
+              <th>📅 Avg. Settle Days</th>
+              <th>🚦 Risk Level</th>
+            </tr></thead>
+            <tbody id="ai-supplier-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- CLOUD BACKUPS (Admin Only) -->
+    <div id="backupsSection" class="section">
+      <div class="backup-info-box">☁️ <b>Auto Versioned Backups</b> — සෑම දවසකම ස්වයංක්‍රීයව ඔබේ සම්පූර්ණ දත්ත snapshot එකක් Cloud (Firestore) එකට save වෙනවා. පසුගිය 30 දිනයේ backups තියාගන්නවා — ඕනෑම වෙලාවක restore කරන්න පුළුවන්.</div>
+      <div class="card" style="margin-bottom:1.2rem;">
+        <div class="card-head">
+          <div class="card-title">☁️ Cloud Backup History</div>
+          <div style="display:flex;gap:.6rem;">
+            <button class="btn btn-ghost btn-sm" onclick="renderBackupsSection()" title="Refresh">🔄 Refresh</button>
+            <button class="btn btn-navy btn-sm" onclick="doManualCloudBackup()" title="Backup Now">☁️⬆️ Backup Now</button>
+          </div>
+        </div>
+        <div id="backup-list-wrap"><div class="no-data"><span class="ico">⏳</span>Loading...</div></div>
+      </div>
+    </div>
+
     <!-- PROFIT & LOSS (Admin Only) -->
     <div id="plSection" class="section">
       <div class="card" style="margin-bottom:1.2rem;">
@@ -2956,31 +3097,40 @@ async function saveUserDoc(user) {
   if (!user) return;
   if (!firebaseReady()) {
     saveDBLocal();
+    markSynced('local');
     return;
   }
+  setSyncStatus('syncing');
   try {
     await usersCol.doc(user.username).set(clean(user));
+    markSynced('cloud');
   } catch (e) {
     console.error('saveUserDoc', e);
     toast('⚠️ Save failed', 'red');
+    setSyncStatus('offline');
   }
 }
 
 async function deleteUserDoc(username) {
   if (!firebaseReady()) {
     saveDBLocal();
+    markSynced('local');
     return;
   }
+  setSyncStatus('syncing');
   try {
     await usersCol.doc(username).delete();
+    markSynced('cloud');
   } catch (e) {
     console.error('deleteUserDoc', e);
+    setSyncStatus('offline');
   }
 }
 
 function saveDB() {
   if (!firebaseReady()) {
     saveDBLocal();
+    markSynced('local');
     return;
   }
   DB.users.forEach(u => saveUserDoc(u));
@@ -2989,6 +3139,75 @@ function saveDB() {
 function saveDBLocal() {
   localStorage.setItem('cms_users', JSON.stringify(DB.users));
 }
+
+/* ============= CLOUD SYNC STATUS ============= */
+// Tracks whether the app's data is currently saved to Firestore ("cloud"),
+// saved to localStorage only ("local" — no Firebase configured / offline),
+// mid-write ("syncing"), or failed ("offline"). Drives the small badge in
+// the topbar so the user always knows their data is safe.
+let lastSyncedAt = null;
+let lastSyncMode = null; // 'cloud' | 'local'
+let syncStatusState = 'synced'; // 'synced' | 'syncing' | 'offline'
+
+function markSynced(mode) {
+  lastSyncedAt = Date.now();
+  lastSyncMode = mode;
+  syncStatusState = 'synced';
+  updateSyncStatusUI();
+}
+
+function setSyncStatus(state) {
+  syncStatusState = state;
+  updateSyncStatusUI();
+}
+
+function updateSyncStatusUI() {
+  const dot = $('syncDot');
+  const text = $('syncText');
+  const badge = $('syncBadge');
+  if (!dot || !text || !badge) return;
+  dot.classList.remove('syncing', 'offline');
+  if (!navigator.onLine) {
+    dot.classList.add('offline');
+    text.textContent = '📴 Offline';
+    badge.title = 'No internet connection — changes will sync once you\'re back online';
+    return;
+  }
+  if (syncStatusState === 'syncing') {
+    dot.classList.add('syncing');
+    text.textContent = 'Syncing…';
+    badge.title = 'Saving to cloud…';
+    return;
+  }
+  if (syncStatusState === 'offline') {
+    dot.classList.add('offline');
+    text.textContent = '⚠️ Save failed';
+    badge.title = 'Last save failed — will retry on next change';
+    return;
+  }
+  if (!lastSyncedAt) {
+    text.textContent = firebaseReady() ? 'Connecting…' : 'Local only';
+    badge.title = firebaseReady() ? 'Connecting to cloud…' : 'ℹ️ Local-only mode — add your Firebase config to sync across devices';
+    return;
+  }
+  const secs = Math.floor((Date.now() - lastSyncedAt) / 1000);
+  let ago;
+  if (secs < 10) ago = 'just now';
+  else if (secs < 60) ago = secs + 's ago';
+  else if (secs < 3600) ago = Math.floor(secs / 60) + 'm ago';
+  else ago = Math.floor(secs / 3600) + 'h ago';
+  if (lastSyncMode === 'cloud') {
+    text.textContent = '☁️ Synced ' + ago;
+    badge.title = 'Last saved to cloud ' + ago;
+  } else {
+    text.textContent = '💾 Saved ' + ago + ' (local)';
+    badge.title = 'ℹ️ Local-only mode — add your Firebase config to sync across devices';
+  }
+}
+
+window.addEventListener('online', () => { setSyncStatus('synced'); updateSyncStatusUI(); toast('🟢 Back online', 'green'); });
+window.addEventListener('offline', () => { setSyncStatus('offline'); updateSyncStatusUI(); toast('📴 You are offline — changes save locally until reconnected', 'yellow'); });
+setInterval(updateSyncStatusUI, 20000);
 
 function setSession(username) {
   DB.currentUsername = username;
@@ -3204,8 +3423,9 @@ function startLiveSync() {
       const fresh = getUserByUsername(DB.currentUsername);
       if (fresh) DB.currentUser = fresh;
     }
+    markSynced('cloud');
     refreshActiveSection();
-  }, err => console.error('live sync', err));
+  }, err => { console.error('live sync', err); setSyncStatus('offline'); });
 }
 
 async function loadPayrollDB() {
@@ -3422,6 +3642,8 @@ const sectionTitles = {
   users: '👥 Manage Users',
   reports: '📋 Reports',
   analytics: '📈 Sales Analytics',
+  aiinsights: '🤖 AI Insights',
+  backups: '☁️ Cloud Backups',
   pl: '💹 Profit & Loss',
   activity: '🕐 Activity Log',
   cash: '💰 Cash Management',
@@ -3455,6 +3677,8 @@ function showSection(name) {
   if (name === 'reports') { renderSalesHistory(); renderCashLog(); renderManagerCashLedger(); }
   if (name === 'reload') { if($('rl-date')&&!$('rl-date').value)$('rl-date').value=today(); renderReloadSection(); }
   if (name === 'analytics') initAnalytics();
+  if (name === 'aiinsights') renderAIInsights();
+  if (name === 'backups') { if (!isAdmin()) { showSection('overview'); return; } renderBackupsSection(); }
   if (name === 'pl') { if (!isAdmin()) { showSection('overview'); return; } initPLSection(); }
   if (name === 'payroll') { if (!canAccessPayroll()) { showSection('overview'); return; } initPayrollSection(); }
 }
@@ -4006,6 +4230,62 @@ function renderAreaApex(elId, items, valueLabel) {
   __ovApex[elId].render();
 }
 
+// ApexCharts multi-series line chart — used for Monthly Sales Growth, where
+// each month gets its own colored cumulative-sales curve so the current
+// month's pace can be compared day-by-day against recent months at a glance.
+function renderMultiLineApex(elId, series, categories, valueLabel) {
+  const el = $(elId);
+  if (!el) return;
+  if (__ovApex[elId]) { try { __ovApex[elId].destroy(); } catch (e) {} delete __ovApex[elId]; }
+  if (!series.length) {
+    el.innerHTML = '<div class="no-data" style="padding:1.5rem;"><span class="ico">📭</span>No data</div>';
+    return;
+  }
+  el.innerHTML = '';
+  __ovApex[elId] = new ApexCharts(el, {
+    chart: { type: 'line', height: 260, toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'inherit', animations: { speed: 350 } },
+    series: series.map(s => ({ name: s.name, data: s.data })),
+    xaxis: { categories, labels: { style: { fontSize: '10px' } }, title: { text: 'Day of Month', style: { fontSize: '10px', color: '#64748b' } } },
+    yaxis: { labels: { formatter: v => valueLabel(v) } },
+    colors: series.map(s => s.color),
+    stroke: { curve: 'smooth', width: 2.75 },
+    dataLabels: { enabled: false },
+    grid: { borderColor: '#eef2f6', strokeDashArray: 3 },
+    legend: { position: 'bottom', fontSize: '12px', markers: { radius: 4 } },
+    tooltip: { shared: true, y: { formatter: v => (v === null || v === undefined) ? '—' : valueLabel(v) } },
+    markers: { size: 0, strokeColors: '#fff', strokeWidth: 1.5, hover: { size: 5 } }
+  });
+  __ovApex[elId].render();
+}
+
+// ApexCharts grouped multi-series bar chart — used for Daily Sales Comparison,
+// where each month gets its own colored bar per day-of-month so the same day
+// (e.g. the 15th) can be compared side-by-side across the current month and
+// recent months at a glance.
+function renderMultiBarApex(elId, series, categories, valueLabel) {
+  const el = $(elId);
+  if (!el) return;
+  if (__ovApex[elId]) { try { __ovApex[elId].destroy(); } catch (e) {} delete __ovApex[elId]; }
+  if (!series.length) {
+    el.innerHTML = '<div class="no-data" style="padding:1.5rem;"><span class="ico">📭</span>No data</div>';
+    return;
+  }
+  el.innerHTML = '';
+  __ovApex[elId] = new ApexCharts(el, {
+    chart: { type: 'bar', height: 260, toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'inherit', animations: { speed: 350 } },
+    series: series.map(s => ({ name: s.name, data: s.data })),
+    xaxis: { categories, labels: { style: { fontSize: '10px' } }, title: { text: 'Day of Month', style: { fontSize: '10px', color: '#64748b' } } },
+    yaxis: { labels: { formatter: v => valueLabel(v) } },
+    colors: series.map(s => s.color),
+    plotOptions: { bar: { borderRadius: 2, columnWidth: '75%', dataLabels: { position: 'top' } } },
+    dataLabels: { enabled: false },
+    grid: { borderColor: '#eef2f6', strokeDashArray: 3 },
+    legend: { position: 'bottom', fontSize: '12px', markers: { radius: 4 } },
+    tooltip: { shared: true, intersect: false, y: { formatter: v => (v === null || v === undefined) ? '—' : valueLabel(v) } }
+  });
+  __ovApex[elId].render();
+}
+
 // Nudges a chart to recompute its size once its carousel slide becomes
 // visible again — needed because charts created while their slide was
 // display:none can end up with a 0-width canvas.
@@ -4353,9 +4633,11 @@ function renderOverview() {
   const allCash = getAllCashEntries ? getAllCashEntries() : [];
   ovSetSlideAvailable('ov-sales-row', !!allCash.length);
   ovSetSlideAvailable('ov-payment-row', !!allCash.length);
-  if ($('ov-daily-sales-card')) $('ov-daily-sales-card').classList.toggle('hidden', !allCash.length);
+  if ($('ov-carousel2-card')) $('ov-carousel2-card').classList.toggle('hidden', !allCash.length);
   if (allCash.length) {
-    renderDailySalesChart();
+    try { renderDailySalesChart(); } catch (e) { console.error('renderDailySalesChart failed:', e); }
+    try { renderMonthlySalesGrowthChart(); } catch (e) { console.error('renderMonthlySalesGrowthChart failed:', e); }
+    try { renderDailySalesComparisonChart(); } catch (e) { console.error('renderDailySalesComparisonChart failed:', e); }
     const mSales = new Map();
     allCash.forEach(e => {
       if (!e.date) return;
@@ -4367,7 +4649,7 @@ function renderOverview() {
       const [y, m] = k.split('-');
       return { label: new Date(y, m - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }), value: mSales.get(k) };
     });
-    renderBarChartJS('ov-sales-chart', mItems, v => fmt(v), '#15803d');
+    try { renderBarChartJS('ov-sales-chart', mItems, v => fmt(v), '#15803d'); } catch (e) { console.error('ov-sales-chart failed:', e); }
 
     // Payment breakdown — default to the current month, with a dropdown to view past months
     const paySel = $('ov-payment-month');
@@ -4393,10 +4675,11 @@ function renderOverview() {
     const totChq2   = payCash.reduce((a,e)=>a+(Number(e.chequeReceived)||0),0);
     const totCr2    = payCash.reduce((a,e)=>a+(Number(e.creditSales)||0),0);
     const ptypes2 = [{label:'💵 Cash',value:totCash2,color:'#2563eb'},{label:'💳 Card DFCC',value:totCard2,color:'#0e7490'},{label:'📱 QR',value:totQR2,color:'#f59e0b'},{label:'🏦 Cheque',value:totChq2,color:'#8b5cf6'},{label:'💳 Card SDB',value:totCr2,color:'#e63946'}].filter(p=>p.value>0);
-    renderDonutApex('ov-payment-chart', ptypes2);
+    try { renderDonutApex('ov-payment-chart', ptypes2); } catch (e) { console.error('ov-payment-chart failed:', e); }
   }
-  renderPurchasesBreakdown();
-  ovInitCarousel();
+  try { renderPurchasesBreakdown(); } catch (e) { console.error('renderPurchasesBreakdown failed:', e); }
+  try { ovInitCarousel(); } catch (e) { console.error('ovInitCarousel failed:', e); }
+  try { ovInitCarousel2(); } catch (e) { console.error('ovInitCarousel2 failed:', e); }
 }
 
 // ===== Dashboard chart carousel: rotates Monthly Credit Trend / Cheque Status
@@ -4476,6 +4759,73 @@ function ovInitCarousel() {
     card.addEventListener('mouseenter', ovPauseCarousel);
     card.addEventListener('mouseleave', ovResumeCarousel);
   }
+}
+
+// ===== Dashboard chart carousel 2: rotates Monthly Sales Growth / Daily Total
+// Sales / Daily Sales Comparison, one slide at a time, every 6 seconds — same
+// rotation speed and pause-on-hover behavior as the carousel above, just a
+// separate instance so both carousels rotate independently.
+let ovCarousel2Index = 0;
+let ovCarousel2Timer = null;
+let ovCarousel2Started = false;
+
+function ovShowSlide2(idx) {
+  const slides = [...document.querySelectorAll('#ov-carousel2-slides .ov-carousel-slide')];
+  const dots = [...document.querySelectorAll('#ov-carousel2-dots .ov-dot')];
+  if (!slides.length) return;
+  slides.forEach((s, i) => s.classList.toggle('active', i === idx));
+  dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+  ovCarousel2Index = idx;
+  // ApexCharts instances created while their slide was display:none can end up
+  // with a 0-width canvas — nudge them to recompute their size now that they're visible.
+  requestAnimationFrame(() => ovRefreshChartVisibility2(idx));
+}
+
+function ovGoToSlide2(idx) {
+  ovShowSlide2(idx);
+  ovResetCarouselTimer2();
+}
+
+function ovResetCarouselTimer2() {
+  if (ovCarousel2Timer) clearInterval(ovCarousel2Timer);
+  ovCarousel2Timer = setInterval(() => {
+    const slides = [...document.querySelectorAll('#ov-carousel2-slides .ov-carousel-slide')];
+    if (!slides.length) return;
+    const next = (ovCarousel2Index + 1) % slides.length;
+    ovShowSlide2(next);
+  }, 6000);
+}
+
+function ovPauseCarousel2() {
+  if (ovCarousel2Timer) {
+    clearInterval(ovCarousel2Timer);
+    ovCarousel2Timer = null;
+  }
+}
+
+function ovResumeCarousel2() {
+  if (!ovCarousel2Timer) ovResetCarouselTimer2();
+}
+
+function ovInitCarousel2() {
+  if (ovCarousel2Started) return;
+  if (!$('ov-carousel2-slides')) return;
+  ovCarousel2Started = true;
+  ovShowSlide2(0);
+  ovResetCarouselTimer2();
+  const card = $('ov-carousel2-card');
+  if (card) {
+    card.addEventListener('mouseenter', ovPauseCarousel2);
+    card.addEventListener('mouseleave', ovResumeCarousel2);
+  }
+}
+
+function ovRefreshChartVisibility2(idx) {
+  try {
+    if (idx === 0) renderMonthlySalesGrowthChart();
+    if (idx === 1) renderDailySalesChart();
+    if (idx === 2) renderDailySalesComparisonChart();
+  } catch (e) { console.error('ovRefreshChartVisibility2 failed:', e); }
 }
 
 // Purchases broken down by type (Cash / Credit / Cheque) for a selectable month
@@ -6236,6 +6586,223 @@ function clearPayHistoryState() {
   DB.activePayHistOwnerUsername = null;
 }
 
+/* =================================================================
+   🤖 AI INSIGHTS — Local Smart Analytics
+   Everything below is computed entirely from data already in DB/PDB
+   (Credits, Cheques, Suppliers, Cash Entries). No external AI / network
+   calls are made — all numbers stay on this device / your own Firestore.
+   ================================================================= */
+
+// Aggregates all cash entries into a sorted { month:'YYYY-MM', sales, net, exp } series.
+function aiMonthlySeries() {
+  const map = new Map();
+  getAllCashEntries().forEach(e => {
+    if (!e.date) return;
+    const k = e.date.slice(0, 7);
+    const prev = map.get(k) || { month: k, sales: 0, net: 0, exp: 0 };
+    prev.sales += Number(e.totalSales) || 0;
+    prev.net += Number(e.netCash) || 0;
+    prev.exp += Number(e.expenses) || 0;
+    map.set(k, prev);
+  });
+  return [...map.values()].sort((a, b) => a.month.localeCompare(b.month));
+}
+
+// Simple linear regression (least squares) over the last `maxPoints` months of
+// Net Cash to project the following month. Falls back to a plain average when
+// there isn't enough history for a meaningful trend line.
+function aiForecastNextMonth(series, maxPoints = 6) {
+  const pts = series.slice(-maxPoints);
+  if (!pts.length) return null;
+  if (pts.length === 1) return pts[0].net;
+  const n = pts.length;
+  const xs = pts.map((_, i) => i);
+  const ys = pts.map(p => p.net);
+  const sumX = xs.reduce((a, b) => a + b, 0);
+  const sumY = ys.reduce((a, b) => a + b, 0);
+  const sumXY = xs.reduce((a, x, i) => a + x * ys[i], 0);
+  const sumXX = xs.reduce((a, x) => a + x * x, 0);
+  const denom = (n * sumXX - sumX * sumX) || 1;
+  const slope = (n * sumXY - sumX * sumY) / denom;
+  const intercept = (sumY - slope * sumX) / n;
+  return intercept + slope * n; // predict at x = n (the month right after the window)
+}
+
+// Risk alerts: overdue cheques, cheques due within 7 days, and credit bills
+// that have sat unpaid for more than 30 days.
+function aiComputeRiskAlerts() {
+  const alerts = [];
+  const soon = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  getAllCheques().forEach(ch => {
+    if (isChequeSettled(ch)) return;
+    if (isOverdue(ch)) {
+      alerts.push({ type: 'overdue_cheque', severity: 'high', main: `🏦 Cheque ${ch.entryId || ch.number} overdue`, sub: `${getSupplierName(ch.supplierId, ch._owner)} · Due ${ch.dueDate}`, amt: ch.amount });
+    } else if (ch.dueDate && ch.dueDate <= soon && ch.dueDate >= today()) {
+      alerts.push({ type: 'due_soon', severity: 'watch', main: `⏰ Cheque ${ch.entryId || ch.number} due soon`, sub: `${getSupplierName(ch.supplierId, ch._owner)} · Due ${ch.dueDate}`, amt: ch.amount });
+    }
+  });
+  getAllCredits().forEach(c => {
+    if (isCreditSettled(c)) return;
+    const days = Math.floor((Date.now() - new Date(c.date).getTime()) / 86400000);
+    if (days > 30) {
+      alerts.push({ type: 'aging_credit', severity: days > 60 ? 'high' : 'watch', main: `💳 Credit ${c.entryId} unpaid ${days}d`, sub: `${getSupplierName(c.supplierId, c._owner)} · Balance ${fmt(getCreditBalance(c))}`, amt: getCreditBalance(c) });
+    }
+  });
+  alerts.sort((a, b) => (b.severity === 'high') - (a.severity === 'high'));
+  return alerts;
+}
+
+// Day-level anomaly detection on Net Cash using a simple z-score: any day
+// whose net cash is more than 2 standard deviations from the mean of the
+// last 60 days is flagged as unusual (either a spike or an unusual drop).
+function aiDetectAnomalies() {
+  const cutoff = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const byDay = new Map();
+  getAllCashEntries().filter(e => e.date >= cutoff).forEach(e => {
+    byDay.set(e.date, (byDay.get(e.date) || 0) + (Number(e.netCash) || 0));
+  });
+  const days = [...byDay.entries()].map(([date, net]) => ({ date, net }));
+  if (days.length < 5) return [];
+  const mean = days.reduce((a, d) => a + d.net, 0) / days.length;
+  const variance = days.reduce((a, d) => a + Math.pow(d.net - mean, 2), 0) / days.length;
+  const sd = Math.sqrt(variance) || 1;
+  return days
+    .map(d => ({ ...d, z: (d.net - mean) / sd }))
+    .filter(d => Math.abs(d.z) > 2)
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 10);
+}
+
+// Per-supplier scoring: total credit issued, current outstanding balance, and
+// an average "days to settle" figure derived from the last payment date
+// recorded against each settled credit bill.
+function aiComputeSupplierScores() {
+  const bySup = new Map();
+  getAllCredits().forEach(c => {
+    const key = c.supplierId + '|' + c._owner;
+    const s = bySup.get(key) || { supplierId: c.supplierId, owner: c._owner, total: 0, outstanding: 0, settleDaysSum: 0, settleCount: 0 };
+    s.total += Number(c.amount) || 0;
+    s.outstanding += getCreditBalance(c);
+    if (isCreditSettled(c)) {
+      const payDates = [c.pay1date, c.pay2date, c.pay3date, ...(c.payments || []).map(p => p.date)].filter(Boolean).sort();
+      const lastPay = payDates[payDates.length - 1];
+      if (lastPay && c.date) {
+        const d = Math.floor((new Date(lastPay) - new Date(c.date)) / 86400000);
+        if (d >= 0) { s.settleDaysSum += d; s.settleCount++; }
+      }
+    }
+    bySup.set(key, s);
+  });
+  return [...bySup.values()].map(s => {
+    const avgDays = s.settleCount ? Math.round(s.settleDaysSum / s.settleCount) : null;
+    let level = 'good', label = 'Good';
+    if (avgDays === null) { level = 'good'; label = 'New'; }
+    else if (avgDays > 45) { level = 'high'; label = 'High Risk'; }
+    else if (avgDays > 20) { level = 'watch'; label = 'Watch'; }
+    return { name: getSupplierName(s.supplierId, s.owner), total: s.total, outstanding: s.outstanding, avgDays, level, label };
+  }).sort((a, b) => b.outstanding - a.outstanding);
+}
+
+// Builds a short, plain-language paragraph comparing this month to last
+// month using only numbers already computed above — no external text
+// generation involved.
+function aiGenerateSummary(series, alerts, curMonthLabel) {
+  if (!series.length) return 'තවම ප්‍රමාණවත් Cash log දත්ත නැහැ — Cash Management එකෙන් දෛනික සටහන් එකතු කරන්න ආරම්භ කරන්න, එවිට මෙතන ස්වයංක්‍රීය විශ්ලේෂණයක් පෙන්වයි.';
+  const cur = series[series.length - 1];
+  const prev = series.length > 1 ? series[series.length - 2] : null;
+  const pct = (a, b) => (b ? (((a - b) / Math.abs(b)) * 100).toFixed(1) : null);
+  let parts = [];
+  parts.push(`<b>${curMonthLabel}</b> මාසයේ Total Sales ${fmt(cur.sales)}, Net Cash ${fmt(cur.net)}.`);
+  if (prev) {
+    const salesPct = pct(cur.sales, prev.sales);
+    const netPct = pct(cur.net, prev.net);
+    if (salesPct !== null) parts.push(`Sales පසුගිය මාසයට සාපේක්ෂව ${salesPct >= 0 ? 'වැඩිවෙලා' : 'අඩුවෙලා'} <b>${Math.abs(salesPct)}%</b>.`);
+    if (netPct !== null) parts.push(`Net Cash ${netPct >= 0 ? 'වර්ධනයක්' : 'පහළ යාමක්'} පෙන්නුවා (<b>${Math.abs(netPct)}%</b>).`);
+  }
+  const highRisk = alerts.filter(a => a.severity === 'high').length;
+  if (highRisk > 0) parts.push(`⚠️ දැනට <b>${highRisk}</b> high-priority risk alert(s) තියෙනවා — පහළින් බලන්න.`);
+  else if (alerts.length > 0) parts.push(`ℹ️ Watch-list එකේ <b>${alerts.length}</b> item(s) තියෙනවා.`);
+  else parts.push(`✅ දැනට open risk alerts කිසිවක් නැහැ.`);
+  return parts.join(' ');
+}
+
+function renderAIInsights() {
+  const series = aiMonthlySeries();
+  const forecast = aiForecastNextMonth(series);
+  const alerts = aiComputeRiskAlerts();
+  const anomalies = aiDetectAnomalies();
+  const supScores = aiComputeSupplierScores();
+
+  const curMonth = new Date().toISOString().slice(0, 7);
+  const curMonthLabel = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  if ($('ai-summary-period')) $('ai-summary-period').textContent = curMonthLabel;
+
+  // KPI row
+  const topRiskSupplier = supScores.find(s => s.level === 'high') || supScores[0];
+  const kpis = [
+    { cls: '', label: '🔮 Predicted Next Month Net Cash', val: forecast !== null ? fmt(forecast) : '—', sub: 'Based on last ' + Math.min(series.length, 6) + ' months trend' },
+    { cls: alerts.length ? 'red' : 'green', label: '⚠️ Active Risk Alerts', val: String(alerts.length), sub: alerts.filter(a => a.severity === 'high').length + ' high priority' },
+    { cls: anomalies.length ? 'yellow' : 'green', label: '🚨 Anomalies (60d)', val: String(anomalies.length), sub: 'Unusual daily Net Cash days' },
+    { cls: topRiskSupplier && topRiskSupplier.level === 'high' ? 'red' : '', label: '🏪 Supplier to Watch', val: topRiskSupplier ? topRiskSupplier.name : '—', sub: topRiskSupplier ? topRiskSupplier.label + ' · ' + fmt(topRiskSupplier.outstanding) + ' outstanding' : 'No suppliers yet' }
+  ];
+  if ($('ai-kpi-row')) $('ai-kpi-row').innerHTML = kpis.map(k => `
+    <div class="ai-kpi-card ${k.cls}">
+      <div class="aik-label">${k.label}</div>
+      <div class="aik-val">${k.val}</div>
+      <div class="aik-sub">${k.sub}</div>
+    </div>`).join('');
+
+  // Summary
+  if ($('ai-summary-text')) $('ai-summary-text').innerHTML = aiGenerateSummary(series, alerts, curMonthLabel);
+
+  // Risk alerts list
+  if ($('ai-risk-count')) $('ai-risk-count').textContent = String(alerts.length);
+  if ($('ai-risk-list')) $('ai-risk-list').innerHTML = alerts.length
+    ? alerts.slice(0, 15).map(a => `
+      <div class="risk-row">
+        <div><div class="rr-main">${a.main}</div><div class="rr-sub">${a.sub}</div></div>
+        <div class="rr-amt" style="color:${a.severity === 'high' ? 'var(--red)' : 'var(--yellow)'};">${fmt(a.amt)}</div>
+      </div>`).join('')
+    : `<div class="no-data" style="padding:1.5rem;"><span class="ico">✅</span>No active risk alerts</div>`;
+
+  // Anomalies list
+  if ($('ai-anomaly-count')) $('ai-anomaly-count').textContent = String(anomalies.length);
+  if ($('ai-anomaly-list')) $('ai-anomaly-list').innerHTML = anomalies.length
+    ? anomalies.map(a => `
+      <div class="risk-row">
+        <div><div class="rr-main">📅 ${a.date}</div><div class="rr-sub">${a.z > 0 ? 'Unusually high' : 'Unusually low'} Net Cash vs. recent average</div></div>
+        <div class="rr-amt" style="color:var(--navy);">${fmt(a.net)}</div>
+      </div>`).join('')
+    : `<div class="no-data" style="padding:1.5rem;"><span class="ico">📭</span>No unusual days detected</div>`;
+
+  // Supplier scoring table
+  if ($('ai-supplier-body')) $('ai-supplier-body').innerHTML = supScores.length
+    ? supScores.slice(0, 30).map(s => `
+      <tr>
+        <td style="font-weight:600;">${s.name}</td>
+        <td>${fmt(s.total)}</td>
+        <td style="color:${s.outstanding > 0 ? 'var(--red)' : 'var(--muted)'};">${fmt(s.outstanding)}</td>
+        <td>${s.avgDays === null ? '—' : s.avgDays + 'd'}</td>
+        <td><span class="risk-level ${s.level}">${s.label}</span></td>
+      </tr>`).join('')
+    : `<tr><td colspan="5" class="no-data"><span class="ico">📭</span>No supplier credit history yet</td></tr>`;
+
+  // Forecast chart: historical months + one projected month appended
+  const chartItems = series.slice(-11).map(s => {
+    const [y, m] = s.month.split('-');
+    return { label: new Date(y, m - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }), value: s.net };
+  });
+  if (forecast !== null && series.length) {
+    const [ly, lm] = series[series.length - 1].month.split('-');
+    const nd = new Date(ly, lm - 1, 1); nd.setMonth(nd.getMonth() + 1);
+    chartItems.push({ label: nd.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }) + ' (Forecast)', value: Math.round(forecast) });
+  }
+  if ($('ai-forecast-chart')) {
+    if (chartItems.length) renderLineChart('ai-forecast-chart', chartItems, v => fmt(v));
+    else $('ai-forecast-chart').innerHTML = `<div class="sa-no-data"><span class="ico">📭</span>No Cash log data yet</div>`;
+  }
+}
+
 function downloadBackup() {
   let data;
   if (isAdmin() || isManager()) {
@@ -6289,6 +6856,175 @@ async function restoreBackup(e) {
   e.target.value = '';
 }
 
+
+/* ============= CLOUD AUTO BACKUP (versioned, Firestore) =============
+   Every day the app takes a full timestamped snapshot of DB.users and stores
+   it in the `cms_backups` collection (one doc per calendar day, doc id =
+   YYYY-MM-DD). The last BACKUP_KEEP_DAYS snapshots are kept; older ones are
+   pruned automatically. Admins can also trigger an extra snapshot any time
+   ("Backup Now"), and can restore any past snapshot from the Cloud Backups
+   screen — this is on top of (not a replacement for) the existing manual
+   Export/Import JSON backup. */
+const BACKUP_KEEP_DAYS = 30;
+let backupsColRef = null;
+
+function getBackupsCol() {
+  if (!firebaseReady()) return null;
+  if (!backupsColRef) backupsColRef = fdb.collection('cms_backups');
+  return backupsColRef;
+}
+
+// Runs once per session after login: takes today's snapshot if it doesn't
+// already exist yet, then prunes anything older than BACKUP_KEEP_DAYS.
+async function autoBackupIfNeeded() {
+  if (!isAdmin()) return;
+  const col = getBackupsCol();
+  if (!col) return; // local-only mode — nothing to auto-backup to
+  try {
+    const todayId = today();
+    const doc = await col.doc(todayId).get();
+    if (!doc.exists) {
+      await col.doc(todayId).set({
+        date: new Date().toISOString(),
+        userCount: DB.users.length,
+        users: clean(DB.users)
+      });
+    }
+    pruneCloudBackups();
+  } catch (e) {
+    console.error('autoBackupIfNeeded', e);
+  }
+}
+
+async function doManualCloudBackup() {
+  if (!isAdmin()) { toast('Admin only', 'red'); return; }
+  const col = getBackupsCol();
+  if (!col) { toast('⚠️ Cloud not connected — add your Firebase config first', 'yellow'); return; }
+  try {
+    const todayId = today();
+    await col.doc(todayId).set({
+      date: new Date().toISOString(),
+      userCount: DB.users.length,
+      users: clean(DB.users)
+    });
+    toast('☁️ Backup snapshot saved!');
+    logActivity('BACKUP', 'Manual cloud backup snapshot');
+    pruneCloudBackups();
+    renderBackupsSection();
+  } catch (e) {
+    console.error('doManualCloudBackup', e);
+    toast('❌ Backup failed', 'red');
+  }
+}
+
+// Deletes any daily snapshot doc older than BACKUP_KEEP_DAYS (doc ids sort
+// lexicographically the same as chronologically since they're YYYY-MM-DD).
+async function pruneCloudBackups() {
+  const col = getBackupsCol();
+  if (!col) return;
+  try {
+    const cutoff = new Date(Date.now() - BACKUP_KEEP_DAYS * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const snap = await col.get();
+    const old = snap.docs.filter(d => d.id < cutoff);
+    for (const d of old) await d.ref.delete();
+  } catch (e) {
+    console.error('pruneCloudBackups', e);
+  }
+}
+
+async function listCloudBackups() {
+  const col = getBackupsCol();
+  if (!col) return [];
+  try {
+    const snap = await col.get();
+    return snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => b.id.localeCompare(a.id));
+  } catch (e) {
+    console.error('listCloudBackups', e);
+    return [];
+  }
+}
+
+async function renderBackupsSection() {
+  const wrap = $('backup-list-wrap');
+  if (!wrap) return;
+  if (!firebaseReady()) {
+    wrap.innerHTML = `<div class="no-data"><span class="ico">📴</span>Cloud backups need a Firebase connection.<br>You're currently in local-only mode — use the ⬇️ Backup button above to export a manual file instead.</div>`;
+    return;
+  }
+  wrap.innerHTML = `<div class="no-data"><span class="ico">⏳</span>Loading backups...</div>`;
+  const backups = await listCloudBackups();
+  if (!backups.length) {
+    wrap.innerHTML = `<div class="no-data"><span class="ico">📭</span>No cloud backups yet — the first automatic snapshot is taken the next time an admin logs in, or tap "Backup Now" above.</div>`;
+    return;
+  }
+  wrap.innerHTML = backups.map(b => {
+    const dt = b.date ? new Date(b.date) : null;
+    const dateLabel = dt ? dt.toLocaleString() : b.id;
+    const isToday = b.id === today();
+    return `<div class="backup-row">
+      <div>
+        <div class="bk-main">📅 ${b.id}${isToday ? ' <span class="badge badge-green">Today</span>' : ''}</div>
+        <div class="bk-sub">🕐 ${dateLabel} · 👥 ${b.userCount ?? (b.users || []).length} users</div>
+      </div>
+      <div class="backup-actions">
+        <button class="btn btn-ghost btn-sm" onclick="downloadCloudBackup('${b.id}')" title="Download as file">⬇️ Download</button>
+        <button class="btn btn-yellow btn-sm" onclick="restoreCloudBackup('${b.id}')" title="Restore this snapshot">♻️ Restore</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function downloadCloudBackup(backupId) {
+  const col = getBackupsCol();
+  if (!col) return;
+  try {
+    const doc = await col.doc(backupId).get();
+    if (!doc.exists) { toast('❌ Backup not found', 'red'); return; }
+    const d = doc.data();
+    const data = { type: 'full_backup', date: d.date, version: '1.0', users: d.users };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'cloud_backup_' + backupId + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  } catch (e) {
+    console.error('downloadCloudBackup', e);
+    toast('❌ Download failed', 'red');
+  }
+}
+
+async function restoreCloudBackup(backupId) {
+  if (!isAdmin()) { toast('Admin only', 'red'); return; }
+  const col = getBackupsCol();
+  if (!col) return;
+  try {
+    const doc = await col.doc(backupId).get();
+    if (!doc.exists || !Array.isArray(doc.data().users)) { toast('❌ Backup not found', 'red'); return; }
+    const d = doc.data();
+    if (!confirm('Restore ' + d.users.length + ' users from the ' + backupId + ' cloud backup?\n\n⚠️ Current data will be overwritten with this snapshot.')) return;
+    for (const u of d.users) {
+      const idx = DB.users.findIndex(x => x.username === u.username);
+      if (idx !== -1) DB.users[idx] = u;
+      else DB.users.push(u);
+      await saveUserDoc(u);
+    }
+    if (DB.currentUsername) {
+      const fresh = getUserByUsername(DB.currentUsername);
+      if (fresh) DB.currentUser = fresh;
+    }
+    logActivity('BACKUP', 'Restored cloud backup ' + backupId);
+    refreshActiveSection();
+    toast('✅ Restored from ' + backupId + ' backup!');
+  } catch (e) {
+    console.error('restoreCloudBackup', e);
+    toast('❌ Restore failed', 'red');
+  }
+}
 
 // ============= CASH MANAGEMENT =============
 function getCashiers() {
@@ -6967,6 +7703,124 @@ function renderDailySalesChart() {
     items.push({ label, value: dayMap.get(key) });
   }
   renderAreaApex('ov-daily-sales-chart', items, v => fmt(v));
+  ovPlayFadeIn(el);
+}
+
+// Monthly Sales Growth: cumulative Total Sales by day-of-month (day 1 → 30/31),
+// with one colored line per month so the current month's running pace can be
+// compared against the last 3 or 6 months. The current month's line naturally
+// stops at today, instead of dropping to zero, since future days have no data.
+function renderMonthlySalesGrowthChart() {
+  const el = $('ov-monthly-growth-chart');
+  if (!el) return;
+  const monthsBack = Number($('ov-monthly-growth-range')?.value) || 3;
+  const allCash = getAllCashEntries ? getAllCashEntries() : [];
+
+  // Group daily sales totals by month, e.g. "2026-07" -> { 1: 4200, 2: 3100, ... }
+  const monthDayMap = new Map();
+  allCash.forEach(e => {
+    if (!e.date) return;
+    const monthKey = e.date.slice(0, 7);
+    const day = Number(e.date.slice(8, 10));
+    if (!monthKey || !day) return;
+    if (!monthDayMap.has(monthKey)) monthDayMap.set(monthKey, new Map());
+    const dm = monthDayMap.get(monthKey);
+    dm.set(day, (dm.get(day) || 0) + (Number(e.totalSales) || 0));
+  });
+
+  const palette = ['#0e7490', '#2563eb', '#15803d', '#b45309', '#b91c1c', '#7c3aed'];
+  const now = new Date();
+  const months = [];
+  for (let i = monthsBack - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({ year: d.getFullYear(), month: d.getMonth() }); // month is 0-indexed
+  }
+
+  const maxDays = Math.max(...months.map(m => new Date(m.year, m.month + 1, 0).getDate()));
+  const categories = Array.from({ length: maxDays }, (_, i) => String(i + 1));
+  const todayDate = now.getDate();
+
+  const series = [];
+  months.forEach((m, idx) => {
+    const key = `${m.year}-${String(m.month + 1).padStart(2, '0')}`;
+    const dm = monthDayMap.get(key);
+    if (!dm || !dm.size) return; // skip months with no sales data at all
+    const daysInMonth = new Date(m.year, m.month + 1, 0).getDate();
+    const isCurrentMonth = m.year === now.getFullYear() && m.month === now.getMonth();
+    let running = 0;
+    const data = [];
+    for (let day = 1; day <= maxDays; day++) {
+      if (day > daysInMonth || (isCurrentMonth && day > todayDate)) { data.push(null); continue; }
+      running += dm.get(day) || 0;
+      data.push(running);
+    }
+    const label = new Date(m.year, m.month).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) + (isCurrentMonth ? ' (Current)' : '');
+    // Most recent month always gets the first palette color so it stays visually
+    // consistent as the range selector switches between 1 / 3 / 6 months.
+    const colorIdx = (months.length - 1 - idx) % palette.length;
+    series.push({ name: label, data, color: palette[colorIdx] });
+  });
+
+  renderMultiLineApex('ov-monthly-growth-chart', series, categories, v => fmt(v));
+  ovPlayFadeIn(el);
+}
+
+// Daily Sales Comparison: raw (non-cumulative) Total Sales for each
+// day-of-month (day 1 → 30/31), with one colored bar series per month, so the
+// same calendar day can be compared across the current month and recent
+// months at a glance — e.g. the 15th of this month vs. the 15th of last month.
+// Uses the same month-color palette as Monthly Sales Growth so a given month
+// reads as the same color on both charts.
+function renderDailySalesComparisonChart() {
+  const el = $('ov-sales-comparison-chart');
+  if (!el) return;
+  const monthsBack = Number($('ov-sales-comparison-range')?.value) || 4;
+  const allCash = getAllCashEntries ? getAllCashEntries() : [];
+
+  // Group daily sales totals by month, e.g. "2026-07" -> { 1: 4200, 2: 3100, ... }
+  const monthDayMap = new Map();
+  allCash.forEach(e => {
+    if (!e.date) return;
+    const monthKey = e.date.slice(0, 7);
+    const day = Number(e.date.slice(8, 10));
+    if (!monthKey || !day) return;
+    if (!monthDayMap.has(monthKey)) monthDayMap.set(monthKey, new Map());
+    const dm = monthDayMap.get(monthKey);
+    dm.set(day, (dm.get(day) || 0) + (Number(e.totalSales) || 0));
+  });
+
+  const palette = ['#0e7490', '#2563eb', '#15803d', '#b45309', '#b91c1c', '#7c3aed'];
+  const now = new Date();
+  const months = [];
+  for (let i = monthsBack - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({ year: d.getFullYear(), month: d.getMonth() }); // month is 0-indexed
+  }
+
+  const maxDays = Math.max(...months.map(m => new Date(m.year, m.month + 1, 0).getDate()));
+  const categories = Array.from({ length: maxDays }, (_, i) => String(i + 1));
+  const todayDate = now.getDate();
+
+  const series = [];
+  months.forEach((m, idx) => {
+    const key = `${m.year}-${String(m.month + 1).padStart(2, '0')}`;
+    const dm = monthDayMap.get(key);
+    if (!dm || !dm.size) return; // skip months with no sales data at all
+    const daysInMonth = new Date(m.year, m.month + 1, 0).getDate();
+    const isCurrentMonth = m.year === now.getFullYear() && m.month === now.getMonth();
+    const data = [];
+    for (let day = 1; day <= maxDays; day++) {
+      if (day > daysInMonth || (isCurrentMonth && day > todayDate)) { data.push(null); continue; }
+      data.push(dm.get(day) || 0);
+    }
+    const label = new Date(m.year, m.month).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) + (isCurrentMonth ? ' (Current)' : '');
+    // Most recent month always gets the first palette color so it stays visually
+    // consistent as the range selector switches between 4 / 6 months.
+    const colorIdx = (months.length - 1 - idx) % palette.length;
+    series.push({ name: label, data, color: palette[colorIdx] });
+  });
+
+  renderMultiBarApex('ov-sales-comparison-chart', series, categories, v => fmt(v));
   ovPlayFadeIn(el);
 }
 
@@ -9569,6 +10423,11 @@ restoreSidebarState();
   if (!firebaseReady()) {
     setTimeout(() => toast('ℹ️ Local-only mode — add your Firebase config to sync across devices', 'yellow'), 2800);
   }
+
+  if (loggedIn) markSynced(firebaseReady() ? 'cloud' : 'local');
+  updateSyncStatusUI();
+  // Take today's automatic versioned cloud snapshot (admin only, silent — no toast).
+  if (loggedIn && isAdmin()) setTimeout(autoBackupIfNeeded, 3000);
 })();
 </script>
 </body>
