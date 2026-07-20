@@ -2712,12 +2712,29 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
     </div>
     <div class="modal-body">
       <div id="pcInfo" style="margin-bottom:1rem;padding:.9rem 1rem;background:#f8fafc;border-radius:10px;border-left:4px solid var(--navy3);"></div>
-      <div class="form-group">
+      <div class="form-group" id="pc-method-wrap" style="display:none;">
+        <label>💳 Cheque Source</label>
+        <div class="flex gap2">
+          <button type="button" class="btn btn-sm" id="pc-method-book-btn" onclick="setPayChequeMethod('book')">🖐️ From Manager's Hand</button>
+          <button type="button" class="btn btn-sm" id="pc-method-manual-btn" onclick="setPayChequeMethod('manual')">✍️ Type a Separate Cheque</button>
+        </div>
+      </div>
+      <div class="form-group" id="pc-book-wrap">
         <label>🖐️ Select Cheque (from Manager's Hand)</label>
         <select id="pc-book-select">
           <option value="">— Select a cheque —</option>
         </select>
         <div id="pc-book-empty-msg" style="display:none;font-size:.78rem;color:var(--red);margin-top:.4rem;">⚠️ No available cheques left in your hand. Ask Admin to register more cheque numbers.</div>
+      </div>
+      <div class="form-row" id="pc-manual-wrap" style="display:none;">
+        <div class="form-group">
+          <label>🔢 Cheque Number</label>
+          <input type="text" id="pc-manual-num" placeholder="e.g. 001234">
+        </div>
+        <div class="form-group">
+          <label>🏦 Bank</label>
+          <input type="text" id="pc-manual-bank" placeholder="e.g. BOC, Sampath, HNB, Commercial...">
+        </div>
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -3055,8 +3072,18 @@ function isCreditSettled(c) {
 
 // Age of a credit bill in days, i.e. how many days have passed since the bill's
 // own date. Used for the "⏳ Age" column shown between Balance and Actions.
+// Once a bill is fully SETTLED, its age stops growing with today's date and
+// freezes at the "settled age" — the number of days between the bill's date
+// and the date of its last payment (the day it actually got settled).
 function getCreditAgeDays(c) {
   if (!c.date) return null;
+  if (isCreditSettled(c)) {
+    const payDates = [c.pay1date, c.pay2date, c.pay3date, ...(c.payments || []).map(p => p.date)].filter(Boolean).sort();
+    const lastPay = payDates[payDates.length - 1];
+    if (!lastPay) return 0; // settled but no payment date on record
+    const d = Math.floor((new Date(lastPay) - new Date(c.date)) / 86400000);
+    return d >= 0 ? d : 0;
+  }
   const d = Math.floor((Date.now() - new Date(c.date).getTime()) / 86400000);
   return d >= 0 ? d : 0;
 }
@@ -3064,9 +3091,14 @@ function getCreditAgeDays(c) {
 // Small colored "Xd" label for a credit bill's age, using the same 30d/60d
 // thresholds as the risk-alert engine (aiComputeRiskAlerts) so the color here
 // always matches whether that bill would show up as a watch/high-risk alert.
+// Settled bills show a frozen "✅ Settled in Xd" style label instead, since
+// their age no longer counts up.
 function formatCreditAge(c) {
   const days = getCreditAgeDays(c);
   if (days === null) return '—';
+  if (isCreditSettled(c)) {
+    return `<span class="text-green" title="Settled ${days} days after bill date">✅ ${days}d</span>`;
+  }
   const cls = days > 60 ? 'text-red' : (days > 30 ? 'text-yellow' : '');
   return `<span class="${cls}">${days}d</span>`;
 }
@@ -5887,8 +5919,36 @@ function openPayCheque(creditId, ownerUsername) {
   $('pc-amount').value = bal.toFixed(2);
   $('pc-due').value = '';
   $('pc-notes').value = '';
+  $('pc-manual-num').value = '';
+  $('pc-manual-bank').value = '';
+
+  // Only Admin gets the option to type in a separate cheque — managers just
+  // pick from their own tracked hand, same as before.
+  $('pc-method-wrap').style.display = isAdmin() ? '' : 'none';
+  setPayChequeMethod(isAdmin() && !available.length ? 'manual' : 'book');
 
   $('payChequeModal').classList.add('show');
+}
+
+// Toggles between paying with a cheque picked from the manager's tracked hand
+// pool ('book') and Admin typing in a separate cheque's number & bank by hand
+// ('manual', Admin only — see openPayCheque).
+function setPayChequeMethod(mode) {
+  DB.payChequeMethod = mode;
+  const bookBtn = $('pc-method-book-btn');
+  const manualBtn = $('pc-method-manual-btn');
+  const bookWrap = $('pc-book-wrap');
+  const manualWrap = $('pc-manual-wrap');
+  if (!bookWrap || !manualWrap) return;
+  const isManual = mode === 'manual';
+  bookWrap.style.display = isManual ? 'none' : '';
+  manualWrap.style.display = isManual ? '' : 'none';
+  if (bookBtn && manualBtn) {
+    bookBtn.classList.toggle('btn-navy', !isManual);
+    bookBtn.classList.toggle('btn-ghost', isManual);
+    manualBtn.classList.toggle('btn-navy', isManual);
+    manualBtn.classList.toggle('btn-ghost', !isManual);
+  }
 }
 
 function payCreditWithCheque() {
@@ -5903,13 +5963,25 @@ function payCreditWithCheque() {
   const c = (owner.credits || []).find(x => x.id === creditId);
   if (!c) return;
 
-  const bookId = $('pc-book-select')?.value || '';
-  if (!bookId) { toast('🖐️ Please select a cheque from the manager\'s hand', 'yellow'); return; }
-  const poolEntry = (owner.chequeBook || []).find(e => e.id === bookId);
-  if (!poolEntry || poolEntry.status !== 'available') {
-    toast('⚠️ That cheque is no longer available — please pick another', 'red');
-    openPayCheque(creditId, ownerUsername);
-    return;
+  const useManual = isAdmin() && DB.payChequeMethod === 'manual';
+
+  let poolEntry = null;
+  let chequeNumber = '', chequeBank = '';
+  if (useManual) {
+    chequeNumber = ($('pc-manual-num')?.value || '').trim();
+    chequeBank = ($('pc-manual-bank')?.value || '').trim();
+    if (!chequeNumber || !chequeBank) { toast('✍️ Cheque Number & Bank required', 'yellow'); return; }
+  } else {
+    const bookId = $('pc-book-select')?.value || '';
+    if (!bookId) { toast('🖐️ Please select a cheque from the manager\'s hand', 'yellow'); return; }
+    poolEntry = (owner.chequeBook || []).find(e => e.id === bookId);
+    if (!poolEntry || poolEntry.status !== 'available') {
+      toast('⚠️ That cheque is no longer available — please pick another', 'red');
+      openPayCheque(creditId, ownerUsername);
+      return;
+    }
+    chequeNumber = poolEntry.number;
+    chequeBank = poolEntry.bank || '';
   }
 
   const amount = parseFloat($('pc-amount').value) || 0;
@@ -5923,25 +5995,27 @@ function payCreditWithCheque() {
     entryId: nextEntryId(owner, 'cheque'),
     date: today(),
     supplierId: c.supplierId,
-    number: poolEntry.number,
-    bank: poolEntry.bank || '',
+    number: chequeNumber,
+    bank: chequeBank,
     linkedCreditId: c.id,
     amount,
     dueDate,
     status: 'pending',
     notes: $('pc-notes').value || '',
-    chequeBookId: poolEntry.id
+    chequeBookId: poolEntry ? poolEntry.id : ''
   };
   if (!owner.cheques) owner.cheques = [];
   owner.cheques.push(rec);
 
-  poolEntry.status = 'used';
-  poolEntry.usedChequeId = rec.id;
-  poolEntry.usedDate = today();
+  if (poolEntry) {
+    poolEntry.status = 'used';
+    poolEntry.usedChequeId = rec.id;
+    poolEntry.usedDate = today();
+  }
 
   autoSettleLinkedCredit(rec, owner);
 
-  logActivity('ADD_CHEQUE', `${rec.entryId} · ${fmt(rec.amount)} · Paid Credit ${c.entryId}`);
+  logActivity('ADD_CHEQUE', `${rec.entryId} · ${fmt(rec.amount)} · Paid Credit ${c.entryId}${useManual ? ' (separate cheque)' : ''}`);
   if (isManager()) {
     queuePushEvent('cheque', '🏦 Credit Paid with Cheque', `${DB.currentUser?.name || DB.currentUsername} · ${getSupplierName(c.supplierId, owner)} · ${fmt(rec.amount)} · Due ${rec.dueDate}`);
   }
@@ -6066,11 +6140,18 @@ function delCheque(id, ownerUsername) {
 
 function quickClearCheque(id, ownerUsername) {
   if (!isAdmin()) { toast('Admin only', 'red'); return; }
-  if (!confirm('✅ Mark this cheque as Cleared?')) return;
   const owner = getTargetUser(ownerUsername);
   if (!owner) return;
   const c = (owner.cheques || []).find(x => x.id === id);
   if (!c) return;
+  // Cheques can't be cleared ahead of their own due date — tell the user how
+  // many days are left instead of letting the clear go through early.
+  if (c.dueDate && c.dueDate > today()) {
+    const daysLeft = Math.ceil((new Date(c.dueDate) - new Date(today())) / 86400000);
+    toast(`⏳ මේ චෙක් එක ක්ලියර් වීමට තව ${daysLeft} දිනක් තිබේ (Due: ${c.dueDate})`, 'yellow');
+    return;
+  }
+  if (!confirm('✅ Mark this cheque as Cleared?')) return;
   c.status = 'cleared';
   logActivity('EDIT_CHEQUE', `${c.entryId || id} marked as Cleared`);
   syncUser(owner);
