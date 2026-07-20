@@ -155,6 +155,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.8rem;}
 .topbar h1{font-size:1.6rem;font-weight:700;color:var(--navy);}
 .topbar-right{display:flex;align-items:center;gap:.8rem;}
+.topbar-user{display:flex;align-items:center;gap:.4rem;font-size:.85rem;font-weight:700;color:var(--navy);background:var(--white);border:1px solid var(--border);padding:.45rem .9rem .45rem .7rem;border-radius:20px;max-width:170px;box-shadow:var(--shadow);}
+.topbar-user .ico{font-size:1rem;flex-shrink:0;}
+.topbar-user span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+@keyframes refreshSpin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+.refresh-spin{display:inline-block;animation:refreshSpin .6s ease;}
+@media(max-width:768px){
+  .topbar-user{font-size:.76rem;padding:.35rem .7rem .35rem .55rem;max-width:118px;order:-1;}
+}
 .date-badge{background:var(--white);padding:.5rem 1rem;border-radius:8px;color:var(--muted);font-size:.85rem;box-shadow:var(--shadow);}
 .section{display:none;}
 .section.show{display:block;}
@@ -600,8 +608,17 @@ tr:hover td{background:#eef6fb;}
 .network-name{font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:.2rem;}
 .network-logo{font-size:1.1rem;margin-bottom:.15rem;}
 .network-bal{font-size:1.15rem;font-weight:700;color:var(--navy);letter-spacing:-.3px;}
-#rl-line-chart-wrap{padding:1rem 1.2rem;overflow-x:auto;}
-#rl-line-chart{width:100%;min-height:200px;}
+#rl-line-chart-wrap{padding:1rem 1.2rem;overflow-x:auto;position:relative;}
+#rl-line-chart{width:100%;min-height:200px;cursor:crosshair;}
+.rl-chart-tooltip{position:absolute;pointer-events:none;background:var(--navy);color:#fff;padding:.55rem .8rem;border-radius:10px;font-size:.74rem;line-height:1.5;box-shadow:var(--shadow2);opacity:0;transform:translateY(4px);transition:opacity .12s ease,transform .12s ease;z-index:30;white-space:nowrap;}
+.rl-chart-tooltip.show{opacity:1;transform:translateY(0);}
+.rl-chart-tooltip .rlt-date{font-weight:700;color:#a8e6d9;margin-bottom:.25rem;font-size:.72rem;}
+.rl-chart-tooltip .rlt-row{display:flex;align-items:center;gap:.4rem;}
+.rl-chart-tooltip .rlt-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.rl-chart-legend{display:flex;flex-wrap:wrap;gap:.5rem;padding:0 1.2rem 1rem;}
+.rl-legend-chip{display:flex;align-items:center;gap:.4rem;padding:.3rem .7rem;border-radius:20px;background:var(--bg);border:1px solid var(--border);font-size:.74rem;font-weight:600;color:var(--text);cursor:default;transition:transform .15s,box-shadow .15s;}
+.rl-legend-chip:hover{transform:translateY(-1px);box-shadow:var(--shadow);}
+.rl-legend-chip .rlc-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
 @media(max-width:768px){.network-grid{grid-template-columns:1fr 1fr 1fr;padding:.7rem .6rem;gap:.5rem;}}
 
 /* ===== MOBILE CARDS — Credits & Cheques ===== */
@@ -960,6 +977,8 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
     <div class="topbar">
       <h1 id="pageTitle">📊 Dashboard</h1>
       <div class="topbar-right">
+        <div class="topbar-user" id="topbarUser" title="Logged in as"><span class="ico">👤</span><span id="topbarUserName">—</span></div>
+        <button class="btn btn-ghost btn-sm" id="refreshBtn" onclick="manualRefresh()" title="Refresh"><span id="refreshIcon">🔄</span> <span class="bk-label">Refresh</span></button>
         <button class="btn btn-ghost btn-sm" onclick="doLogout()" title="Logout">🚪 <span class="bk-label">Logout</span></button>
         <button id="pushToggleBtn" class="btn btn-ghost btn-sm hidden" onclick="togglePushNotifications()" title="Push Notifications" data-on="0">🔕 <span class="bk-label">Enable Alerts</span></button>
         <button id="notifSettingsBtn" class="btn btn-ghost btn-sm hidden" onclick="openNotifSettings()" title="Notification Settings">⚙️</button>
@@ -1452,6 +1471,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
           </div>
         </div>
         <div id="rl-line-chart-wrap"><canvas id="rl-line-chart" height="220"></canvas></div>
+        <div class="rl-chart-legend" id="rlChartLegend"></div>
       </div>
       <div class="card" style="margin-bottom:1.2rem;">
         <div class="card-head">
@@ -3614,6 +3634,7 @@ function initDashboard() {
   const cu = DB.currentUser;
   $('sbName').childNodes[0].textContent = cu.name;
   $('sbBiz').textContent = cu.business;
+  if ($('topbarUserName')) { $('topbarUserName').textContent = cu.name; $('topbarUser').title = 'Logged in as ' + cu.name; }
   $('sbBadge').classList.toggle('hidden', !isAdmin());
   $('adminNav').classList.toggle('hidden', !isAdmin());
   $('cr-filter-user')?.classList.toggle('hidden', !isAdmin());
@@ -3729,6 +3750,21 @@ function refreshActiveSection() {
   if (DB.analyticsOpen) renderSupplierAnalytics();
   if (id === 'payroll') renderPayrollTab();
   if (id === 'pl' && isAdmin()) renderPL();
+}
+
+// Manual refresh button in the topbar: re-renders whatever section is currently
+// visible from the latest data already synced locally, with a small spin
+// animation + toast so the tap feels responsive even though data is realtime.
+function manualRefresh() {
+  const icon = $('refreshIcon');
+  if (icon) {
+    icon.classList.remove('refresh-spin');
+    void icon.offsetWidth; // restart animation if clicked repeatedly
+    icon.classList.add('refresh-spin');
+  }
+  refreshActiveSection();
+  updateSyncStatusUI();
+  toast('🔄 Refreshed!');
 }
 
 function populateUserFilter(elId) {
@@ -9472,75 +9508,227 @@ function renderReloadHistory() {
   }).join('');
 }
 
-function renderReloadChart() {
-  const canvas=$('rl-line-chart');
-  if (!canvas) return;
-  const filter=$('rl-chart-filter')?.value||'all';
-  const entries=getReloadEntries().slice().reverse();
-  const last14=entries.slice(-14);
-  if (!last14.length) {
-    const ctx=canvas.getContext('2d');
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    if(canvas.parentElement)canvas.parentElement.innerHTML='<div class="no-data" style="padding:2.5rem;"><span class="ico">📭</span>No data yet</div>';
-    return;
+// Ensures the canvas + tooltip elements exist inside #rl-line-chart-wrap.
+// (Needed because the "no data" state used to wipe the wrap's innerHTML,
+// permanently deleting the canvas — this rebuilds it on demand instead.)
+function ensureReloadChartDOM() {
+  const wrap = $('rl-line-chart-wrap');
+  if (!wrap) return null;
+  let canvas = document.getElementById('rl-line-chart');
+  if (!canvas) {
+    wrap.innerHTML = '<canvas id="rl-line-chart" height="220"></canvas>';
+    canvas = document.getElementById('rl-line-chart');
   }
-  const labels=last14.map(e=>{const d=new Date(e.date);return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});});
-  const datasets=[];
-  if (filter==='all') {
-    datasets.push({key:'total',label:'Total',color:'#0f172a',data:last14.map(e=>(Number(e.dialog)||0)+(Number(e.mobitel)||0)+(Number(e.hutch)||0)+(Number(e.airtel)||0)+(Number(e.cash)||0))});
-    datasets.push({key:'dialog',label:'Dialog',color:'#e63946',data:last14.map(e=>Number(e.dialog)||0)});
-    datasets.push({key:'mobitel',label:'Mobitel',color:'#2d6a4f',data:last14.map(e=>Number(e.mobitel)||0)});
-    datasets.push({key:'hutch',label:'Hutch',color:'#e67e22',data:last14.map(e=>Number(e.hutch)||0)});
-    datasets.push({key:'airtel',label:'Airtel',color:'#c0392b',data:last14.map(e=>Number(e.airtel)||0)});
-    datasets.push({key:'cash',label:'Cash',color:'#2563eb',data:last14.map(e=>Number(e.cash)||0)});
-  } else if (filter==='cash') {
-    datasets.push({key:'cash',label:'Cash in Hand',color:'#2563eb',data:last14.map(e=>Number(e.cash)||0)});
-  } else {
-    const colors={dialog:'#e63946',mobitel:'#2d6a4f',hutch:'#e67e22',airtel:'#c0392b'};
-    datasets.push({key:filter,label:NETWORK_LABELS[filter]||filter,color:colors[filter]||'#0f172a',data:last14.map(e=>Number(e[filter])||0)});
+  if (!document.getElementById('rlChartTooltip')) {
+    const tip = document.createElement('div');
+    tip.id = 'rlChartTooltip';
+    tip.className = 'rl-chart-tooltip';
+    wrap.appendChild(tip);
   }
-  drawLineChart(canvas,labels,datasets);
+  return canvas;
 }
 
-function drawLineChart(canvas,labels,datasets) {
-  const dpr=window.devicePixelRatio||1;
-  const wrap=canvas.parentElement;
-  const W=wrap?.clientWidth||700, H=220;
-  canvas.width=W*dpr; canvas.height=H*dpr;
-  canvas.style.width=W+'px'; canvas.style.height=H+'px';
-  const ctx=canvas.getContext('2d');
-  ctx.scale(dpr,dpr); ctx.clearRect(0,0,W,H);
-  const pad={top:20,right:20,bottom:48,left:72};
-  const cW=W-pad.left-pad.right, cH=H-pad.top-pad.bottom;
-  const allVals=datasets.flatMap(d=>d.data);
-  const maxVal=Math.max(...allVals,1);
-  ctx.strokeStyle='#e8eef4'; ctx.lineWidth=1;
-  for (let i=0;i<=4;i++) {
-    const y=pad.top+(cH/4)*i;
-    ctx.beginPath();ctx.moveTo(pad.left,y);ctx.lineTo(pad.left+cW,y);ctx.stroke();
-    const val=maxVal*(1-i/4);
-    ctx.fillStyle='#7f8c8d'; ctx.font='10px -apple-system,sans-serif'; ctx.textAlign='right';
-    ctx.fillText('LKR '+(val>=1000?(val/1000).toFixed(0)+'k':val.toFixed(0)),pad.left-6,y+4);
+function renderReloadChart() {
+  const wrap = $('rl-line-chart-wrap');
+  if (!wrap) return;
+  const legendEl = $('rlChartLegend');
+  const filter = $('rl-chart-filter')?.value || 'all';
+  const entries = getReloadEntries().slice().reverse();
+  const last14 = entries.slice(-14);
+  if (!last14.length) {
+    wrap.innerHTML = '<div class="no-data" style="padding:2.5rem;"><span class="ico">📭</span>No data yet</div>';
+    if (legendEl) legendEl.innerHTML = '';
+    return;
   }
-  const step=labels.length>1?cW/(labels.length-1):cW;
-  ctx.fillStyle='#7f8c8d'; ctx.font='10px -apple-system,sans-serif'; ctx.textAlign='center';
-  labels.forEach((lbl,i)=>ctx.fillText(lbl,pad.left+i*step,H-pad.bottom+16));
-  datasets.forEach(ds=>{
-    if (!ds.data.length) return;
-    ctx.beginPath(); ctx.strokeStyle=ds.color;
-    ctx.lineWidth=ds.key==='total'?2.5:1.8; ctx.lineJoin='round';
-    ds.data.forEach((v,i)=>{const x=pad.left+i*step,y=pad.top+cH-(v/maxVal)*cH;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
-    ctx.stroke();
-    ds.data.forEach((v,i)=>{const x=pad.left+i*step,y=pad.top+cH-(v/maxVal)*cH;ctx.beginPath();ctx.arc(x,y,ds.key==='total'?4:3,0,Math.PI*2);ctx.fillStyle=ds.color;ctx.fill();});
-  });
-  let lx=pad.left;
-  datasets.forEach(ds=>{
-    ctx.fillStyle=ds.color; ctx.fillRect(lx,H-14-7,14,3);
-    ctx.beginPath();ctx.arc(lx+7,H-14-6,3,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='#2c3e50'; ctx.textAlign='left'; ctx.font='10px -apple-system,sans-serif';
-    ctx.fillText(ds.label,lx+18,H-14-2); lx+=ctx.measureText(ds.label).width+36;
-  });
+  const canvas = ensureReloadChartDOM();
+  if (!canvas) return;
+  const labels = last14.map(e => { const d = new Date(e.date); return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); });
+  const datasets = [];
+  if (filter === 'all') {
+    datasets.push({ key: 'total', label: 'Total', color: '#0f172a', data: last14.map(e => (Number(e.dialog)||0)+(Number(e.mobitel)||0)+(Number(e.hutch)||0)+(Number(e.airtel)||0)+(Number(e.cash)||0)) });
+    datasets.push({ key: 'dialog', label: 'Dialog', color: '#e63946', data: last14.map(e => Number(e.dialog)||0) });
+    datasets.push({ key: 'mobitel', label: 'Mobitel', color: '#2d6a4f', data: last14.map(e => Number(e.mobitel)||0) });
+    datasets.push({ key: 'hutch', label: 'Hutch', color: '#e67e22', data: last14.map(e => Number(e.hutch)||0) });
+    datasets.push({ key: 'airtel', label: 'Airtel', color: '#c0392b', data: last14.map(e => Number(e.airtel)||0) });
+    datasets.push({ key: 'cash', label: 'Cash', color: '#2563eb', data: last14.map(e => Number(e.cash)||0) });
+  } else if (filter === 'cash') {
+    datasets.push({ key: 'cash', label: 'Cash in Hand', color: '#2563eb', data: last14.map(e => Number(e.cash)||0) });
+  } else {
+    const colors = { dialog: '#e63946', mobitel: '#2d6a4f', hutch: '#e67e22', airtel: '#c0392b' };
+    datasets.push({ key: filter, label: NETWORK_LABELS[filter] || filter, color: colors[filter] || '#0f172a', data: last14.map(e => Number(e[filter])||0) });
+  }
+  drawLineChart(canvas, labels, datasets);
+  renderReloadChartLegend(datasets);
 }
+
+function renderReloadChartLegend(datasets) {
+  const legendEl = $('rlChartLegend');
+  if (!legendEl) return;
+  legendEl.innerHTML = datasets.map(ds =>
+    `<div class="rl-legend-chip"><span class="rlc-dot" style="background:${ds.color};"></span>${ds.label}</div>`
+  ).join('');
+}
+
+function hexToRgba(hex, alpha) {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.substring(0, 2), 16), g = parseInt(h.substring(2, 4), 16), b = parseInt(h.substring(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+// Lightweight helper: builds a smooth (quadratic, midpoint-based) path through
+// a set of {x,y} points — gives the line a gentle curve without needing a
+// charting library and without overshooting past the actual data points.
+function tracePath(ctx, pts) {
+  ctx.beginPath();
+  if (!pts.length) return;
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) {
+    const prev = pts[i - 1], cur = pts[i];
+    const xc = (prev.x + cur.x) / 2, yc = (prev.y + cur.y) / 2;
+    ctx.quadraticCurveTo(prev.x, prev.y, xc, yc);
+  }
+  const last = pts[pts.length - 1];
+  ctx.lineTo(last.x, last.y);
+}
+
+function drawLineChart(canvas, labels, datasets) {
+  const dpr = window.devicePixelRatio || 1;
+  const wrap = canvas.parentElement;
+  const W = wrap?.clientWidth || 700, H = 240;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  const pad = { top: 24, right: 20, bottom: 34, left: 72 };
+  const cW = W - pad.left - pad.right, cH = H - pad.top - pad.bottom;
+  const allVals = datasets.flatMap(d => d.data);
+  const maxVal = Math.max(...allVals, 1) * 1.12; // small headroom so peaks don't touch the top edge
+  const step = labels.length > 1 ? cW / (labels.length - 1) : cW;
+  const xAt = i => pad.left + i * step;
+  const yAt = v => pad.top + cH - (v / maxVal) * cH;
+
+  function paint(hoverIdx) {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, W, H);
+
+    // grid + y-axis labels
+    ctx.strokeStyle = '#eef2f7'; ctx.lineWidth = 1;
+    for (let i = 0; i <= 4; i++) {
+      const y = pad.top + (cH / 4) * i;
+      ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + cW, y); ctx.stroke();
+      const val = maxVal * (1 - i / 4);
+      ctx.fillStyle = '#94a3b8'; ctx.font = '10px -apple-system,sans-serif'; ctx.textAlign = 'right';
+      ctx.fillText('LKR ' + (val >= 1000 ? (val / 1000).toFixed(0) + 'k' : val.toFixed(0)), pad.left - 8, y + 4);
+    }
+    // x-axis labels
+    ctx.fillStyle = '#94a3b8'; ctx.font = '10px -apple-system,sans-serif'; ctx.textAlign = 'center';
+    labels.forEach((lbl, i) => ctx.fillText(lbl, xAt(i), H - pad.bottom + 18));
+
+    // hover guide line
+    if (hoverIdx != null) {
+      ctx.beginPath(); ctx.strokeStyle = '#cbd5e1'; ctx.setLineDash([3, 3]); ctx.lineWidth = 1;
+      ctx.moveTo(xAt(hoverIdx), pad.top); ctx.lineTo(xAt(hoverIdx), pad.top + cH); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // area fill under the primary line (total, or the only line when filtered to one series)
+    const primary = datasets.find(d => d.key === 'total') || (datasets.length === 1 ? datasets[0] : null);
+    if (primary && primary.data.length) {
+      const pts = primary.data.map((v, i) => ({ x: xAt(i), y: yAt(v) }));
+      const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + cH);
+      grad.addColorStop(0, hexToRgba(primary.color, 0.22));
+      grad.addColorStop(1, hexToRgba(primary.color, 0));
+      tracePath(ctx, pts);
+      ctx.lineTo(pts[pts.length - 1].x, pad.top + cH);
+      ctx.lineTo(pts[0].x, pad.top + cH);
+      ctx.closePath();
+      ctx.fillStyle = grad; ctx.fill();
+    }
+
+    // lines + points
+    datasets.forEach(ds => {
+      if (!ds.data.length) return;
+      const pts = ds.data.map((v, i) => ({ x: xAt(i), y: yAt(v) }));
+      tracePath(ctx, pts);
+      ctx.strokeStyle = ds.color;
+      ctx.lineWidth = ds.key === 'total' ? 2.75 : 1.8;
+      ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      ctx.stroke();
+      pts.forEach((p, i) => {
+        const isHover = hoverIdx === i;
+        const r = isHover ? (ds.key === 'total' ? 6 : 5) : (ds.key === 'total' ? 4 : 3);
+        ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+        ctx.fillStyle = '#fff'; ctx.fill();
+        ctx.lineWidth = isHover ? 2.5 : 1.8; ctx.strokeStyle = ds.color; ctx.stroke();
+        ctx.beginPath(); ctx.arc(p.x, p.y, r - 1.8, 0, Math.PI * 2); ctx.fillStyle = ds.color; ctx.fill();
+      });
+    });
+  }
+
+  paint(null);
+  bindReloadChartInteraction(canvas, labels, datasets, { pad, cW, step, xAt }, paint);
+}
+
+// Binds hover/touch interaction once per canvas element (guarded so re-rendering
+// the chart on filter change doesn't stack up duplicate listeners), showing a
+// tooltip with the exact date + values under the cursor.
+function bindReloadChartInteraction(canvas, labels, datasets, geo, paint) {
+  canvas._rlChartData = { labels, datasets, geo, paint };
+  if (canvas._rlChartBound) return;
+  canvas._rlChartBound = true;
+
+  const wrap = canvas.parentElement;
+  const tip = () => document.getElementById('rlChartTooltip');
+
+  function indexFromEvent(evt) {
+    const rect = canvas.getBoundingClientRect();
+    const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+    const x = clientX - rect.left;
+    const { pad, step } = canvas._rlChartData.geo;
+    let idx = Math.round((x - pad.left) / step);
+    const maxIdx = canvas._rlChartData.labels.length - 1;
+    return Math.max(0, Math.min(maxIdx, idx));
+  }
+
+  function showAt(evt) {
+    const { labels: L, datasets: DS, geo } = canvas._rlChartData;
+    if (!L.length) return;
+    const idx = indexFromEvent(evt);
+    canvas._rlChartData.paint(idx);
+    const t = tip();
+    if (!t) return;
+    const rows = DS.map(ds => `<div class="rlt-row"><span class="rlt-dot" style="background:${ds.color};"></span>${ds.label}: ${fmt(ds.data[idx])}</div>`).join('');
+    t.innerHTML = `<div class="rlt-date">${L[idx]}</div>${rows}`;
+    const rect = canvas.getBoundingClientRect();
+    const wrapRect = wrap.getBoundingClientRect();
+    const x = geo.xAt(idx) + (rect.left - wrapRect.left);
+    let left = x + 14, top = 10;
+    const tW = t.offsetWidth || 140;
+    if (left + tW > wrap.clientWidth) left = x - tW - 14;
+    t.style.left = Math.max(4, left) + 'px';
+    t.style.top = top + 'px';
+    t.classList.add('show');
+  }
+
+  function hide() {
+    canvas._rlChartData.paint(null);
+    tip()?.classList.remove('show');
+  }
+
+  canvas.addEventListener('mousemove', showAt);
+  canvas.addEventListener('mouseleave', hide);
+  canvas.addEventListener('touchstart', showAt, { passive: true });
+  canvas.addEventListener('touchmove', showAt, { passive: true });
+  canvas.addEventListener('touchend', hide);
+}
+
+let _rlChartResizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(_rlChartResizeTimer);
+  _rlChartResizeTimer = setTimeout(() => {
+    if ($('reloadSection')?.classList.contains('show')) renderReloadChart();
+  }, 200);
+});
 
 // ============= NOTIFICATIONS =============
 function toggleSidebar() {
