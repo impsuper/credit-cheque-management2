@@ -2903,6 +2903,8 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
 <script src="https://cdnjs.cloudflare.com/ajax/libs/apexcharts/3.45.2/apexcharts.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-analytics-compat.js"></script>
 
@@ -2953,6 +2955,8 @@ const EPF_EMPLOYER_RATE = 0.12;
 const ETF_EMPLOYER_RATE = 0.03;
 
 let fdb = null;
+let fauth = null;
+let ffun = null;
 let usersCol = null;
 let liveUnsub = null;
 let supSelections = { cr: null, ch: null, clp: null, clc: null };
@@ -3451,6 +3455,8 @@ async function initFirebase() {
     if (firebase.apps.length === 0) firebase.initializeApp(firebaseConfig);
     try { firebase.analytics(); } catch (e) {}
     fdb = firebase.firestore();
+    fauth = firebase.auth();
+    ffun = firebase.functions();
     usersCol = fdb.collection('cms_users');
     payrollDocRef = fdb.collection('cms_payroll').doc('company');
     try { await fdb.enablePersistence({ synchronizeTabs: true }); } catch (e) {}
@@ -3464,28 +3470,30 @@ async function initFirebase() {
 
 async function loadDB() {
   if (!firebaseReady()) return loadDBLocal();
+  const authUser = fauth && fauth.currentUser;
+  if (!authUser) return false;
+
   try {
-    const snap = await usersCol.get();
-    DB.users = snap.docs.map(d => d.data());
-    if (!DB.users.find(u => u.username === 'admin')) {
-      const admin = defaultAdmin();
-      await usersCol.doc('admin').set(clean(admin));
-      DB.users.push(admin);
+    const ownSnap = await usersCol.doc(authUser.uid).get();
+    if (!ownSnap.exists) return false;
+
+    const me = ownSnap.data();
+    DB.currentUser = me;
+    DB.currentUsername = me.username;
+
+    if (me.role === 'admin') {
+      const snap = await usersCol.get();
+      DB.users = snap.docs.map(d => d.data());
+    } else {
+      DB.users = [me];
     }
+
     startLiveSync();
-    const savedUser = localStorage.getItem('cms_session');
-    if (savedUser) {
-      const fresh = getUserByUsername(savedUser);
-      if (fresh) {
-        DB.currentUser = fresh;
-        DB.currentUsername = fresh.username;
-        return true;
-      }
-    }
+    return true;
   } catch (e) {
     console.error('loadDB', e);
+    return false;
   }
-  return false;
 }
 
 function startLiveSync() {
@@ -3601,10 +3609,28 @@ function showPage(id) {
   if (id === 'registerPage') setTimeout(() => $('rName')?.focus(), 50);
 }
 
-function doLogin(e) {
+async function doLogin(e) {
   e.preventDefault();
   const user = $('lUser').value.trim();
   const pass = $('lPass').value;
+  if (firebaseReady() && ffun && fauth) {
+    $('loginMsg').innerHTML = '';
+    try {
+      const { data } = await ffun.httpsCallable('login')({ username: user, password: pass });
+      await fauth.signInWithCustomToken(data.token);
+      const loggedIn = await loadDB();
+      if (loggedIn) {
+        logActivity('LOGIN', 'Signed in');
+        initDashboard();
+      } else {
+        $('loginMsg').innerHTML = '<div class="err-msg">❌ Invalid username or password</div>';
+      }
+    } catch (err) {
+      $('loginMsg').innerHTML = '<div class="err-msg">❌ Invalid username or password</div>';
+    }
+    return;
+  }
+  // Local-only fallback (no Firebase connection)
   const found = DB.users.find(u => u.username === user && u.password === pass);
   if (!found) {
     $('loginMsg').innerHTML = '<div class="err-msg">❌ Invalid username or password</div>';
@@ -3619,16 +3645,34 @@ function doLogin(e) {
 async function doRegister(e) {
   e.preventDefault();
   const username = $('rUser').value.trim();
+  const name = $('rName').value.trim();
+  const business = $('rBiz').value.trim();
+  const password = $('rPass').value;
+
+  if (firebaseReady() && ffun && fauth) {
+    try {
+      const { data } = await ffun.httpsCallable('register')({ username, password, name, business });
+      await fauth.signInWithCustomToken(data.token);
+      $('regMsg').innerHTML = '<div class="suc-msg">✅ Account created! Redirecting...</div>';
+      setTimeout(() => {
+        $('regMsg').innerHTML = '';
+        showPage('loginPage');
+      }, 1400);
+    } catch (err) {
+      const msg = err && err.code === 'functions/already-exists' ? 'Username already exists' : 'Registration failed';
+      $('regMsg').innerHTML = `<div class="err-msg">❌ ${msg}</div>`;
+    }
+    return;
+  }
+
+  // Local-only fallback (no Firebase connection)
   if (DB.users.find(u => u.username === username)) {
     $('regMsg').innerHTML = '<div class="err-msg">❌ Username already exists</div>';
     return;
   }
   const newUser = {
     id: uid(),
-    name: $('rName').value.trim(),
-    business: $('rBiz').value.trim(),
-    username,
-    password: $('rPass').value,
+    name, business, username, password,
     role: 'manager',
     credits: [],
     cheques: [],
@@ -3650,11 +3694,12 @@ async function doRegister(e) {
   }, 1400);
 }
 
-function doLogout() {
+async function doLogout() {
   if (!confirm('Logout?')) return;
   logActivity('LOGOUT', 'Signed out');
   DB.currentUser = null;
   clearSession();
+  if (fauth) { try { await fauth.signOut(); } catch (e) { console.error('signOut', e); } }
   document.body.classList.remove('cashier-mode');
   document.querySelector('.topbar')?.classList.remove('hidden');
   showPage('loginPage');
@@ -10729,6 +10774,11 @@ restoreSidebarState();
 
 (async function () {
   await initFirebase();
+  if (fauth) {
+    await new Promise(resolve => {
+      const unsub = fauth.onAuthStateChanged(() => { unsub(); resolve(); });
+    });
+  }
   registerServiceWorker();
   initMessaging();
   const loggedIn = await loadDB();
