@@ -3626,10 +3626,9 @@ async function doLogin(e) {
         $('loginMsg').innerHTML = '<div class="err-msg">❌ Invalid username or password</div>';
       }
     } catch (err) {
-      $('loginMsg').innerHTML = '<div class="err-msg">❌ Invalid username or password</div>';
+      console.error('LOGIN DEBUG:', err);
+      $('loginMsg').innerHTML = '<div class="err-msg">❌ ' + (err.code || 'error') + ': ' + (err.message || 'unknown') + '</div>';
     }
-    return;
-  }
   // Local-only fallback (no Firebase connection)
   const found = DB.users.find(u => u.username === user && u.password === pass);
   if (!found) {
