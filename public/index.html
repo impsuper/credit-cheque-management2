@@ -7408,6 +7408,16 @@ function saveCashLogEntry() {
   const editId = $('cl-edit-id')?.value || '';
   const existingEntry = editId ? admin.cashLog.find(e => e.id === editId) : null;
 
+  // Cash-in-Hand can never go negative — validate the amount against what's actually available.
+  // calcCashInHand() already subtracts every existing cashLog entry (including this one, if we're
+  // editing it), so when editing we add the entry's OLD amount back first to get the true balance
+  // available before this (possibly changed) new amount is applied.
+  const availableCash = calcCashInHand() + (existingEntry ? (Number(existingEntry.amount)||0) : 0);
+  if (amount > availableCash + 0.001) {
+    toast('⚠️ මුදල ලබාගත හැකි Cash-in-Hand ප්‍රමාණයට වඩා වැඩියි! තිබෙන මුදල: '+fmt(availableCash), 'red');
+    return;
+  }
+
   // If editing, strip out whatever this entry previously mirrored elsewhere (a cash purchase
   // ledger row, or a payment against a credit bill) BEFORE validating the new values below —
   // the type / supplier / bill / amount may all have changed since the entry was created.
