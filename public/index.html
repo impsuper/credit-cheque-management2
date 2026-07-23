@@ -3481,11 +3481,31 @@ async function loadDB() {
     DB.currentUser = me;
     DB.currentUsername = me.username;
 
-    if (me.role === 'admin') {
+    // Admin and manager both get a reliable one-time read of the full
+    // collection here — NOT just admin. The real-time onSnapshot listener
+    // (startLiveSync, below) is still set up for live updates afterward,
+    // but it uses a WebChannel long-polling stream that can be unreliable
+    // in some network/browser environments (ad-blockers, some VPNs/proxies,
+    // the deprecated multi-tab persistence mode) even when a plain
+    // one-time .get() works perfectly fine. Previously, non-admin roles
+    // skipped straight to `DB.users = [me]` and depended ENTIRELY on that
+    // live listener ever succeeding to see anyone else's doc — including
+    // admin's, which manager needs for the Cash Disposal Log / Cash-in-Hand
+    // figures. If that listener never managed to connect, a manager could
+    // stay stuck seeing only their own doc for their whole session, with
+    // "Add to Log" silently doing nothing because admin's doc was never
+    // loaded — even though Firestore itself was permitting the read the
+    // entire time.
+    //
+    // Cashiers stay on `[me]` only: the Firestore rule only grants them
+    // isOwner() (their own doc), not isAdmin()/isManager(), and a full
+    // unfiltered collection query is all-or-nothing — it would be denied
+    // outright for a cashier since it could return docs they can't read.
+    if (me.role === 'cashier') {
+      DB.users = [me];
+    } else {
       const snap = await usersCol.get();
       DB.users = snap.docs.map(d => d.data());
-    } else {
-      DB.users = [me];
     }
 
     startLiveSync();
@@ -7444,7 +7464,7 @@ function saveCashLogEntry() {
   if (!date||!amount){toast('Date and Amount required','red');return;}
 
   const admin=getUserByUsername('admin');
-  if (!admin) return;
+  if (!admin) { toast('⚠️ Admin data not loaded yet — please wait a moment and try again, or refresh', 'red'); return; }
   if (!admin.cashLog) admin.cashLog=[];
   const editId = $('cl-edit-id')?.value || '';
   const existingEntry = editId ? admin.cashLog.find(e => e.id === editId) : null;
@@ -7576,7 +7596,7 @@ function deleteCashLogEntry(id) {
   if (!isAdmin()){toast('Admin only','red');return;}
   if (!confirm('Delete this log entry?')) return;
   const admin=getUserByUsername('admin');
-  if (!admin) return;
+  if (!admin) { toast('⚠️ Admin data not loaded yet — please wait a moment and try again, or refresh', 'red'); return; }
   const entry = (admin.cashLog||[]).find(e=>e.id===id);
   admin.cashLog=(admin.cashLog||[]).filter(e=>e.id!==id);
   syncUser(admin);
