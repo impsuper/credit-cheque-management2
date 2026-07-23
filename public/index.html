@@ -3496,9 +3496,11 @@ async function loadDB() {
   }
 }
 
+let _liveSyncRetried = false;
 function startLiveSync() {
   if (liveUnsub || !usersCol) return;
   liveUnsub = usersCol.onSnapshot(snap => {
+    _liveSyncRetried = false; // a good snapshot means the token is fine again
     DB.users = snap.docs.map(d => d.data());
     if (DB.currentUsername) {
       const fresh = getUserByUsername(DB.currentUsername);
@@ -3506,7 +3508,23 @@ function startLiveSync() {
     }
     markSynced('cloud');
     refreshActiveSection();
-  }, err => { console.error('live sync', err); setSyncStatus('offline'); });
+  }, async err => {
+    console.error('live sync', err);
+    setSyncStatus('offline');
+    // A previously-working listener that suddenly gets permission-denied
+    // almost always means the ID token's role claim went stale (e.g. it
+    // was refreshed without the claim before the login Cloud Function fix
+    // was deployed). One self-heal attempt: force a fresh token and
+    // resubscribe, instead of leaving the app frozen on stale data.
+    if (err.code === 'permission-denied' && !_liveSyncRetried && fauth && fauth.currentUser) {
+      _liveSyncRetried = true;
+      liveUnsub = null;
+      try {
+        await fauth.currentUser.getIdToken(true);
+        startLiveSync();
+      } catch (e) { console.error('live sync token refresh', e); }
+    }
+  });
 }
 
 async function loadPayrollDB() {
@@ -3545,9 +3563,11 @@ function loadPayrollDBLocal() {
   }
 }
 
+let _payrollSyncRetried = false;
 function startPayrollLiveSync() {
   if (payrollLiveUnsub || !payrollDocRef) return;
   payrollLiveUnsub = payrollDocRef.onSnapshot(snap => {
+    _payrollSyncRetried = false;
     if (!snap.exists) return;
     const data = snap.data();
     PDB.employees = data.employees || [];
@@ -3557,7 +3577,17 @@ function startPayrollLiveSync() {
     PDB.counters = data.counters || { employee: 0 };
     const active = document.querySelector('.section.show');
     if (active && active.id === 'payrollSection') renderPayrollTab();
-  }, err => console.error('payroll live sync', err));
+  }, async err => {
+    console.error('payroll live sync', err);
+    if (err.code === 'permission-denied' && !_payrollSyncRetried && fauth && fauth.currentUser) {
+      _payrollSyncRetried = true;
+      payrollLiveUnsub = null;
+      try {
+        await fauth.currentUser.getIdToken(true);
+        startPayrollLiveSync();
+      } catch (e) { console.error('payroll sync token refresh', e); }
+    }
+  });
 }
 
 async function savePayrollDB() {
@@ -6704,12 +6734,23 @@ function saveUser() {
   if (editId) {
     const u = getUserByUsername(editId);
     if (!u) return;
+    const oldRole = u.role;
     u.name = $('u-name').value.trim();
     u.business = $('u-biz').value.trim();
     u.role = $('u-role').value;
     if (u.role === 'cashier') u.cashierSlot = Number($('u-cashier-slot')?.value) || 0;
     if (pass) u.password = pass;
     syncUser(u);
+    if (u.role !== oldRole && u.username !== 'admin' && ffun) {
+      // Keep the target user's Auth custom claim (what the Firestore
+      // rules actually check) in sync with the role we just wrote to
+      // their doc, instead of waiting for their next login to catch up.
+      ffun.httpsCallable('updateUserRole')({ username: u.username, role: u.role })
+        .catch(e => {
+          console.error('updateUserRole', e);
+          toast('⚠️ Role saved, but permissions may not update until that user logs out & back in', 'yellow');
+        });
+    }
     logActivity('EDIT_USER', `${u.name} (${u.username})`);
   } else {
     const newUser = {
