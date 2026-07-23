@@ -3172,8 +3172,10 @@ function syncUser(user) {
 
 async function saveUserDoc(user) {
   if (!user) return;
+  // Always keep a local mirror in sync, cloud write or not — see the
+  // matching comment in savePayrollDB() for why.
+  try { saveDBLocal(); } catch (e) { console.error('saveUserDoc local mirror', e); }
   if (!firebaseReady()) {
-    saveDBLocal();
     markSynced('local');
     return;
   }
@@ -3527,6 +3529,7 @@ function startLiveSync() {
       if (fresh) DB.currentUser = fresh;
     }
     markSynced('cloud');
+    try { saveDBLocal(); } catch (e) { console.error('live sync local mirror', e); }
     refreshActiveSection();
   }, async err => {
     console.error('live sync', err);
@@ -3559,7 +3562,18 @@ async function loadPayrollDB() {
       PDB.attendance = data.attendance || [];
       PDB.counters = data.counters || { employee: 0 };
     } else {
-      await payrollDocRef.set(clean(PDB));
+      // IMPORTANT: do NOT auto-write an empty doc here. This used to call
+      // payrollDocRef.set(clean(PDB)) as a "create it if missing"
+      // convenience — but a transient connectivity/cache glitch (stale
+      // IndexedDB persistence, a dropped WebChannel, etc.) can make
+      // snap.exists report false for a document that genuinely still
+      // exists on the server. If that happens, blindly .set()-ing here
+      // would silently overwrite real payroll data with empty defaults —
+      // exactly the kind of data loss this comment is here to prevent.
+      // PDB simply stays at its in-memory defaults; the real document
+      // gets created the first time the user performs an actual save
+      // (add employee, run payroll, etc.) via savePayrollDB().
+      console.warn('loadPayrollDB: cms_payroll/company not found — leaving PDB at defaults without writing (will be created on first real save).');
     }
     startPayrollLiveSync();
   } catch (e) {
@@ -3595,6 +3609,7 @@ function startPayrollLiveSync() {
     PDB.payrolls = data.payrolls || [];
     PDB.attendance = data.attendance || [];
     PDB.counters = data.counters || { employee: 0 };
+    try { localStorage.setItem('cms_payroll', JSON.stringify(PDB)); } catch (e) { console.error('payroll live sync local mirror', e); }
     const active = document.querySelector('.section.show');
     if (active && active.id === 'payrollSection') renderPayrollTab();
   }, async err => {
@@ -3611,10 +3626,12 @@ function startPayrollLiveSync() {
 }
 
 async function savePayrollDB() {
-  if (!firebaseReady() || !payrollDocRef) {
-    localStorage.setItem('cms_payroll', JSON.stringify(PDB));
-    return;
-  }
+  // Always mirror to localStorage first, regardless of whether the cloud
+  // write below succeeds — this is a cheap, redundant safety net. If the
+  // cloud copy is ever wiped or corrupted again (bug, bad rule, whatever),
+  // this local copy is a fallback to recover from instead of nothing.
+  try { localStorage.setItem('cms_payroll', JSON.stringify(PDB)); } catch (e) { console.error('savePayrollDB local mirror', e); }
+  if (!firebaseReady() || !payrollDocRef) return;
   try {
     await payrollDocRef.set(clean(PDB));
   } catch (e) {
@@ -3747,7 +3764,7 @@ async function doRegister(e) {
 
 async function doLogout() {
   if (!confirm('Logout?')) return;
-  logActivity('LOGOUT', 'Signed out');
+  await logActivityNow('LOGOUT', 'Signed out');
   DB.currentUser = null;
   clearSession();
   if (fauth) { try { await fauth.signOut(); } catch (e) { console.error('signOut', e); } }
@@ -7098,7 +7115,7 @@ function renderAIInsights() {
 function downloadBackup() {
   let data;
   if (isAdmin() || isManager()) {
-    data = { type: 'full_backup', date: new Date().toISOString(), version: '1.0', users: clean(DB.users) };
+    data = { type: 'full_backup', date: new Date().toISOString(), version: '1.1', users: clean(DB.users), payroll: clean(PDB) };
   } else {
     data = { type: 'user_backup', date: new Date().toISOString(), version: '1.0', user: clean(DB.currentUser) };
   }
@@ -7131,6 +7148,16 @@ async function restoreBackup(e) {
         if (idx !== -1) DB.users[idx] = u;
         else DB.users.push(u);
         await saveUserDoc(u);
+      }
+      // Older backups (before this fix) won't have a `payroll` key at all —
+      // only restore it if this backup actually captured it.
+      if (data.payroll && typeof data.payroll === 'object') {
+        PDB.employees = data.payroll.employees || [];
+        PDB.advances = data.payroll.advances || [];
+        PDB.payrolls = data.payroll.payrolls || [];
+        PDB.attendance = data.payroll.attendance || [];
+        PDB.counters = data.payroll.counters || { employee: 0 };
+        await savePayrollDB();
       }
       if (DB.currentUsername) {
         const fresh = getUserByUsername(DB.currentUsername);
@@ -7179,7 +7206,8 @@ async function autoBackupIfNeeded() {
       await col.doc(todayId).set({
         date: new Date().toISOString(),
         userCount: DB.users.length,
-        users: clean(DB.users)
+        users: clean(DB.users),
+        payroll: clean(PDB)
       });
     }
     pruneCloudBackups();
@@ -7197,7 +7225,8 @@ async function doManualCloudBackup() {
     await col.doc(todayId).set({
       date: new Date().toISOString(),
       userCount: DB.users.length,
-      users: clean(DB.users)
+      users: clean(DB.users),
+      payroll: clean(PDB)
     });
     toast('☁️ Backup snapshot saved!');
     logActivity('BACKUP', 'Manual cloud backup snapshot');
@@ -7275,7 +7304,7 @@ async function downloadCloudBackup(backupId) {
     const doc = await col.doc(backupId).get();
     if (!doc.exists) { toast('❌ Backup not found', 'red'); return; }
     const d = doc.data();
-    const data = { type: 'full_backup', date: d.date, version: '1.0', users: d.users };
+    const data = { type: 'full_backup', date: d.date, version: '1.1', users: d.users, payroll: d.payroll || null };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -7304,6 +7333,16 @@ async function restoreCloudBackup(backupId) {
       if (idx !== -1) DB.users[idx] = u;
       else DB.users.push(u);
       await saveUserDoc(u);
+    }
+    // Snapshots taken before this fix won't have a `payroll` key — only
+    // restore it if this particular snapshot actually captured one.
+    if (d.payroll && typeof d.payroll === 'object') {
+      PDB.employees = d.payroll.employees || [];
+      PDB.advances = d.payroll.advances || [];
+      PDB.payrolls = d.payroll.payrolls || [];
+      PDB.attendance = d.payroll.attendance || [];
+      PDB.counters = d.payroll.counters || { employee: 0 };
+      await savePayrollDB();
     }
     if (DB.currentUsername) {
       const fresh = getUserByUsername(DB.currentUsername);
@@ -10761,14 +10800,32 @@ let _logTimer = null;
 function logActivity(action, details) {
   const user = DB.currentUser;
   if (!user) return;
-  const entry = { id: uid(), ts: new Date().toISOString(), actor: user.username || DB.currentUsername, actorName: user.name || '', action, details: details || '' };
-  if (!user.activityLog) user.activityLog = [];
-  user.activityLog.unshift(entry);
-  pruneActivityLog(user);
+  appendActivityEntry(user, action, details);
   clearTimeout(_logTimer);
   // Capture `user` in the closure (not DB.currentUser) so the save still fires
   // correctly even if DB.currentUser gets cleared in the meantime (e.g. on logout).
   _logTimer = setTimeout(() => { saveUserDoc(user); }, 800);
+}
+
+function appendActivityEntry(user, action, details) {
+  const entry = { id: uid(), ts: new Date().toISOString(), actor: user.username || DB.currentUsername, actorName: user.name || '', action, details: details || '' };
+  if (!user.activityLog) user.activityLog = [];
+  user.activityLog.unshift(entry);
+  pruneActivityLog(user);
+}
+
+// Same as logActivity(), but flushes the save immediately and waits for it,
+// instead of the usual 800ms debounce. Use this right before anything that
+// will invalidate the current session (e.g. signing out) — the debounced
+// save would otherwise still be pending when the auth token disappears a
+// moment later, and fail with a misleading "Save failed" toast even though
+// nothing real was lost.
+async function logActivityNow(action, details) {
+  const user = DB.currentUser;
+  if (!user) return;
+  clearTimeout(_logTimer);
+  appendActivityEntry(user, action, details);
+  try { await saveUserDoc(user); } catch (e) { console.error('logActivityNow', e); }
 }
 
 // Auto-deletes activity-log entries older than 30 days for a single user.
