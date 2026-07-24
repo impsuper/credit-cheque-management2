@@ -960,9 +960,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
     <div class="sb-divider"></div>
     <div id="adminNav" class="hidden">
       <div class="sb-section">Admin</div>
-      <div class="sb-link" onclick="showSection('users')"><span class="ico">👥</span><span>Manage Users</span></div>
-      <div class="sb-link" onclick="showSection('activity')"><span class="ico">🕐</span><span>Activity</span></div>
-      <div class="sb-link" onclick="showSection('backups')"><span class="ico">☁️</span><span>Cloud Backups</span></div>
+      <div class="sb-link" onclick="showSection('settings')"><span class="ico">⚙️</span><span>Settings</span></div>
     </div>
     <div class="sb-link sb-mob-logout" onclick="doLogout()"><span class="ico">🚪</span><span>Out</span></div>
     <div style="flex:1"></div>
@@ -1003,7 +1001,13 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
           <div class="stat-val" id="ov-out">LKR 0</div>
           <div class="stat-sub">📋 <span id="ov-active-cr">0</span> active bills</div>
         </div>
-        <div class="stat-card hidden" id="cashStatToday" style="border-top-color:var(--amber2,#fbbf24);"><div class="stat-label">💰 Today's Net Cash</div><div class="stat-val" id="ov-today-cash">LKR 0</div></div>
+        <div class="stat-card hidden" id="avgSaleStat" style="border-top-color:var(--amber2,#fbbf24);">
+          <div class="stat-label">📊 Average Day Sale</div>
+          <div class="stat-val" id="ov-avg-day-month" style="font-size:1.1rem;">LKR 0</div>
+          <div class="stat-sub">📆 This Month</div>
+          <div class="stat-val" id="ov-avg-day-year" style="font-size:1.1rem;margin-top:.4rem;">LKR 0</div>
+          <div class="stat-sub">🗓️ This Year</div>
+        </div>
         <div class="stat-card hidden" id="cashInHandStat" style="border-top:3px solid var(--navy3);">
           <div class="stat-label">💵 Cash in Hand</div>
           <div class="stat-val" id="ov-cash-inhand">LKR 0</div>
@@ -1133,6 +1137,10 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
             <button class="btn btn-navy btn-sm" onclick="openModal('creditModal')">➕ Add Credit</button>
           </div>
         </div>
+        <div id="cr-total-bar" style="margin:1rem 1.5rem 0;padding:.75rem 1.1rem;background:#eef6ff;border:1.5px solid var(--accent);border-radius:10px;display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">
+          <span style="font-weight:700;color:var(--navy);font-size:.9rem;">🧾 Total Bills: <span id="cr-total-count">0</span></span>
+          <span style="font-weight:700;color:var(--navy);font-size:.9rem;">💵 Total Amount: <span id="cr-total-amount">LKR 0</span></span>
+        </div>
         <div class="tab-bar">
           <div class="tab active" onclick="switchCreditTab('active')" id="credit-tab-active">⏳ Active <span class="tab-count" id="cnt-credit-active">0</span></div>
           <div class="tab" onclick="switchCreditTab('settled')" id="credit-tab-settled">✅ Settled <span class="tab-count" id="cnt-credit-settled">0</span></div>
@@ -1213,6 +1221,10 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
             <button class="btn btn-navy btn-sm" onclick="openModal('chequeModal')">➕ Add Cheque</button>
           </div>
         </div>
+        <div id="ch-total-bar" style="margin:1rem 1.5rem 0;padding:.75rem 1.1rem;background:#eef6ff;border:1.5px solid var(--accent);border-radius:10px;display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">
+          <span style="font-weight:700;color:var(--navy);font-size:.9rem;">🧾 Total Cheques: <span id="ch-total-count">0</span></span>
+          <span style="font-weight:700;color:var(--navy);font-size:.9rem;">💵 Total Amount: <span id="ch-total-amount">LKR 0</span></span>
+        </div>
         <div class="tab-bar">
           <div class="tab active" onclick="switchChequeTab('active')" id="cheque-tab-active">⏳ Active <span class="tab-count" id="cnt-active">0</span></div>
           <div class="tab" onclick="switchChequeTab('settled')" id="cheque-tab-settled">✅ Settled <span class="tab-count" id="cnt-settled">0</span></div>
@@ -1232,6 +1244,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
           <select id="ch-filter-user" onchange="renderCheques()" class="hidden">
             <option value="">All Entered By</option>
           </select>
+          <button class="btn btn-ghost btn-sm" onclick="sortTable('cheques','bank')" title="Sort by Bank">🏦 Sort by Bank</button>
           <button class="clear-btn" onclick="clearFilters('ch')">✕ Clear</button>
         </div>
         <div class="sa-filter-bar" style="flex-wrap:wrap;">
@@ -1399,25 +1412,100 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
     </div>
 
 
-    <!-- USERS (ADMIN ONLY) -->
-    <div id="usersSection" class="section">
+    <!-- SETTINGS (ADMIN ONLY) -->
+    <div id="settingsSection" class="section">
       <div class="card">
         <div class="card-head">
-          <div class="card-title">👥 Manage Users</div>
-          <div class="card-actions">
-            <button class="btn btn-navy btn-sm" onclick="openModal('userModal')">➕ Add User</button>
+          <div class="card-title">⚙️ Settings</div>
+        </div>
+        <div class="tab-bar">
+          <div class="tab active" onclick="switchSettingsTab('users')" id="set-tab-users">👥 Users</div>
+          <div class="tab" onclick="switchSettingsTab('activity')" id="set-tab-activity">🕐 Activity Log</div>
+          <div class="tab" onclick="switchSettingsTab('backups')" id="set-tab-backups">☁️ Cloud Backup</div>
+          <div class="tab" onclick="switchSettingsTab('localbackup')" id="set-tab-localbackup">💾 Backup &amp; Restore</div>
+          <div class="tab" onclick="switchSettingsTab('alerts')" id="set-tab-alerts">🔔 Alerts</div>
+        </div>
+
+        <!-- USERS -->
+        <div id="settings-tab-content-users" class="tab-content show">
+          <div class="card-head">
+            <div class="card-title">👥 Manage Users</div>
+            <div class="card-actions">
+              <button class="btn btn-navy btn-sm" onclick="openModal('userModal')">➕ Add User</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>👤 Name</th><th>🏢 Business</th><th>🆔 Username</th><th>🎯 Role</th><th>⚙️ Actions</th>
+                </tr>
+              </thead>
+              <tbody id="usersBody"></tbody>
+            </table>
           </div>
         </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>👤 Name</th><th>🏢 Business</th><th>🆔 Username</th><th>🎯 Role</th><th>⚙️ Actions</th>
-              </tr>
-            </thead>
-            <tbody id="usersBody"></tbody>
-          </table>
+
+        <!-- ACTIVITY LOG -->
+        <div id="settings-tab-content-activity" class="tab-content">
+          <div class="card-head">
+            <div class="card-title">🕐 Activity Log</div>
+            <div class="card-actions">
+              <input type="text" id="activity-search" placeholder="🔍 Search..." oninput="activityLogPage=1;renderActivityLog()" style="padding:.45rem .9rem;border:1.5px solid var(--border);border-radius:7px;font-size:.87rem;">
+              <button class="btn btn-red btn-sm" onclick="clearActivityLog()">🗑️ Clear</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>📅 Time</th><th>👤 User</th><th>📝 Action</th><th>ℹ️ Details</th></tr></thead>
+              <tbody id="activityBody"></tbody>
+            </table>
+          </div>
+          <div id="activityPagination" class="pg-bar-wrap"></div>
         </div>
+
+        <!-- CLOUD BACKUPS -->
+        <div id="settings-tab-content-backups" class="tab-content">
+          <div class="backup-info-box">☁️ <b>Auto Versioned Backups</b> — සෑම දවසකම ස්වයංක්‍රීයව ඔබේ සම්පූර්ණ දත්ත snapshot එකක් Cloud (Firestore) එකට save වෙනවා. පසුගිය 30 දිනයේ backups තියාගන්නවා — ඕනෑම වෙලාවක restore කරන්න පුළුවන්.</div>
+          <div class="card-head">
+            <div class="card-title">☁️ Cloud Backup History</div>
+            <div class="card-actions">
+              <button class="btn btn-ghost btn-sm" onclick="renderBackupsSection()" title="Refresh">🔄 Refresh</button>
+              <button class="btn btn-navy btn-sm" onclick="doManualCloudBackup()" title="Backup Now">☁️⬆️ Backup Now</button>
+            </div>
+          </div>
+          <div id="backup-list-wrap"><div class="no-data"><span class="ico">⏳</span>Loading...</div></div>
+        </div>
+
+        <!-- LOCAL BACKUP & RESTORE -->
+        <div id="settings-tab-content-localbackup" class="tab-content">
+          <div class="card-head">
+            <div class="card-title">💾 Backup &amp; Restore</div>
+          </div>
+          <div style="padding:1.2rem 1.5rem;">
+            <p style="color:var(--muted);font-size:.85rem;margin-bottom:1rem;">📁 Export a full JSON backup of your data to this device, or restore data from a previously exported backup file. ⚠️ Restoring will overwrite current data.</p>
+            <div style="display:flex;gap:.8rem;flex-wrap:wrap;">
+              <button class="btn btn-navy btn-sm" onclick="downloadBackup()">⬇️ Download Backup</button>
+              <button class="btn btn-yellow btn-sm" onclick="$('restoreInputSettings').click()">⬆️ Restore from File</button>
+              <input type="file" id="restoreInputSettings" accept=".json" style="display:none" onchange="restoreBackup(event)">
+            </div>
+          </div>
+        </div>
+
+        <!-- ALERTS -->
+        <div id="settings-tab-content-alerts" class="tab-content">
+          <div class="card-head">
+            <div class="card-title">🔔 Alert Settings</div>
+          </div>
+          <div style="padding:1.2rem 1.5rem;">
+            <p style="color:var(--muted);font-size:.85rem;margin-bottom:1rem;">🔔 Push notifications alert you instantly for new cash entries, cheques, credits, payments, and upcoming cheque due dates.</p>
+            <div style="display:flex;gap:.8rem;flex-wrap:wrap;align-items:center;">
+              <button id="pushToggleBtnSettings" class="btn btn-ghost btn-sm" onclick="togglePushNotifications()" data-on="0">🔕 Enable Alerts</button>
+              <button class="btn btn-ghost btn-sm" onclick="openNotifSettings()">⚙️ Notification Preferences</button>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
 
@@ -2236,20 +2324,6 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
     </div>
 
     <!-- CLOUD BACKUPS (Admin Only) -->
-    <div id="backupsSection" class="section">
-      <div class="backup-info-box">☁️ <b>Auto Versioned Backups</b> — සෑම දවසකම ස්වයංක්‍රීයව ඔබේ සම්පූර්ණ දත්ත snapshot එකක් Cloud (Firestore) එකට save වෙනවා. පසුගිය 30 දිනයේ backups තියාගන්නවා — ඕනෑම වෙලාවක restore කරන්න පුළුවන්.</div>
-      <div class="card" style="margin-bottom:1.2rem;">
-        <div class="card-head">
-          <div class="card-title">☁️ Cloud Backup History</div>
-          <div style="display:flex;gap:.6rem;">
-            <button class="btn btn-ghost btn-sm" onclick="renderBackupsSection()" title="Refresh">🔄 Refresh</button>
-            <button class="btn btn-navy btn-sm" onclick="doManualCloudBackup()" title="Backup Now">☁️⬆️ Backup Now</button>
-          </div>
-        </div>
-        <div id="backup-list-wrap"><div class="no-data"><span class="ico">⏳</span>Loading...</div></div>
-      </div>
-    </div>
-
     <!-- PROFIT & LOSS (Admin Only) -->
     <div id="plSection" class="section">
       <div class="card" style="margin-bottom:1.2rem;">
@@ -2302,26 +2376,6 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
           <div class="sa-chart-head">📈 Income vs Expense Trend<span id="pl-trend-label" style="font-size:.78rem;font-weight:400;color:var(--muted);"></span></div>
           <div class="sa-chart-body"><div id="pl-trend-chart"></div></div>
         </div>
-      </div>
-    </div>
-
-    <!-- ACTIVITY LOG -->
-    <div id="activitySection" class="section">
-      <div class="card">
-        <div class="card-head">
-          <div class="card-title">🕐 Activity Log</div>
-          <div class="card-actions">
-            <input type="text" id="activity-search" placeholder="🔍 Search..." oninput="activityLogPage=1;renderActivityLog()" style="padding:.45rem .9rem;border:1.5px solid var(--border);border-radius:7px;font-size:.87rem;">
-            <button class="btn btn-red btn-sm" onclick="clearActivityLog()">🗑️ Clear</button>
-          </div>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>📅 Time</th><th>👤 User</th><th>📝 Action</th><th>ℹ️ Details</th></tr></thead>
-            <tbody id="activityBody"></tbody>
-          </table>
-        </div>
-        <div id="activityPagination" class="pg-bar-wrap"></div>
       </div>
     </div>
 
@@ -3395,12 +3449,14 @@ async function togglePushNotifications() {
 }
 
 function updatePushToggleUI(on) {
-  const btn = $('pushToggleBtn');
-  if (!btn) return;
-  btn.dataset.on = on ? '1' : '0';
-  btn.innerHTML = on ? '🔔 <span class="bk-label">Alerts ON</span>' : '🔕 <span class="bk-label">Enable Alerts</span>';
-  btn.classList.toggle('btn-green', on);
-  btn.classList.toggle('btn-ghost', !on);
+  ['pushToggleBtn', 'pushToggleBtnSettings'].forEach(id => {
+    const btn = $(id);
+    if (!btn) return;
+    btn.dataset.on = on ? '1' : '0';
+    btn.innerHTML = on ? '🔔 <span class="bk-label">Alerts ON</span>' : '🔕 <span class="bk-label">Enable Alerts</span>';
+    btn.classList.toggle('btn-green', on);
+    btn.classList.toggle('btn-ghost', !on);
+  });
 }
 
 async function checkPushSubscriptionState() {
@@ -3790,7 +3846,7 @@ function initDashboard() {
   if (isAdmin()) checkPushSubscriptionState();
   $('cashNavLink')?.classList.remove('hidden');
   $('payrollNavLink')?.classList.remove('hidden');
-  $('cashStatToday')?.classList.remove('hidden');
+  $('avgSaleStat')?.classList.remove('hidden');
   $('cashInHandStat')?.classList.remove('hidden');
   $('plNavLink')?.classList.toggle('hidden', !isAdmin());
   $('dateEl').textContent = '📅 ' + new Date().toLocaleDateString('en-US', {
@@ -3835,7 +3891,8 @@ const sectionTitles = {
   activity: '🕐 Activity Log',
   cash: '💰 Cash Management',
   reload: '📱 Reload Management',
-  payroll: '🧑\u200d💼 Payroll'
+  payroll: '🧑\u200d💼 Payroll',
+  settings: '⚙️ Settings'
 };
 
 function showSection(name) {
@@ -3865,7 +3922,7 @@ function showSection(name) {
   if (name === 'reload') { if($('rl-date')&&!$('rl-date').value)$('rl-date').value=today(); renderReloadSection(); }
   if (name === 'analytics') initAnalytics();
   if (name === 'aiinsights') renderAIInsights();
-  if (name === 'backups') { if (!isAdmin()) { showSection('overview'); return; } renderBackupsSection(); }
+  if (name === 'settings') { if (!isAdmin()) { showSection('overview'); return; } initSettingsSection(); }
   if (name === 'pl') { if (!isAdmin()) { showSection('overview'); return; } initPLSection(); }
   if (name === 'payroll') { if (!canAccessPayroll()) { showSection('overview'); return; } initPayrollSection(); }
 }
@@ -3890,6 +3947,8 @@ function refreshActiveSection() {
     renderUsers();
   } else if (id === 'overview') {
     renderOverview();
+  } else if (id === 'settings') {
+    initSettingsSection();
   }
   if (DB.activePayHistCreditId && $('payHistModal')?.classList.contains('show')) renderPayHist();
   if (DB.analyticsOpen) renderSupplierAnalytics();
@@ -4036,6 +4095,8 @@ function renderCredits() {
 
   $('cnt-credit-active').textContent = activeData.length;
   $('cnt-credit-settled').textContent = settledData.length;
+  if ($('cr-total-count')) $('cr-total-count').textContent = rows.length;
+  if ($('cr-total-amount')) $('cr-total-amount').textContent = fmt(rows.reduce((a, c) => a + (Number(c.amount) || 0), 0));
 
   const { col, dir } = DB.sortState.credits;
   const sortFn = arr => sortData(arr, col, dir, (c, key) => {
@@ -4186,6 +4247,8 @@ function renderCheques() {
 
   $('cnt-active').textContent = activeData.length;
   $('cnt-settled').textContent = settledData.length;
+  if ($('ch-total-count')) $('ch-total-count').textContent = rows.length;
+  if ($('ch-total-amount')) $('ch-total-amount').textContent = fmt(rows.reduce((a, c) => a + (Number(c.amount) || 0), 0));
 
   const { col, dir } = DB.sortState.cheques;
   const sortFn = arr => sortData(arr, col, dir, (c, key) => {
@@ -4796,9 +4859,21 @@ function renderOverview() {
   $('ov-chq').textContent = activeCheques.length;
   $('ov-over').textContent = overdue.length;
   $('ov-active-cr').textContent = credits.filter(c => !isCreditSettled(c)).length;
-  const cashRows = getCashRowsRaw();
-  const todayCash = cashRows.filter(e=>e.date===today()).reduce((a,e)=>a+(Number(e.netCash)||0),0);
-  if($('ov-today-cash'))$('ov-today-cash').textContent=fmt(todayCash);
+  const allCashForAvg = getAllCashEntries ? getAllCashEntries() : [];
+  const nowD = new Date();
+  const curMonthKey = `${nowD.getFullYear()}-${String(nowD.getMonth() + 1).padStart(2, '0')}`;
+  const curYearKey = String(nowD.getFullYear());
+  const monthDays = new Set(), yearDays = new Set();
+  let monthSalesTotal = 0, yearSalesTotal = 0;
+  allCashForAvg.forEach(e => {
+    if (!e.date) return;
+    if (e.date.slice(0, 7) === curMonthKey) { monthDays.add(e.date); monthSalesTotal += Number(e.totalSales) || 0; }
+    if (e.date.slice(0, 4) === curYearKey) { yearDays.add(e.date); yearSalesTotal += Number(e.totalSales) || 0; }
+  });
+  const avgDayMonth = monthDays.size ? monthSalesTotal / monthDays.size : 0;
+  const avgDayYear = yearDays.size ? yearSalesTotal / yearDays.size : 0;
+  if ($('ov-avg-day-month')) $('ov-avg-day-month').textContent = fmt(avgDayMonth);
+  if ($('ov-avg-day-year')) $('ov-avg-day-year').textContent = fmt(avgDayYear);
   const cih=calcCashInHand();
   if($('ov-cash-inhand'))$('ov-cash-inhand').textContent=fmt(cih);
   const rlEntries = getReloadEntries();
@@ -5845,6 +5920,23 @@ function switchChequeTab(tab) {
   DB.chequeTab = tab;
   syncChequeTabUI();
   renderCheques();
+}
+
+/* ===== SETTINGS (Users / Activity / Cloud Backup / Local Backup & Restore / Alerts) ===== */
+function switchSettingsTab(tab) {
+  document.querySelectorAll('#settingsSection .tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('#settingsSection .tab-content').forEach(t => t.classList.remove('show'));
+  $(`set-tab-${tab}`)?.classList.add('active');
+  $(`settings-tab-content-${tab}`)?.classList.add('show');
+  DB.settingsTab = tab;
+  if (tab === 'users') renderUsers();
+  else if (tab === 'activity') renderActivityLog();
+  else if (tab === 'backups') renderBackupsSection();
+  else if (tab === 'alerts') checkPushSubscriptionState();
+}
+
+function initSettingsSection() {
+  switchSettingsTab(DB.settingsTab || 'users');
 }
 
 /* ===== SORT PILLS (mobile) ===== */
