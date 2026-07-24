@@ -978,12 +978,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
         <div class="topbar-user" id="topbarUser" title="Logged in as"><span class="ico">👤</span><span id="topbarUserName">—</span></div>
         <button class="btn btn-ghost btn-sm" id="refreshBtn" onclick="manualRefresh()" title="Refresh"><span id="refreshIcon">🔄</span> <span class="bk-label">Refresh</span></button>
         <button class="btn btn-ghost btn-sm" onclick="doLogout()" title="Logout">🚪 <span class="bk-label">Logout</span></button>
-        <button id="pushToggleBtn" class="btn btn-ghost btn-sm hidden" onclick="togglePushNotifications()" title="Push Notifications" data-on="0">🔕 <span class="bk-label">Enable Alerts</span></button>
-        <button id="notifSettingsBtn" class="btn btn-ghost btn-sm hidden" onclick="openNotifSettings()" title="Notification Settings">⚙️</button>
-        <button class="btn btn-ghost btn-sm" onclick="downloadBackup()" title="Backup">⬇️ <span class="bk-label">Backup</span></button>
-        <button id="restoreBtn" class="btn btn-ghost btn-sm hidden" onclick="$('restoreInput').click()" title="Restore">⬆️ <span class="bk-label">Restore</span></button>
-        <input type="file" id="restoreInput" accept=".json" style="display:none" onchange="restoreBackup(event)">
-        <div class="sync-badge" id="syncBadge" title="Cloud sync status"><span class="sync-dot" id="syncDot"></span><span id="syncText" class="bk-label">Synced</span></div>
+        <button class="btn btn-ghost btn-sm" onclick="downloadBackup()" title="Backup your data">⬇️ <span class="bk-label">Backup</span></button>
         <div class="date-badge" id="dateEl">—</div>
       </div>
     </div>
@@ -1138,8 +1133,8 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
           </div>
         </div>
         <div id="cr-total-bar" style="margin:1rem 1.5rem 0;padding:.75rem 1.1rem;background:#eef6ff;border:1.5px solid var(--accent);border-radius:10px;display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">
-          <span style="font-weight:700;color:var(--navy);font-size:.9rem;">🧾 Total Bills: <span id="cr-total-count">0</span></span>
-          <span style="font-weight:700;color:var(--navy);font-size:.9rem;">💵 Total Amount: <span id="cr-total-amount">LKR 0</span></span>
+          <span style="font-weight:700;color:var(--navy);font-size:.9rem;">🧾 Active Bills: <span id="cr-total-count">0</span></span>
+          <span style="font-weight:700;color:var(--navy);font-size:.9rem;">💵 Active Amount: <span id="cr-total-amount">LKR 0</span></span>
         </div>
         <div class="tab-bar">
           <div class="tab active" onclick="switchCreditTab('active')" id="credit-tab-active">⏳ Active <span class="tab-count" id="cnt-credit-active">0</span></div>
@@ -1207,6 +1202,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
             </table>
           </div>
           <div class="mobile-cards" id="creditsSettledMobile"></div>
+          <div id="creditSettledPagination" class="pg-bar-wrap"></div>
         </div>
       </div>
     </div>
@@ -1222,8 +1218,8 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
           </div>
         </div>
         <div id="ch-total-bar" style="margin:1rem 1.5rem 0;padding:.75rem 1.1rem;background:#eef6ff;border:1.5px solid var(--accent);border-radius:10px;display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">
-          <span style="font-weight:700;color:var(--navy);font-size:.9rem;">🧾 Total Cheques: <span id="ch-total-count">0</span></span>
-          <span style="font-weight:700;color:var(--navy);font-size:.9rem;">💵 Total Amount: <span id="ch-total-amount">LKR 0</span></span>
+          <span style="font-weight:700;color:var(--navy);font-size:.9rem;">🧾 Active Cheques: <span id="ch-total-count">0</span></span>
+          <span style="font-weight:700;color:var(--navy);font-size:.9rem;">💵 Active Amount: <span id="ch-total-amount">LKR 0</span></span>
         </div>
         <div class="tab-bar">
           <div class="tab active" onclick="switchChequeTab('active')" id="cheque-tab-active">⏳ Active <span class="tab-count" id="cnt-active">0</span></div>
@@ -1240,6 +1236,9 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
             <option value="pending">⏳ Pending</option>
             <option value="cleared">✅ Cleared</option>
             <option value="bounced">❌ Bounced</option>
+          </select>
+          <select id="ch-filter-bank" onchange="renderCheques()">
+            <option value="">🏦 All Banks</option>
           </select>
           <select id="ch-filter-user" onchange="renderCheques()" class="hidden">
             <option value="">All Entered By</option>
@@ -1311,6 +1310,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
             </table>
           </div>
           <div class="mobile-cards" id="chequesSettledMobile"></div>
+          <div id="chequeSettledPagination" class="pg-bar-wrap"></div>
         </div>
         <div id="cheque-tab-content-inhand" class="tab-content">
           <div class="toolbar">
@@ -1417,6 +1417,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
       <div class="card">
         <div class="card-head">
           <div class="card-title">⚙️ Settings</div>
+          <div class="sync-badge" id="syncBadge" title="Cloud sync status"><span class="sync-dot" id="syncDot"></span><span id="syncText" class="bk-label">Synced</span></div>
         </div>
         <div class="tab-bar">
           <div class="tab active" onclick="switchSettingsTab('users')" id="set-tab-users">👥 Users</div>
@@ -3443,17 +3444,17 @@ async function disablePushNotifications() {
 }
 
 async function togglePushNotifications() {
-  const btn = $('pushToggleBtn');
+  const btn = $('pushToggleBtnSettings');
   const isOn = btn?.dataset.on === '1';
   if (isOn) await disablePushNotifications(); else await enablePushNotifications();
 }
 
 function updatePushToggleUI(on) {
-  ['pushToggleBtn', 'pushToggleBtnSettings'].forEach(id => {
+  ['pushToggleBtnSettings'].forEach(id => {
     const btn = $(id);
     if (!btn) return;
     btn.dataset.on = on ? '1' : '0';
-    btn.innerHTML = on ? '🔔 <span class="bk-label">Alerts ON</span>' : '🔕 <span class="bk-label">Enable Alerts</span>';
+    btn.innerHTML = on ? '🔔 Alerts ON' : '🔕 Enable Alerts';
     btn.classList.toggle('btn-green', on);
     btn.classList.toggle('btn-ghost', !on);
   });
@@ -3840,9 +3841,6 @@ function initDashboard() {
   $('adminNav').classList.toggle('hidden', !isAdmin());
   $('cr-filter-user')?.classList.toggle('hidden', !isAdmin());
   $('ch-filter-user')?.classList.toggle('hidden', !isAdmin());
-  $('restoreBtn')?.classList.toggle('hidden', !isAdmin());
-  $('pushToggleBtn')?.classList.toggle('hidden', !isAdmin());
-  $('notifSettingsBtn')?.classList.toggle('hidden', !isAdmin());
   if (isAdmin()) checkPushSubscriptionState();
   $('cashNavLink')?.classList.remove('hidden');
   $('payrollNavLink')?.classList.remove('hidden');
@@ -3911,6 +3909,7 @@ function showSection(name) {
   if (name === 'cheques') {
     populateSupFilter('ch-filter-sup');
     populateUserFilter('ch-filter-user');
+    populateChequeBankFilter();
     renderCheques();
   }
   if (name === 'suppliers') renderSuppliers();
@@ -3940,6 +3939,7 @@ function refreshActiveSection() {
   } else if (id === 'cheques') {
     populateSupFilter('ch-filter-sup');
     populateUserFilter('ch-filter-user');
+    populateChequeBankFilter();
     renderCheques();
   } else if (id === 'suppliers') {
     renderSuppliers();
@@ -3994,6 +3994,16 @@ function populateSupFilter(elId) {
   });
 }
 
+function populateChequeBankFilter() {
+  const el = $('ch-filter-bank');
+  if (!el) return;
+  const val = el.value;
+  const banks = new Set();
+  getDataRows('cheques').forEach(c => { if (c.bank) banks.add(c.bank.trim()); });
+  const sorted = [...banks].sort((a, b) => a.localeCompare(b));
+  el.innerHTML = '<option value="">🏦 All Banks</option>' + sorted.map(b => `<option value="${escHtml(b)}" ${val === b ? 'selected' : ''}>${escHtml(b)}</option>`).join('');
+}
+
 function populateMonthFilter() {
   const el = $('cr-filter-month');
   if (!el || !DB.currentUser) return;
@@ -4013,6 +4023,7 @@ function clearFilters(prefix) {
   if ($(`${prefix}-filter-sup`)) $(`${prefix}-filter-sup`).value = '';
   if ($(`${prefix}-filter-month`)) $(`${prefix}-filter-month`).value = '';
   if ($(`${prefix}-filter-status`)) $(`${prefix}-filter-status`).value = '';
+  if ($(`${prefix}-filter-bank`)) $(`${prefix}-filter-bank`).value = '';
   if ($(`${prefix}-filter-user`)) $(`${prefix}-filter-user`).value = '';
   if (prefix === 'ch') clearChequeDateRange(true);
   if (prefix === 'cr') renderCredits();
@@ -4095,8 +4106,8 @@ function renderCredits() {
 
   $('cnt-credit-active').textContent = activeData.length;
   $('cnt-credit-settled').textContent = settledData.length;
-  if ($('cr-total-count')) $('cr-total-count').textContent = rows.length;
-  if ($('cr-total-amount')) $('cr-total-amount').textContent = fmt(rows.reduce((a, c) => a + (Number(c.amount) || 0), 0));
+  if ($('cr-total-count')) $('cr-total-count').textContent = activeData.length;
+  if ($('cr-total-amount')) $('cr-total-amount').textContent = fmt(activeData.reduce((a, c) => a + (Number(c.amount) || 0), 0));
 
   const { col, dir } = DB.sortState.credits;
   const sortFn = arr => sortData(arr, col, dir, (c, key) => {
@@ -4168,25 +4179,26 @@ function renderCredits() {
     </div>`;
   };
 
-  const renderBody = (arr, tbodyId, mobileId) => {
+  const renderBody = (arr, tbodyId, mobileId, pageOpts) => {
     const tbody = $(tbodyId);
     const mobileEl = $(mobileId);
     if (!tbody) return;
     if (!arr.length) {
       tbody.innerHTML = `<tr><td colspan="8" class="no-data"><span class="ico">💳</span>No records</td></tr>`;
       if (mobileEl) mobileEl.innerHTML = '<div class="mob-no-data"><span class="ico">💳</span>No records</div>';
+      if (pageOpts) renderPagination(pageOpts.containerId, 0, pageOpts.page, pageOpts.fnName, pageOpts.pageSize);
       return;
     }
     let totAmt = 0, totPaid = 0, totBal = 0;
     const sorted = sortFn(arr);
-    const html = sorted.map(c => {
-      const paid = getTotalPaid(c);
-      const bal = getCreditBalance(c);
+    // Totals always reflect every record in this tab, even when only one page is shown below
+    sorted.forEach(c => {
       totAmt += Number(c.amount) || 0;
-      totPaid += paid;
-      totBal += bal;
-      return renderRow(c);
-    }).join('');
+      totPaid += getTotalPaid(c);
+      totBal += getCreditBalance(c);
+    });
+    const displayArr = pageOpts ? sorted.slice((pageOpts.page - 1) * pageOpts.pageSize, pageOpts.page * pageOpts.pageSize) : sorted;
+    const html = displayArr.map(renderRow).join('');
     tbody.innerHTML = html + `<tr class="summary-row">
       <td colspan="3">📊 Total (${arr.length} records)</td>
       <td>${fmt(totAmt)}</td>
@@ -4195,11 +4207,16 @@ function renderCredits() {
       <td></td>
       <td></td>
     </tr>`;
-    if (mobileEl) mobileEl.innerHTML = sorted.map(renderMobileCredit).join('');
+    if (mobileEl) mobileEl.innerHTML = displayArr.map(renderMobileCredit).join('');
+    if (pageOpts) renderPagination(pageOpts.containerId, arr.length, pageOpts.page, pageOpts.fnName, pageOpts.pageSize);
   };
 
+  const creditSettledTotalPages = Math.max(1, Math.ceil(settledData.length / SETTLED_PAGE_SIZE));
+  if (creditSettledPage > creditSettledTotalPages) creditSettledPage = creditSettledTotalPages;
+  if (creditSettledPage < 1) creditSettledPage = 1;
+
   renderBody(activeData, 'creditsActiveBody', 'creditsActiveMobile');
-  renderBody(settledData, 'creditsSettledBody', 'creditsSettledMobile');
+  renderBody(settledData, 'creditsSettledBody', 'creditsSettledMobile', {page: creditSettledPage, pageSize: SETTLED_PAGE_SIZE, containerId: 'creditSettledPagination', fnName: 'goCreditSettledPage'});
   syncCreditTabUI();
   updateSortPills('credits');
 }
@@ -4208,6 +4225,7 @@ function renderCheques() {
   const q = (($('ch-search')?.value || '') + '').toLowerCase();
   const supFilter = $('ch-filter-sup')?.value || '';
   const statFilter = $('ch-filter-status')?.value || '';
+  const bankFilter = $('ch-filter-bank')?.value || '';
   const userFilter = $('ch-filter-user')?.value || '';
   const dateFrom = $('ch-filter-date-from')?.value || '';
   const dateTo = $('ch-filter-date-to')?.value || '';
@@ -4219,12 +4237,13 @@ function renderCheques() {
     const matchQ = !q || sn.includes(q) || owner.includes(q) || (c.number || '').toLowerCase().includes(q) || (c.notes || '').toLowerCase().includes(q) || (c.entryId || '').toLowerCase().includes(q);
     const matchSup = !supFilter || buildSupplierKey(c._ownerUsername, c.supplierId) === supFilter;
     const matchStat = !statFilter || c.status === statFilter;
+    const matchBank = !bankFilter || (c.bank || '').trim() === bankFilter;
     const matchUser = !userFilter || c._ownerUsername === userFilter;
     const matchDateFrom = !dateFrom || (c.date && c.date >= dateFrom);
     const matchDateTo = !dateTo || (c.date && c.date <= dateTo);
     const matchDueFrom = !dueFrom || (c.dueDate && c.dueDate >= dueFrom);
     const matchDueTo = !dueTo || (c.dueDate && c.dueDate <= dueTo);
-    return matchQ && matchSup && matchStat && matchUser && matchDateFrom && matchDateTo && matchDueFrom && matchDueTo;
+    return matchQ && matchSup && matchStat && matchBank && matchUser && matchDateFrom && matchDateTo && matchDueFrom && matchDueTo;
   });
 
   // Date-range results summary — total cheques & their combined value for the
@@ -4247,8 +4266,8 @@ function renderCheques() {
 
   $('cnt-active').textContent = activeData.length;
   $('cnt-settled').textContent = settledData.length;
-  if ($('ch-total-count')) $('ch-total-count').textContent = rows.length;
-  if ($('ch-total-amount')) $('ch-total-amount').textContent = fmt(rows.reduce((a, c) => a + (Number(c.amount) || 0), 0));
+  if ($('ch-total-count')) $('ch-total-count').textContent = activeData.length;
+  if ($('ch-total-amount')) $('ch-total-amount').textContent = fmt(activeData.reduce((a, c) => a + (Number(c.amount) || 0), 0));
 
   const { col, dir } = DB.sortState.cheques;
   const sortFn = arr => sortData(arr, col, dir, (c, key) => {
@@ -4326,26 +4345,32 @@ function renderCheques() {
     </div>`;
   };
 
-  const renderBody = (arr, tbodyId, mobileId) => {
+  const renderBody = (arr, tbodyId, mobileId, pageOpts) => {
     const tbody = $(tbodyId);
     const mobileEl = $(mobileId);
     if (!tbody) return;
     if (!arr.length) {
       tbody.innerHTML = `<tr><td colspan="9" class="no-data"><span class="ico">✅</span>No records</td></tr>`;
       if (mobileEl) mobileEl.innerHTML = '<div class="mob-no-data"><span class="ico">✅</span>No records</div>';
+      if (pageOpts) renderPagination(pageOpts.containerId, 0, pageOpts.page, pageOpts.fnName, pageOpts.pageSize);
       return;
     }
     let tot = 0;
     const sorted = sortFn(arr);
-    tbody.innerHTML = sorted.map(c => {
-      tot += Number(c.amount) || 0;
-      return renderRow(c);
-    }).join('') + `<tr class="summary-row"><td colspan="4">📊 Total (${arr.length})</td><td></td><td>${fmt(tot)}</td><td colspan="3"></td></tr>`;
-    if (mobileEl) mobileEl.innerHTML = sorted.map(renderMobileCheque).join('');
+    // Total always reflects every record in this tab, even when only one page is shown below
+    sorted.forEach(c => { tot += Number(c.amount) || 0; });
+    const displayArr = pageOpts ? sorted.slice((pageOpts.page - 1) * pageOpts.pageSize, pageOpts.page * pageOpts.pageSize) : sorted;
+    tbody.innerHTML = displayArr.map(renderRow).join('') + `<tr class="summary-row"><td colspan="4">📊 Total (${arr.length})</td><td></td><td>${fmt(tot)}</td><td colspan="3"></td></tr>`;
+    if (mobileEl) mobileEl.innerHTML = displayArr.map(renderMobileCheque).join('');
+    if (pageOpts) renderPagination(pageOpts.containerId, arr.length, pageOpts.page, pageOpts.fnName, pageOpts.pageSize);
   };
 
+  const chequeSettledTotalPages = Math.max(1, Math.ceil(settledData.length / SETTLED_PAGE_SIZE));
+  if (chequeSettledPage > chequeSettledTotalPages) chequeSettledPage = chequeSettledTotalPages;
+  if (chequeSettledPage < 1) chequeSettledPage = 1;
+
   renderBody(activeData, 'activeChequesBody', 'chequesActiveMobile');
-  renderBody(settledData, 'settledChequesBody', 'chequesSettledMobile');
+  renderBody(settledData, 'settledChequesBody', 'chequesSettledMobile', {page: chequeSettledPage, pageSize: SETTLED_PAGE_SIZE, containerId: 'chequeSettledPagination', fnName: 'goChequeSettledPage'});
   syncChequeTabUI();
   updateSortPills('cheques');
   renderChequeBookTab();
@@ -8590,10 +8615,16 @@ function renderPLTrendChart(containerId, items) {
 
 const CASH_PAGE_SIZE = 10;
 const ACTIVITY_PAGE_SIZE = 20;
+const SETTLED_PAGE_SIZE = 50;
 let cashHistPage = 1;
 let cashLogPage = 1;
 let cashPurchaseHistPage = 1;
 let activityLogPage = 1;
+let creditSettledPage = 1;
+let chequeSettledPage = 1;
+
+function goCreditSettledPage(p) { creditSettledPage = p; renderCredits(); }
+function goChequeSettledPage(p) { chequeSettledPage = p; renderCheques(); }
 
 // Renders a "1-10 · 11-20 · 21-30 ..." page-picker into containerId, calling window[fnName](page) on click
 function renderPagination(containerId, totalRows, currentPage, fnName, pageSize) {
