@@ -3537,7 +3537,11 @@ async function loadDB() {
   if (!authUser) return false;
 
   try {
-    const ownSnap = await usersCol.doc(authUser.uid).get();
+    // See the matching comment in loadPayrollDB(): force the server here
+    // too, so a brand-new device's empty local cache can't falsely report
+    // "doc doesn't exist" and bounce a real user straight back to the
+    // login page.
+    const ownSnap = await usersCol.doc(authUser.uid).get({ source: 'server' });
     if (!ownSnap.exists) return false;
 
     const me = ownSnap.data();
@@ -3567,7 +3571,7 @@ async function loadDB() {
     if (me.role === 'cashier') {
       DB.users = [me];
     } else {
-      const snap = await usersCol.get();
+      const snap = await usersCol.get({ source: 'server' });
       DB.users = snap.docs.map(d => d.data());
     }
 
@@ -3614,7 +3618,16 @@ function startLiveSync() {
 async function loadPayrollDB() {
   if (!firebaseReady() || !payrollDocRef) return loadPayrollDBLocal();
   try {
-    const snap = await payrollDocRef.get();
+    // IMPORTANT: force a server read here, not a cache-permissive default
+    // read. On a brand-new device/browser (empty local IndexedDB cache),
+    // a plain .get() can resolve from that empty cache before the SDK's
+    // first network handshake finishes, incorrectly reporting
+    // snap.exists === false for a document that is genuinely sitting on
+    // the server with real data — which is exactly the scenario the
+    // comment below was written to guard against. Asking for the server
+    // explicitly removes that race instead of just working around its
+    // symptom.
+    const snap = await payrollDocRef.get({ source: 'server' });
     if (snap.exists) {
       const data = snap.data();
       PDB.employees = data.employees || [];
@@ -3639,6 +3652,10 @@ async function loadPayrollDB() {
     startPayrollLiveSync();
   } catch (e) {
     console.error('loadPayrollDB', e);
+    // Previously silent — a failed payroll load looked identical to "no
+    // payroll data yet" with nothing in the UI to tell them apart. Now at
+    // least it's visible, and the person knows to hit Refresh.
+    toast('⚠️ Payroll data load වුනේ නෑ — 🔄 Refresh button එක try කරන්න', 'red');
   }
 }
 
@@ -3996,6 +4013,31 @@ async function manualRefresh() {
       if (fresh) DB.currentUser = fresh;
     }
     try { saveDBLocal(); } catch (e) { console.error('manualRefresh local mirror', e); }
+
+    // Also re-pull payroll data. This used to be left out, so if the
+    // initial loadPayrollDB() at startup had failed for any reason
+    // (transient network hiccup, cache race, etc.) there was literally no
+    // way to recover short of a full page reload — Refresh only ever
+    // touched cms_users. Admin/Manager-only, since that's who canAccessPayroll().
+    if (payrollDocRef && canAccessPayroll()) {
+      try {
+        const paySnap = await payrollDocRef.get({ source: 'server' });
+        if (paySnap.exists) {
+          const pdata = paySnap.data();
+          PDB.employees = pdata.employees || [];
+          PDB.advances = pdata.advances || [];
+          PDB.payrolls = pdata.payrolls || [];
+          PDB.attendance = pdata.attendance || [];
+          PDB.counters = pdata.counters || { employee: 0 };
+          try { localStorage.setItem('cms_payroll', JSON.stringify(PDB)); } catch (e) { console.error('manualRefresh payroll local mirror', e); }
+        }
+        if (!payrollLiveUnsub) startPayrollLiveSync();
+      } catch (e) {
+        console.error('manualRefresh payroll', e);
+        toast('⚠️ Payroll refresh වුනේ නෑ', 'red');
+      }
+    }
+
     markSynced('cloud');
 
     // Self-heal: if the realtime listener had died, restart it so future
