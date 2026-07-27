@@ -2840,7 +2840,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
         <label class="np-switch"><input type="checkbox" id="np-payment" onchange="saveNotifPref('payment', this.checked)"><span class="np-slider"></span></label>
       </div>
       <div class="notif-pref-row">
-        <div class="notif-pref-label"><span class="npi">⏰</span><div><strong>Cheque Due Reminder</strong><div class="npd">6 AM reminder the day after a cheque is due (Sat/Sun combined into Monday)</div></div></div>
+        <div class="notif-pref-label"><span class="npi">⏰</span><div><strong>Cheque Due Reminder</strong><div class="npd">6 AM reminder — Friday due dates remind on Monday, Sat/Sun due dates remind on Tuesday, other days remind the next day</div></div></div>
         <label class="np-switch"><input type="checkbox" id="np-chequeDue" onchange="saveNotifPref('chequeDue', this.checked)"><span class="np-slider"></span></label>
       </div>
 
@@ -3362,8 +3362,12 @@ function clearSession() {
    3. A Cloud Function (sendQueuedPush) picks up that doc, sends the push
       to every saved token, then deletes the doc.
    4. A separate scheduled Cloud Function (chequeDueReminder) runs every day
-      at 6 AM Asia/Colombo and pushes a reminder for cheques due that day.
-   See functions/index.js for the Cloud Functions side. */
+      at 6 AM Asia/Colombo and pushes a reminder for cheques whose due date
+      maps to that day:
+        - Due date Friday      → reminder on the following Monday
+        - Due date Sat or Sun  → reminder on the following Tuesday
+        - Any other due date   → reminder the very next day
+      See functions/index.js for the Cloud Functions side. */
 
 // 🔧 Paste your VAPID public key here: Firebase Console → Project Settings →
 // Cloud Messaging → Web Push certificates → Key pair
@@ -3956,19 +3960,56 @@ function refreshActiveSection() {
   if (id === 'pl' && isAdmin()) renderPL();
 }
 
-// Manual refresh button in the topbar: re-renders whatever section is currently
-// visible from the latest data already synced locally, with a small spin
-// animation + toast so the tap feels responsive even though data is realtime.
-function manualRefresh() {
+// Manual refresh button in the topbar. This used to just re-render whatever
+// section is visible from data already sitting in memory — which LOOKS like
+// a refresh (icon spins, toast shows) but doesn't actually pull anything new.
+// If the realtime onSnapshot listener had silently died (permission-denied
+// after a token refresh, a dropped WebChannel, an ad-blocker, etc.) the user
+// had no way to tell, and tapping "Refresh" kept showing the same stale data
+// forever while looking like it worked. Now it does a genuine one-time
+// server fetch, restarts the live listener if it isn't running, and only
+// then re-renders — so the button actually fixes the "stuck on old data"
+// case instead of just animating.
+async function manualRefresh() {
   const icon = $('refreshIcon');
   if (icon) {
     icon.classList.remove('refresh-spin');
     void icon.offsetWidth; // restart animation if clicked repeatedly
     icon.classList.add('refresh-spin');
   }
-  refreshActiveSection();
-  updateSyncStatusUI();
-  toast('🔄 Refreshed!');
+
+  if (!firebaseReady() || !usersCol) {
+    // Local-only mode: nothing to pull from a server, just re-render.
+    refreshActiveSection();
+    updateSyncStatusUI();
+    toast('🔄 Refreshed!');
+    return;
+  }
+
+  setSyncStatus('syncing');
+  try {
+    // Force a real round-trip to the server (bypass any stale local cache).
+    const snap = await usersCol.get({ source: 'server' });
+    DB.users = snap.docs.map(d => d.data());
+    if (DB.currentUsername) {
+      const fresh = getUserByUsername(DB.currentUsername);
+      if (fresh) DB.currentUser = fresh;
+    }
+    try { saveDBLocal(); } catch (e) { console.error('manualRefresh local mirror', e); }
+    markSynced('cloud');
+
+    // Self-heal: if the realtime listener had died, restart it so future
+    // changes stream in live again instead of requiring another manual tap.
+    if (!liveUnsub) startLiveSync();
+
+    refreshActiveSection();
+    toast('🔄 Refreshed!');
+  } catch (e) {
+    console.error('manualRefresh', e);
+    setSyncStatus('offline');
+    refreshActiveSection();
+    toast('⚠️ Refresh වුනේ නෑ — internet connection එක check කරන්න', 'red');
+  }
 }
 
 function populateUserFilter(elId) {
