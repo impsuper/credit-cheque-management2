@@ -412,6 +412,48 @@ tr:hover td{background:var(--surface-2);}
 .risk-row .rr-amt{font-weight:700;white-space:nowrap;}
 .ai-kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin-bottom:1.2rem;}
 .ai-kpi-card{background:var(--surface);border-radius:14px;padding:1.2rem 1.3rem;box-shadow:var(--shadow);border-top:3px solid var(--navy3);}
+
+/* ===== AI ASK BOT (Local Smart Assistant) ===== */
+.ai-ask-modal{max-width:760px;}
+.ai-ask-body{display:flex;flex-direction:column;height:min(78vh,640px);}
+.ai-ask-cats{display:flex;gap:.5rem;padding:1rem 1.3rem .8rem;overflow-x:auto;flex-shrink:0;-webkit-overflow-scrolling:touch;border-bottom:1px solid var(--border);}
+.ai-cat-pill{--cat-color:#2563eb;flex-shrink:0;display:flex;align-items:center;gap:.4rem;padding:.5rem 1rem;border-radius:20px;border:1.5px solid var(--border);background:var(--surface);color:var(--muted);font-size:.82rem;font-weight:700;cursor:pointer;transition:all .18s ease;white-space:nowrap;}
+.ai-cat-pill:hover{border-color:var(--cat-color);color:var(--cat-color);transform:translateY(-1px);}
+.ai-cat-pill.active{background:var(--cat-color);border-color:var(--cat-color);color:#fff;box-shadow:0 4px 12px -2px var(--cat-color);}
+.ai-q-grid{display:flex;flex-wrap:wrap;gap:.5rem;padding:.9rem 1.3rem;flex-shrink:0;border-bottom:1px solid var(--border);background:var(--surface-2);max-height:150px;overflow-y:auto;}
+.ai-ask-typebar{display:flex;gap:.6rem;padding:.8rem 1.3rem;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--surface);}
+.ai-ask-typebar input{flex:1;min-width:0;padding:.6rem 1rem;border:1.5px solid var(--border);border-radius:20px;font-size:.85rem;background:var(--surface-2);color:var(--text);transition:border-color .15s;}
+.ai-ask-typebar input:focus{outline:none;border-color:var(--navy3);}
+.ai-ask-typebar button{border-radius:20px;flex-shrink:0;}
+.ai-q-chip{--cat-color:#2563eb;padding:.45rem .85rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:.8rem;font-weight:600;cursor:pointer;transition:all .16s ease;animation:aiChipIn .28s ease backwards;}
+.ai-q-chip:hover{border-color:var(--cat-color);color:var(--cat-color);background:color-mix(in srgb, var(--cat-color) 10%, var(--surface));transform:translateY(-2px);box-shadow:var(--shadow);}
+.ai-q-chip:active{transform:translateY(0) scale(.97);}
+@keyframes aiChipIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+.ai-ask-feed{flex:1;overflow-y:auto;padding:1.1rem 1.3rem;display:flex;flex-direction:column;gap:.9rem;}
+.ai-feed-empty{margin:auto;text-align:center;color:var(--muted);font-size:.88rem;padding:2rem;}
+.ai-feed-empty .ico{font-size:2.4rem;display:block;margin-bottom:.6rem;animation:aiFloat 2.4s ease-in-out infinite;}
+@keyframes aiFloat{0%,100%{transform:translateY(0);}50%{transform:translateY(-6px);}}
+.ai-feed-q{align-self:flex-end;max-width:82%;background:var(--navy-bg);color:#fff;padding:.55rem 1rem;border-radius:14px 14px 3px 14px;font-size:.85rem;font-weight:600;animation:aiSlideInR .3s cubic-bezier(.22,1,.36,1) backwards;}
+.ai-feed-a{--cat-color:#2563eb;align-self:flex-start;max-width:92%;background:var(--surface);border:1px solid var(--border);border-top:3px solid var(--cat-color);border-radius:3px 14px 14px 14px;box-shadow:var(--shadow);animation:aiSlideInL .32s cubic-bezier(.22,1,.36,1) backwards;animation-delay:.15s;}
+.ai-feed-a-head{display:flex;align-items:center;gap:.5rem;padding:.65rem .95rem;border-bottom:1px solid var(--border);font-weight:700;font-size:.8rem;color:var(--navy);}
+.ai-feed-a-head .bot-ico{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--navy3),var(--accent));display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0;}
+.ai-feed-a-body{padding:.85rem .95rem 1rem;font-size:.88rem;line-height:1.65;color:var(--text);}
+.ai-feed-a-body .ai-stat{font-size:1.35rem;font-weight:800;color:var(--navy3);letter-spacing:-.5px;}
+.ai-feed-a-body .ai-line{display:flex;justify-content:space-between;gap:.8rem;padding:.35rem 0;border-bottom:1px dashed var(--border);font-size:.83rem;}
+.ai-feed-a-body .ai-line:last-child{border-bottom:none;}
+.ai-feed-a-body ul{margin:.4rem 0 0;padding-left:1.2rem;}
+.ai-feed-a-body li{margin-bottom:.3rem;}
+@keyframes aiSlideInR{from{opacity:0;transform:translate(14px,8px) scale(.94);}to{opacity:1;transform:translate(0,0) scale(1);}}
+@keyframes aiSlideInL{from{opacity:0;transform:translate(-14px,8px) scale(.94);}to{opacity:1;transform:translate(0,0) scale(1);}}
+.ai-typing{align-self:flex-start;display:flex;align-items:center;gap:5px;background:var(--surface);border:1px solid var(--border);border-radius:3px 14px 14px 14px;padding:.75rem 1.1rem;box-shadow:var(--shadow);animation:aiSlideInL .25s ease backwards;}
+.ai-typing span{width:7px;height:7px;border-radius:50%;background:var(--navy3);animation:aiTypingDot 1.1s ease-in-out infinite;}
+.ai-typing span:nth-child(2){animation-delay:.15s;}
+.ai-typing span:nth-child(3){animation-delay:.3s;}
+@keyframes aiTypingDot{0%,60%,100%{transform:translateY(0);opacity:.4;}30%{transform:translateY(-5px);opacity:1;}}
+.ai-ask-footnote{padding:.6rem 1.3rem;border-top:1px solid var(--border);font-size:.72rem;color:var(--muted);text-align:center;flex-shrink:0;background:var(--surface-2);}
+#aiAskBtn{position:relative;overflow:visible;}
+#aiAskBtn .ai-pulse-dot{position:absolute;top:2px;right:2px;width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 rgba(74,222,128,.6);animation:aiPulseDot 2s ease-in-out infinite;}
+@keyframes aiPulseDot{0%{box-shadow:0 0 0 0 rgba(74,222,128,.55);}70%{box-shadow:0 0 0 6px rgba(74,222,128,0);}100%{box-shadow:0 0 0 0 rgba(74,222,128,0);}}
 .ai-kpi-card.green{border-top-color:var(--green);}
 .ai-kpi-card.red{border-top-color:var(--red);}
 .ai-kpi-card.yellow{border-top-color:var(--yellow);}
@@ -924,6 +966,21 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
 .mini-apex-wrap{width:100%;min-height:170px;}
 .mini-apex-wrap .apexcharts-canvas{margin:0 auto;}
 
+/* ===== APEXCHARTS THEME FIX =====
+   ApexCharts injects its own default (light-mode) stylesheet at runtime,
+   later in the cascade than ours, so every rule here needs !important to
+   reliably win and keep tooltips/labels legible across all 4 app themes. */
+.apexcharts-tooltip{background:var(--surface)!important;color:var(--text)!important;border:1px solid var(--border)!important;box-shadow:var(--shadow2)!important;}
+.apexcharts-tooltip-title{background:var(--surface-2)!important;color:var(--text)!important;border-bottom:1px solid var(--border)!important;}
+.apexcharts-tooltip *{color:var(--text)!important;}
+.apexcharts-tooltip-series-group{background:transparent!important;}
+.apexcharts-xaxistooltip,.apexcharts-yaxistooltip{background:var(--surface)!important;color:var(--text)!important;border-color:var(--border)!important;}
+.apexcharts-xaxistooltip-text,.apexcharts-yaxistooltip-text{color:var(--text)!important;}
+.apexcharts-xaxistooltip::before,.apexcharts-xaxistooltip::after{border-bottom-color:var(--border)!important;}
+.apexcharts-legend-text{color:var(--text)!important;}
+.apexcharts-menu{background:var(--surface)!important;border-color:var(--border)!important;color:var(--text)!important;}
+.apexcharts-gridline{stroke:var(--border)!important;}
+
 /* ===== THEME PICKER (Admin Settings) ===== */
 .theme-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:1.1rem;}
 .theme-card{position:relative;border-radius:14px;border:2.5px solid var(--border);overflow:hidden;cursor:pointer;transition:all .2s;background:var(--surface);box-shadow:var(--shadow);}
@@ -1073,6 +1130,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
       <div class="topbar-right">
         <div class="topbar-user" id="topbarUser" title="Logged in as"><span class="ico">👤</span><span id="topbarUserName">—</span></div>
         <button class="btn btn-ghost btn-sm" id="refreshBtn" onclick="manualRefresh()" title="Refresh"><span id="refreshIcon">🔄</span> <span class="bk-label">Refresh</span></button>
+        <button class="btn btn-ghost btn-sm hidden" id="aiAskBtn" onclick="openAiAskBot()" title="Ask AI — Local Smart Assistant">🤖 <span class="bk-label">Ask AI</span><span class="ai-pulse-dot"></span></button>
         <button class="btn btn-ghost btn-sm" onclick="doLogout()" title="Logout">🚪 <span class="bk-label">Logout</span></button>
         <button class="btn btn-ghost btn-sm" onclick="downloadBackup()" title="Backup your data">⬇️ <span class="bk-label">Backup</span></button>
         <div class="date-badge" id="dateEl">—</div>
@@ -3066,6 +3124,28 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
   </div>
 </div>
 
+<!-- AI ASK BOT (Local Smart Assistant) -->
+<div id="aiAskModal" class="overlay">
+  <div class="modal ai-ask-modal">
+    <div class="modal-head">
+      <h3>🤖 Ask AI — Local Smart Assistant</h3>
+      <button class="modal-close" onclick="closeModal('aiAskModal')">×</button>
+    </div>
+    <div class="ai-ask-body">
+      <div class="ai-ask-cats" id="aiAskCats"></div>
+      <div class="ai-q-grid" id="aiAskQuestions"></div>
+      <div class="ai-ask-typebar">
+        <input type="text" id="aiAskInput" placeholder="⌨️ ප්‍රශ්නයක් type කරන්න... (e.g. HNB cheques මේ සතියේ කීයද?)" onkeydown="if(event.key==='Enter'){event.preventDefault();submitAiTypedQuestion();}">
+        <button class="btn btn-navy btn-sm" onclick="submitAiTypedQuestion()">➤ අහන්න</button>
+      </div>
+      <div class="ai-ask-feed" id="aiAskFeed">
+        <div class="ai-feed-empty"><span class="ico">🤖</span>ඉහළින් category එකක් තෝරලා ප්‍රශ්නයක් click කරන්න, එහෙම නැත්නම් පහළ box එකේ type කරන්න!</div>
+      </div>
+      <div class="ai-ask-footnote">🔒 Local Smart Analytics — ඔබේ data කිසිසේත් device/Firestore එකෙන් එළියට යන්නේ නෑ</div>
+    </div>
+  </div>
+</div>
+
 
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -3989,6 +4069,7 @@ function initDashboard() {
   $('avgSaleStat')?.classList.remove('hidden');
   $('cashInHandStat')?.classList.remove('hidden');
   $('plNavLink')?.classList.toggle('hidden', !isAdmin());
+  $('aiAskBtn')?.classList.toggle('hidden', !(isAdmin() || isManager()));
   $('dateEl').textContent = '📅 ' + new Date().toLocaleDateString('en-US', {
     weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'
   });
@@ -4622,6 +4703,21 @@ function renderBarChart(elId, items, valueLabel) {
 const __ovChartJS = {};
 const __ovApex = {};
 
+// Reads the live theme CSS variables so every chart's axis/legend/label text
+// (and Chart.js grid lines) stay legible no matter which of the 4 app themes
+// is active — charts are re-created on renderOverview() so this stays fresh.
+function chartTextColors() {
+  const cs = getComputedStyle(document.documentElement);
+  const pick = (name, fallback) => { const v = cs.getPropertyValue(name).trim(); return v || fallback; };
+  return {
+    text: pick('--text', '#1e293b'),
+    muted: pick('--muted', '#64748b'),
+    border: pick('--border', '#e2e8f0'),
+    navy: pick('--navy', '#0f172a'),
+    surface: pick('--surface', '#fff')
+  };
+}
+
 // Chart.js bar chart — used for Monthly Credit Trend & Monthly Sales Trend,
 // where a simple, punchy bar comparison across a handful of months works best.
 function renderBarChartJS(elId, items, valueLabel, colorHex) {
@@ -4635,6 +4731,7 @@ function renderBarChartJS(elId, items, valueLabel, colorHex) {
   if (!el.querySelector('canvas')) el.innerHTML = '<canvas></canvas>';
   const canvas = el.querySelector('canvas');
   const color = colorHex || '#2563eb';
+  const tc = chartTextColors();
   const labels = items.map(i => i.label);
   const data = items.map(i => i.value);
   if (__ovChartJS[elId]) {
@@ -4643,6 +4740,9 @@ function renderBarChartJS(elId, items, valueLabel, colorHex) {
     ch.data.datasets[0].data = data;
     ch.data.datasets[0].backgroundColor = color + 'cc';
     ch.data.datasets[0].hoverBackgroundColor = color;
+    ch.options.scales.y.ticks.color = tc.muted;
+    ch.options.scales.y.grid.color = tc.border;
+    ch.options.scales.x.ticks.color = tc.muted;
     ch.update();
   } else {
     __ovChartJS[elId] = new Chart(canvas.getContext('2d'), {
@@ -4666,8 +4766,8 @@ function renderBarChartJS(elId, items, valueLabel, colorHex) {
           tooltip: { callbacks: { label: ctx => valueLabel(ctx.parsed.y) } }
         },
         scales: {
-          y: { beginAtZero: true, ticks: { callback: v => valueLabel(v) }, grid: { color: '#eef2f6' } },
-          x: { grid: { display: false } }
+          y: { beginAtZero: true, ticks: { color: tc.muted, callback: v => valueLabel(v) }, grid: { color: tc.border } },
+          x: { ticks: { color: tc.muted }, grid: { display: false } }
         }
       }
     });
@@ -4686,18 +4786,32 @@ function renderDonutApex(elId, items) {
     return;
   }
   el.innerHTML = '';
+  const tc = chartTextColors();
   const labels = items.map(i => i.label);
   const series = items.map(i => i.value);
   const colors = items.map(i => i.color || '#2563eb');
   __ovApex[elId] = new ApexCharts(el, {
-    chart: { type: 'donut', height: 230, fontFamily: 'inherit', animations: { speed: 400 } },
+    chart: { type: 'donut', height: 230, fontFamily: 'inherit', foreColor: tc.muted, animations: { speed: 400 } },
     series, labels, colors,
-    legend: { position: 'bottom', fontSize: '12px', markers: { radius: 4 } },
-    dataLabels: { enabled: true, formatter: v => v.toFixed(1) + '%', style: { fontSize: '11px', fontWeight: 700 } },
-    plotOptions: { pie: { donut: { size: '62%', labels: { show: true, total: {
-      show: true, label: 'Total', formatter: w => fmt(w.globals.seriesTotals.reduce((a, b) => a + b, 0))
-    } } } } },
-    stroke: { width: 2, colors: ['#fff'] },
+    legend: { position: 'bottom', fontSize: '12px', labels: { colors: tc.text }, markers: { radius: 4 } },
+    // Slices under 6% get their on-slice % label hidden — with several
+    // categories these tiny labels crowd together and overlap each other;
+    // the legend below already lists every category, so nothing is lost.
+    dataLabels: {
+      enabled: true,
+      formatter: (v) => v < 6 ? '' : v.toFixed(1) + '%',
+      style: { fontSize: '11px', fontWeight: 700, colors: ['#fff'] },
+      dropShadow: { enabled: true, top: 0, left: 0, blur: 2, opacity: .45 }
+    },
+    plotOptions: { pie: { donut: { size: '62%', labels: { show: true,
+      name: { color: tc.muted },
+      value: { color: tc.navy, fontWeight: 700, formatter: v => fmt(v) },
+      total: {
+        show: true, label: 'Total', color: tc.muted,
+        formatter: w => fmt(w.globals.seriesTotals.reduce((a, b) => a + b, 0))
+      }
+    } } } },
+    stroke: { width: 2, colors: [tc.surface] },
     tooltip: { y: { formatter: v => fmt(v) } }
   });
   __ovApex[elId].render();
@@ -4715,18 +4829,19 @@ function renderAreaApex(elId, items, valueLabel) {
     return;
   }
   el.innerHTML = '';
+  const tc = chartTextColors();
   __ovApex[elId] = new ApexCharts(el, {
-    chart: { type: 'area', height: 230, toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'inherit', animations: { speed: 350 } },
+    chart: { type: 'area', height: 230, toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'inherit', foreColor: tc.muted, animations: { speed: 350 } },
     series: [{ name: 'Total Sales', data: items.map(i => i.value) }],
-    xaxis: { categories: items.map(i => i.label), labels: { style: { fontSize: '10px' }, rotate: -45 } },
-    yaxis: { labels: { formatter: v => valueLabel(v) } },
+    xaxis: { categories: items.map(i => i.label), labels: { style: { fontSize: '10px', colors: tc.muted }, rotate: -45 } },
+    yaxis: { labels: { style: { colors: tc.muted }, formatter: v => valueLabel(v) } },
     colors: ['#0e7490'],
     stroke: { curve: 'smooth', width: 2.5 },
     fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: .35, opacityTo: 0, stops: [0, 90, 100] } },
     dataLabels: { enabled: false },
-    grid: { borderColor: '#eef2f6', strokeDashArray: 3 },
+    grid: { borderColor: tc.border, strokeDashArray: 3 },
     tooltip: { y: { formatter: v => valueLabel(v) } },
-    markers: { size: 3, strokeColors: '#fff', strokeWidth: 1.5, hover: { size: 5 } }
+    markers: { size: 3, strokeColors: tc.surface, strokeWidth: 1.5, hover: { size: 5 } }
   });
   __ovApex[elId].render();
 }
@@ -4743,18 +4858,19 @@ function renderMultiLineApex(elId, series, categories, valueLabel) {
     return;
   }
   el.innerHTML = '';
+  const tc = chartTextColors();
   __ovApex[elId] = new ApexCharts(el, {
-    chart: { type: 'line', height: 260, toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'inherit', animations: { speed: 350 } },
+    chart: { type: 'line', height: 260, toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'inherit', foreColor: tc.muted, animations: { speed: 350 } },
     series: series.map(s => ({ name: s.name, data: s.data })),
-    xaxis: { categories, labels: { style: { fontSize: '10px' } }, title: { text: 'Day of Month', style: { fontSize: '10px', color: '#64748b' } } },
-    yaxis: { labels: { formatter: v => valueLabel(v) } },
+    xaxis: { categories, labels: { style: { fontSize: '10px', colors: tc.muted } }, title: { text: 'Day of Month', style: { fontSize: '10px', color: tc.muted } } },
+    yaxis: { labels: { style: { colors: tc.muted }, formatter: v => valueLabel(v) } },
     colors: series.map(s => s.color),
     stroke: { curve: 'smooth', width: 2.75 },
     dataLabels: { enabled: false },
-    grid: { borderColor: '#eef2f6', strokeDashArray: 3 },
-    legend: { position: 'bottom', fontSize: '12px', markers: { radius: 4 } },
+    grid: { borderColor: tc.border, strokeDashArray: 3 },
+    legend: { position: 'bottom', fontSize: '12px', labels: { colors: tc.text }, markers: { radius: 4 } },
     tooltip: { shared: true, y: { formatter: v => (v === null || v === undefined) ? '—' : valueLabel(v) } },
-    markers: { size: 0, strokeColors: '#fff', strokeWidth: 1.5, hover: { size: 5 } }
+    markers: { size: 0, strokeColors: tc.surface, strokeWidth: 1.5, hover: { size: 5 } }
   });
   __ovApex[elId].render();
 }
@@ -4772,16 +4888,17 @@ function renderMultiBarApex(elId, series, categories, valueLabel) {
     return;
   }
   el.innerHTML = '';
+  const tc = chartTextColors();
   __ovApex[elId] = new ApexCharts(el, {
-    chart: { type: 'bar', height: 260, toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'inherit', animations: { speed: 350 } },
+    chart: { type: 'bar', height: 260, toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'inherit', foreColor: tc.muted, animations: { speed: 350 } },
     series: series.map(s => ({ name: s.name, data: s.data })),
-    xaxis: { categories, labels: { style: { fontSize: '10px' } }, title: { text: 'Day of Month', style: { fontSize: '10px', color: '#64748b' } } },
-    yaxis: { labels: { formatter: v => valueLabel(v) } },
+    xaxis: { categories, labels: { style: { fontSize: '10px', colors: tc.muted } }, title: { text: 'Day of Month', style: { fontSize: '10px', color: tc.muted } } },
+    yaxis: { labels: { style: { colors: tc.muted }, formatter: v => valueLabel(v) } },
     colors: series.map(s => s.color),
     plotOptions: { bar: { borderRadius: 2, columnWidth: '75%', dataLabels: { position: 'top' } } },
     dataLabels: { enabled: false },
-    grid: { borderColor: '#eef2f6', strokeDashArray: 3 },
-    legend: { position: 'bottom', fontSize: '12px', markers: { radius: 4 } },
+    grid: { borderColor: tc.border, strokeDashArray: 3 },
+    legend: { position: 'bottom', fontSize: '12px', labels: { colors: tc.text }, markers: { radius: 4 } },
     tooltip: { shared: true, intersect: false, y: { formatter: v => (v === null || v === undefined) ? '—' : valueLabel(v) } }
   });
   __ovApex[elId].render();
@@ -5841,20 +5958,29 @@ function openCashPurchaseSupDropdown(prefix) {
   $(`${prefix}-sup-dropdown`)?.classList.add('open');
 }
 
-// Suppliers for cash purchases are always scoped to the cash entry's own business,
-// never cross-business, even for admin — a daily register can only buy from its own suppliers.
+// Suppliers for cash purchases are scoped to the cash entry's own business for
+// Manager/Cashier (a daily register only buys from its own suppliers). Admin,
+// however, sees the FULL cross-business supplier list — the backend already
+// attributes each purchase to the correct supplier's actual owner regardless
+// (see the "may belong to a different owner" handling in saveCashEntry()).
 function filterCashPurchaseSupplierDropdown(prefix) {
   const q = (($(`${prefix}-sup-search`)?.value || '') + '').toLowerCase();
   const ownerUsername = getCashEntryTargetOwner();
-  const owner = getTargetUser(ownerUsername) || DB.currentUser;
-  const suppliers = (owner?.suppliers || []);
+  let suppliers, forAdmin = false;
+  if (isAdmin()) {
+    suppliers = getSupplierRows();
+    forAdmin = true;
+  } else {
+    const owner = getTargetUser(ownerUsername) || DB.currentUser;
+    suppliers = (owner?.suppliers || []).map(s => ({ ...s, ownerUsername }));
+  }
   const filtered = suppliers.filter(s => s.name.toLowerCase().includes(q));
   const dd = $(`${prefix}-sup-dropdown`);
   if (!dd) return;
   if (!filtered.length) {
     dd.innerHTML = suppliers.length ? `<div class="sup-option no-result">No matching suppliers</div>` : `<div class="sup-option no-result">No suppliers yet — add one in Suppliers tab</div>`;
   } else {
-    dd.innerHTML = filtered.map(s => `<div class="sup-option" onclick="selectSupplier('${prefix}','${s.id}','${String(s.name).replace(/'/g, '&#39;')}','${ownerUsername}')">🏪 ${s.name}</div>`).join('');
+    dd.innerHTML = filtered.map(s => `<div class="sup-option" onclick="selectSupplier('${prefix}','${s.id}','${String(s.name).replace(/'/g, '&#39;')}','${s.ownerUsername}')">🏪 ${s.name}${forAdmin ? ` <small style='color:var(--muted)'>(${s.ownerUsername})</small>` : ''}</div>`).join('');
   }
   dd.classList.add('open');
 }
@@ -7357,6 +7483,427 @@ function aiGenerateSummary(series, alerts, curMonthLabel) {
   return parts.join(' ');
 }
 
+/* =================================================================
+   🤖 AI ASK BOT — Local Smart Assistant (click-to-ask, no typing)
+   Every answer below is computed live from DB/PDB using the exact
+   same helpers as AI Insights / Analytics — no external AI, no
+   network calls, nothing leaves this device / your own Firestore.
+   ================================================================= */
+
+// ----- small date helpers shared by the "this month / last month" questions -----
+function aiMonthKey(offset) { const d = new Date(); d.setMonth(d.getMonth() + offset); return d.toISOString().slice(0, 7); }
+function aiMonthLabel(offset) { const d = new Date(); d.setMonth(d.getMonth() + offset); return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }); }
+
+// ----- 💰 Cash & Sales -----
+function aiqCashToday() {
+  return `<div class="ai-stat">${fmt(calcCashInHand())}</div><div style="color:var(--muted);font-size:.8rem;margin-top:.4rem;">සියලුම cashier ලාගේ sales − Cash Disposal Log entries — Manager අතේ දැනට තියෙන මුදල</div>`;
+}
+function aiqSalesForDay(dateStr, label) {
+  const rows = getAllCashEntries().filter(e => e.date === dateStr);
+  if (!rows.length) return `<div class="ai-stat">${fmt(0)}</div><div style="color:var(--muted);font-size:.8rem;margin-top:.4rem;">${label} සඳහා තවම cash entry log වී නෑ.</div>`;
+  const total = rows.reduce((s, e) => s + (Number(e.totalSales) || 0), 0);
+  return `<div class="ai-stat">${fmt(total)}</div><div style="color:var(--muted);font-size:.8rem;margin-top:.4rem;">${rows.length} cashier entry(s) — ${label}</div>`;
+}
+function aiqSalesToday() { return aiqSalesForDay(today(), 'අද (' + new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }) + ')'); }
+function aiqSalesForMonth(offset) {
+  const key = aiMonthKey(offset), label = aiMonthLabel(offset);
+  const m = aiMonthlySeries().find(s => s.month === key);
+  if (!m) return `<div class="ai-stat">${fmt(0)}</div><div style="color:var(--muted);font-size:.8rem;margin-top:.4rem;">${label} සඳහා cash log දත්ත නැහැ.</div>`;
+  return `<div class="ai-stat">${fmt(m.sales)}</div><div class="ai-line"><span>Net Cash</span><span class="fw700">${fmt(m.net)}</span></div><div class="ai-line"><span>Data Logged</span><span>${m.days} days</span></div><div style="color:var(--muted);font-size:.76rem;margin-top:.5rem;">${label}</div>`;
+}
+function aiqSalesThisMonth() { return aiqSalesForMonth(0); }
+function aiqSalesLastMonth() { return aiqSalesForMonth(-1); }
+function aiqExpensesForMonth(offset) {
+  const key = aiMonthKey(offset), label = aiMonthLabel(offset);
+  const m = aiMonthlySeries().find(s => s.month === key);
+  if (!m) return `<div class="ai-stat">${fmt(0)}</div><div style="color:var(--muted);font-size:.8rem;margin-top:.4rem;">${label} සඳහා data නැහැ.</div>`;
+  return `<div class="ai-stat">${fmt(m.exp)}</div><div style="color:var(--muted);font-size:.76rem;margin-top:.5rem;">${label} — logged cash entries වල Expenses එකතුව</div>`;
+}
+function aiqExpensesThisMonth() { return aiqExpensesForMonth(0); }
+function aiqExpensesLastMonth() { return aiqExpensesForMonth(-1); }
+function aiqForecastNextMonth() {
+  const series = aiMonthlySeries();
+  const v = aiForecastNextMonth(series);
+  if (v === null) return `<div class="ai-stat">—</div><div style="color:var(--muted);font-size:.8rem;margin-top:.4rem;">Forecast එකක් හදන්න ප්‍රමාණවත් historical data නැහැ.</div>`;
+  return `<div class="ai-stat">${fmt(v)}</div><div style="color:var(--muted);font-size:.76rem;margin-top:.5rem;">🔮 ${aiMonthLabel(1)} සඳහා Predicted Net Cash — පසුගිය ${Math.min(series.length, 6)} මාස trend එක අනුව</div>`;
+}
+function aiqDisposalToday() {
+  const labels = { banked: '🏦 Banked', handed_owner: '🤝 Handed to Owner', cash_purchase: '🛒 Cash Purchase', credit_payment: '🧾 Credit Bill Payment', salary: '💼 Salary', other1: '📝 Other 1', other2: '📝 Other 2', other3: '📝 Other 3' };
+  const rows = getCashLog().filter(e => e.date === today());
+  if (!rows.length) return `<div class="ai-stat">0</div><div style="color:var(--muted);font-size:.8rem;margin-top:.4rem;">අද තවම Cash Disposal Log entry එකක් නෑ.</div>`;
+  const total = rows.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+  const list = rows.map(e => `<li>${labels[e.type] || e.type} — <b>${fmt(e.amount)}</b>${e.description ? ' · ' + escHtml(e.description) : ''}</li>`).join('');
+  return `<div class="ai-stat">${fmt(total)}</div><div style="color:var(--muted);font-size:.78rem;margin:.2rem 0 .5rem;">${rows.length} entry(s) අද</div><ul>${list}</ul>`;
+}
+
+// ----- 🧾 Credits -----
+function aiqCreditOutstandingTotal() {
+  const unsettled = getAllCredits().filter(c => !isCreditSettled(c));
+  if (!unsettled.length) return `<div class="ai-stat">0</div><div style="color:var(--muted);font-size:.8rem;margin-top:.4rem;">දැනට outstanding credit bill එකක්වත් නෑ 🎉</div>`;
+  const total = unsettled.reduce((s, c) => s + getCreditBalance(c), 0);
+  return `<div class="ai-stat">${fmt(total)}</div><div style="color:var(--muted);font-size:.76rem;margin-top:.5rem;">${unsettled.length} unpaid credit bill(s) — සියලුම suppliers</div>`;
+}
+function aiqCreditTopSuppliers() {
+  const scores = aiComputeSupplierScores().filter(s => s.outstanding > 0.01).slice(0, 5);
+  if (!scores.length) return `<div class="ai-stat">—</div><div style="color:var(--muted);font-size:.8rem;margin-top:.4rem;">දැනට outstanding balance එකක් තියෙන supplier කෙනෙක් නෑ 🎉</div>`;
+  return `<ul>${scores.map((s, i) => `<li>#${i + 1} <b>${escHtml(s.name)}</b> — ${fmt(s.outstanding)}${s.level === 'high' ? ' ⚠️' : ''}</li>`).join('')}</ul>`;
+}
+function aiqCreditOverdue() {
+  const soon = today();
+  const rows = getAllCredits().filter(c => !isCreditSettled(c)).map(c => ({ ...c, days: Math.floor((new Date(soon) - new Date(c.date)) / 86400000) })).filter(c => c.days > 30).sort((a, b) => b.days - a.days);
+  if (!rows.length) return `<div class="ai-stat">0</div><div style="color:var(--muted);font-size:.8rem;margin-top:.4rem;">දින 30කට වඩා පරණ unpaid credit bill එකක්වත් නෑ ✅</div>`;
+  const total = rows.reduce((s, c) => s + getCreditBalance(c), 0);
+  const list = rows.slice(0, 8).map(c => `<li>${c.entryId} — ${escHtml(getSupplierName(c.supplierId, c._owner))} · ${fmt(getCreditBalance(c))} · <span style="color:${c.days > 60 ? 'var(--red)' : 'var(--yellow)'}">${c.days}d</span></li>`).join('');
+  return `<div class="ai-stat">${rows.length} bill(s)</div><div style="color:var(--muted);font-size:.78rem;margin:.2rem 0 .5rem;">මුළු Balance: <b>${fmt(total)}</b></div><ul>${list}</ul>${rows.length > 8 ? `<div style="color:var(--muted);font-size:.74rem;margin-top:.4rem;">…තව ${rows.length - 8}ක්</div>` : ''}`;
+}
+function aiqCreditNewForMonth(offset) {
+  const key = aiMonthKey(offset), label = aiMonthLabel(offset);
+  const rows = getAllCredits().filter(c => (c.date || '').slice(0, 7) === key);
+  if (!rows.length) return `<div class="ai-stat">0</div><div style="color:var(--muted);font-size:.8rem;margin-top:.4rem;">${label} සඳහා අලුත් credit bills නැහැ.</div>`;
+  const total = rows.reduce((s, c) => s + (Number(c.amount) || 0), 0);
+  return `<div class="ai-stat">${rows.length} bill(s)</div><div class="ai-line"><span>Total Value</span><span class="fw700">${fmt(total)}</span></div><div style="color:var(--muted);font-size:.76rem;margin-top:.5rem;">${label}</div>`;
+}
+function aiqCreditNewThisMonth() { return aiqCreditNewForMonth(0); }
+function aiqCreditNewLastMonth() { return aiqCreditNewForMonth(-1); }
+
+// ----- 📝 Cheques -----
+function aiqChequeActiveSummary() {
+  const rows = getAllCheques().filter(c => !isChequeSettled(c));
+  if (!rows.length) return `<div class="ai-stat">0</div><div style="color:var(--muted);font-size:.8rem;margin-top:.4rem;">Pending cheques කිසිවක් නෑ.</div>`;
+  const total = rows.reduce((s, c) => s + (Number(c.amount) || 0), 0);
+  return `<div class="ai-stat">${rows.length} Cheque(s)</div><div class="ai-line"><span>Total Value</span><span class="fw700">${fmt(total)}</span></div>`;
+}
+function aiqChequeDueToday() {
+  const rows = getAllCheques().filter(c => !isChequeSettled(c) && c.dueDate === today());
+  if (!rows.length) return `<div class="ai-stat">0</div><div style="color:var(--muted);font-size:.8rem;margin-top:.4rem;">අද due cheque එකක්වත් නෑ.</div>`;
+  const total = rows.reduce((s, c) => s + (Number(c.amount) || 0), 0);
+  const list = rows.map(c => `<li>${c.entryId} — ${escHtml(getSupplierName(c.supplierId, c._owner))} · ${fmt(c.amount)}</li>`).join('');
+  return `<div class="ai-stat">${rows.length} Cheque(s)</div><div style="color:var(--muted);font-size:.78rem;margin:.2rem 0 .5rem;">Total: <b>${fmt(total)}</b></div><ul>${list}</ul>`;
+}
+function aiqChequeDueThisWeek() {
+  const t = today(); const soon = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+  const rows = getAllCheques().filter(c => !isChequeSettled(c) && c.dueDate && c.dueDate >= t && c.dueDate <= soon).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+  if (!rows.length) return `<div class="ai-stat">0</div><div style="color:var(--muted);font-size:.8rem;margin-top:.4rem;">ඉදිරි දින 7ට due cheque එකක්වත් නෑ.</div>`;
+  const total = rows.reduce((s, c) => s + (Number(c.amount) || 0), 0);
+  const byBank = new Map();
+  rows.forEach(c => { const b = c.bank || '—'; byBank.set(b, (byBank.get(b) || 0) + (Number(c.amount) || 0)); });
+  const bankLines = [...byBank.entries()].sort((a, b) => b[1] - a[1]).map(([b, v]) => `<div class="ai-line"><span>🏦 ${escHtml(b)}</span><span class="fw700">${fmt(v)}</span></div>`).join('');
+  const list = rows.map(c => `<li>${c.dueDate} — ${escHtml(getSupplierName(c.supplierId, c._owner))} · ${escHtml(c.bank || '—')} · ${fmt(c.amount)}</li>`).join('');
+  return `<div class="ai-stat">${rows.length} Cheque(s)</div><div style="color:var(--muted);font-size:.78rem;margin:.2rem 0 .5rem;">Total: <b>${fmt(total)}</b></div>${bankLines}<div style="margin-top:.5rem;"><ul>${list}</ul></div>`;
+}
+function aiqChequeOverdue() {
+  const rows = getAllCheques().filter(c => !isChequeSettled(c) && isOverdue(c)).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+  if (!rows.length) return `<div class="ai-stat">0</div><div style="color:var(--muted);font-size:.8rem;margin-top:.4rem;">Overdue cheque එකක්වත් නෑ ✅</div>`;
+  const total = rows.reduce((s, c) => s + (Number(c.amount) || 0), 0);
+  const list = rows.slice(0, 8).map(c => `<li>${c.entryId} — ${escHtml(getSupplierName(c.supplierId, c._owner))} · ${fmt(c.amount)} · <span style="color:var(--red)">Due ${c.dueDate}</span></li>`).join('');
+  return `<div class="ai-stat">${rows.length} Cheque(s)</div><div style="color:var(--muted);font-size:.78rem;margin:.2rem 0 .5rem;">Total: <b>${fmt(total)}</b></div><ul>${list}</ul>${rows.length > 8 ? `<div style="color:var(--muted);font-size:.74rem;margin-top:.4rem;">…තව ${rows.length - 8}ක්</div>` : ''}`;
+}
+function aiqChequeSettledTotal() {
+  const rows = getAllCheques().filter(c => isChequeSettled(c));
+  if (!rows.length) return `<div class="ai-stat">0</div><div style="color:var(--muted);font-size:.8rem;margin-top:.4rem;">තවම settle කරපු cheque නෑ.</div>`;
+  const total = rows.reduce((s, c) => s + (Number(c.amount) || 0), 0);
+  const cleared = rows.filter(c => c.status === 'cleared').length, bounced = rows.filter(c => c.status === 'bounced').length;
+  return `<div class="ai-stat">${rows.length} Cheque(s)</div><div class="ai-line"><span>Total Value</span><span class="fw700">${fmt(total)}</span></div><div class="ai-line"><span>✅ Cleared</span><span>${cleared}</span></div><div class="ai-line"><span>❌ Bounced</span><span>${bounced}</span></div>`;
+}
+
+// ----- 🏪 Suppliers -----
+function aiqSupplierRisk() {
+  const scores = aiComputeSupplierScores().filter(s => s.level === 'high');
+  if (!scores.length) return `<div class="ai-stat">0</div><div style="color:var(--muted);font-size:.8rem;margin-top:.4rem;">දැනට High Risk supplier කෙනෙක්වත් නෑ ✅</div>`;
+  const list = scores.map(s => `<li>⚠️ <b>${escHtml(s.name)}</b> — ${fmt(s.outstanding)} outstanding · Avg settle ${s.avgDays ?? '—'} days</li>`).join('');
+  return `<div class="ai-stat">${scores.length} Supplier(s)</div><ul>${list}</ul>`;
+}
+function aiqSupplierTopPurchases() {
+  const scores = aiComputeSupplierScores().filter(s => s.total > 0).sort((a, b) => b.total - a.total).slice(0, 5);
+  if (!scores.length) return `<div class="ai-stat">—</div><div style="color:var(--muted);font-size:.8rem;margin-top:.4rem;">තවම credit history නැහැ.</div>`;
+  return `<ul>${scores.map((s, i) => `<li>#${i + 1} <b>${escHtml(s.name)}</b> — Total ${fmt(s.total)}</li>`).join('')}</ul>`;
+}
+
+// ----- 👥 Payroll -----
+function aiqPayrollTotalForMonth(offset) {
+  const key = aiMonthKey(offset), label = aiMonthLabel(offset);
+  const rows = PDB.payrolls.filter(p => p.period === key);
+  if (!rows.length) return `<div class="ai-stat">${fmt(0)}</div><div style="color:var(--muted);font-size:.8rem;margin-top:.4rem;">${label} සඳහා salary process කරලා නෑ.</div>`;
+  const total = rows.reduce((s, p) => s + (Number(p.netPay) || 0), 0);
+  return `<div class="ai-stat">${fmt(total)}</div><div style="color:var(--muted);font-size:.76rem;margin-top:.5rem;">${rows.length} employee(s) — ${label}</div>`;
+}
+function aiqPayrollTotalThisMonth() { return aiqPayrollTotalForMonth(0); }
+function aiqPayrollTotalLastMonth() { return aiqPayrollTotalForMonth(-1); }
+function aiqAdvanceUnsettled() {
+  const rows = PDB.advances.filter(a => !a.settled);
+  if (!rows.length) return `<div class="ai-stat">0</div><div style="color:var(--muted);font-size:.8rem;margin-top:.4rem;">Unsettled advance එකක්වත් නෑ ✅</div>`;
+  const total = rows.reduce((s, a) => s + (Number(a.amount) || 0), 0);
+  const list = rows.map(a => `<li>${escHtml(a.empName || a.empId)} — ${fmt(a.amount)} · ${a.date}</li>`).join('');
+  return `<div class="ai-stat">${fmt(total)}</div><div style="color:var(--muted);font-size:.78rem;margin:.2rem 0 .5rem;">${rows.length} advance(s)</div><ul>${list}</ul>`;
+}
+function aiqPayrollPendingEmployees() {
+  const key = aiMonthKey(0);
+  const processedIds = new Set(PDB.payrolls.filter(p => p.period === key).map(p => p.empId));
+  const pending = PDB.employees.filter(e => e.active && !processedIds.has(e.empId));
+  if (!pending.length) return `<div class="ai-stat">0</div><div style="color:var(--muted);font-size:.8rem;margin-top:.4rem;">මේ මාසේ active employees ලා සියල්ලටම salary process කරලා ඉවරයි ✅</div>`;
+  return `<div class="ai-stat">${pending.length} Employee(s)</div><ul>${pending.map(e => `<li>${escHtml(e.name)} (${e.empId})</li>`).join('')}</ul>`;
+}
+
+// ----- 📱 Reload -----
+function aiqReloadBreakdown(rows, extraLabel) {
+  if (!rows.length) return `<div class="ai-stat">${fmt(0)}</div><div style="color:var(--muted);font-size:.8rem;margin-top:.4rem;">${extraLabel} සඳහා reload entries නැහැ.</div>`;
+  const total = rows.reduce((s, e) => s + (Number(e.total) || 0), 0);
+  const keys = ['dialog', 'mobitel', 'hutch', 'airtel', 'cash'];
+  const byNet = {}; keys.forEach(n => { byNet[n] = rows.reduce((s, e) => s + (Number(e[n]) || 0), 0); });
+  const list = keys.filter(n => byNet[n] > 0).map(n => `<li>${NETWORK_LABELS[n]} — ${fmt(byNet[n])}</li>`).join('');
+  return `<div class="ai-stat">${fmt(total)}</div><div style="color:var(--muted);font-size:.78rem;margin:.2rem 0 .5rem;">${rows.length} day(s) logged — ${extraLabel}</div><ul>${list}</ul>`;
+}
+function aiqReloadToday() { return aiqReloadBreakdown(getReloadEntries().filter(e => e.date === today()), 'අද'); }
+function aiqReloadThisMonth() { return aiqReloadBreakdown(getReloadEntries().filter(e => (e.date || '').slice(0, 7) === aiMonthKey(0)), aiMonthLabel(0)); }
+
+// ----- ⚠️ Risk & Insights -----
+function aiqRiskAlertsActive() {
+  const alerts = aiComputeRiskAlerts();
+  if (!alerts.length) return `<div class="ai-stat">0</div><div style="color:var(--muted);font-size:.8rem;margin-top:.4rem;">දැනට active risk alerts නැහැ ✅</div>`;
+  const high = alerts.filter(a => a.severity === 'high').length;
+  const list = alerts.slice(0, 8).map(a => `<li>${a.main} — ${a.sub}</li>`).join('');
+  return `<div class="ai-stat">${alerts.length} Alert(s)</div><div style="color:var(--muted);font-size:.78rem;margin:.2rem 0 .5rem;">${high} high priority</div><ul>${list}</ul>${alerts.length > 8 ? `<div style="color:var(--muted);font-size:.74rem;margin-top:.4rem;">…තව ${alerts.length - 8}ක්</div>` : ''}`;
+}
+function aiqAnomaliesRecent() {
+  const rows = aiDetectAnomalies();
+  if (!rows.length) return `<div class="ai-stat">0</div><div style="color:var(--muted);font-size:.8rem;margin-top:.4rem;">පසුගිය දින 60 තුළ අසාමාන්‍ය Net Cash දිනයක්වත් නෑ ✅</div>`;
+  const list = rows.map(d => `<li>${d.date} — Net Cash ${fmt(d.net)} ${d.z > 0 ? '📈' : '📉'}</li>`).join('');
+  return `<div class="ai-stat">${rows.length} Day(s)</div><ul>${list}</ul>`;
+}
+
+/* -----------------------------------------------------------------
+   💬 TYPED QUESTIONS — dynamic bank+timeframe intent for cheques
+   (e.g. "HNB cheques ඉදිරි දින 7ට කීයද?"), with a keyword-overlap
+   fuzzy fallback onto the 28 fixed questions above. Still 100% local
+   — no external AI, just pattern matching over real DB fields.
+   ----------------------------------------------------------------- */
+
+// Every distinct bank name actually typed into cheque records (not a
+// hardcoded list) — so this works for whichever banks THIS business uses.
+function aiGetKnownBanks() {
+  const banks = new Set();
+  getAllCheques().forEach(c => { if (c.bank && c.bank.trim()) banks.add(c.bank.trim()); });
+  return [...banks];
+}
+
+// Cheques for a specific (dynamically matched) bank, scoped to a timeframe.
+function aiqChequeByBankTimeframe(matchedBanks, timeframe) {
+  const t = today();
+  let rows = getAllCheques().filter(c => !isChequeSettled(c) && matchedBanks.some(b => (c.bank || '').toLowerCase() === b.toLowerCase()));
+  let scopeLabel;
+  if (timeframe === 'week') {
+    const soon = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+    rows = rows.filter(c => c.dueDate && c.dueDate >= t && c.dueDate <= soon);
+    scopeLabel = 'ඉදිරි දින 7 තුල';
+  } else if (timeframe === 'today') {
+    rows = rows.filter(c => c.dueDate === t);
+    scopeLabel = 'අද';
+  } else if (timeframe === 'overdue') {
+    rows = rows.filter(c => isOverdue(c));
+    scopeLabel = 'Overdue';
+  } else {
+    scopeLabel = 'සියලුම Pending';
+  }
+  rows.sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
+  const bankNames = matchedBanks.join(', ');
+  if (!rows.length) return `<div class="ai-stat">0</div><div style="color:var(--muted);font-size:.8rem;margin-top:.4rem;">🏦 ${escHtml(bankNames)} — ${scopeLabel} due cheque එකක්වත් නෑ.</div>`;
+  const total = rows.reduce((s, c) => s + (Number(c.amount) || 0), 0);
+  const list = rows.map(c => `<li>${c.dueDate} — ${escHtml(getSupplierName(c.supplierId, c._owner))} · ${fmt(c.amount)}</li>`).join('');
+  return `<div class="ai-stat">${fmt(total)}</div><div style="color:var(--muted);font-size:.78rem;margin:.2rem 0 .5rem;">🏦 ${escHtml(bankNames)} · ${scopeLabel} · ${rows.length} cheque(s)</div><ul>${list}</ul>`;
+}
+
+// Tries to detect a "[bank] cheques [timeframe]" style question. Returns
+// {label, color, html} on a confident match, otherwise null so the caller
+// can fall back to fuzzy-matching the 28 fixed questions instead.
+function aiParseTypedQuery(text) {
+  const lower = text.toLowerCase().trim();
+  if (!lower) return null;
+
+  const chequeWords = ['cheque', 'check', 'චෙක්', 'චෙක'];
+  if (chequeWords.some(k => lower.includes(k))) {
+    const banks = aiGetKnownBanks();
+    const matched = banks.filter(b => lower.includes(b.toLowerCase()));
+    if (matched.length) {
+      let timeframe = 'all';
+      if (/\b(week|weekly|සතිය|සතියේ)\b/.test(lower) || /7\s*(day|days|දින)/.test(lower)) timeframe = 'week';
+      else if (/\b(today|අද)\b/.test(lower)) timeframe = 'today';
+      else if (/\b(overdue|late|කල් ඉකුත්|පරණ)\b/.test(lower)) timeframe = 'overdue';
+      return { label: '📝 Cheques', color: '#7c3aed', html: aiqChequeByBankTimeframe(matched, timeframe) };
+    }
+  }
+  return null;
+}
+
+// Simple keyword-overlap scorer against the 28 predefined questions — no
+// external NLP, just token matching, good enough for a focused domain.
+function aiFuzzyMatchQuestion(text) {
+  const stop = new Set(['කීයද', 'මොනවද', 'මොකක්ද', 'the', 'a', 'is', 'of', 'to', 'in']);
+  const norm = s => s.toLowerCase().replace(/[?？!.,()]/g, '').split(/\s+/).filter(w => w && !stop.has(w));
+  const qTokens = norm(text);
+  if (!qTokens.length) return null;
+  let best = null, bestScore = 0;
+  AI_BOT_CATS.forEach(cat => {
+    (AI_BOT_QUESTIONS[cat.id] || []).forEach(item => {
+      const iTokens = new Set(norm(item.q));
+      let score = 0;
+      qTokens.forEach(t => { if (iTokens.has(t)) score++; });
+      if (score > bestScore) { bestScore = score; best = { cat, item }; }
+    });
+  });
+  return bestScore >= 2 ? best : null;
+}
+
+// ----- Categories, questions & UI wiring -----
+const AI_BOT_CATS = [
+  { id: 'cash', label: '💰 Cash & Sales', color: '#0e7490' },
+  { id: 'credit', label: '🧾 Credits', color: '#2563eb' },
+  { id: 'cheque', label: '📝 Cheques', color: '#7c3aed' },
+  { id: 'supplier', label: '🏪 Suppliers', color: '#d97706' },
+  { id: 'payroll', label: '👥 Payroll', color: '#db2777' },
+  { id: 'reload', label: '📱 Reload', color: '#4f46e5' },
+  { id: 'risk', label: '⚠️ Risk & Insights', color: '#dc2626' }
+];
+const AI_BOT_QUESTIONS = {
+  cash: [
+    { q: 'අද Cash-in-Hand කීයද?', fn: aiqCashToday },
+    { q: 'අද Total Sales කීයද?', fn: aiqSalesToday },
+    { q: 'මේ මාසේ Total Sales කීයද?', fn: aiqSalesThisMonth },
+    { q: 'ගිය මාසේ Total Sales කීයද?', fn: aiqSalesLastMonth },
+    { q: 'මේ මාසේ Total Expenses කීයද?', fn: aiqExpensesThisMonth },
+    { q: 'ගිය මාසේ Total Expenses කීයද?', fn: aiqExpensesLastMonth },
+    { q: 'ලබන මාසේ Net Cash Prediction එක?', fn: aiqForecastNextMonth },
+    { q: 'අද Cash Disposal Log එකේ මොනවද?', fn: aiqDisposalToday }
+  ],
+  credit: [
+    { q: 'මුළු Outstanding Credit Balance එක කීයද?', fn: aiqCreditOutstandingTotal },
+    { q: 'වැඩිම ණය තියෙන Suppliers (Top 5)', fn: aiqCreditTopSuppliers },
+    { q: 'Overdue Credits (30+ දින) මොනවද?', fn: aiqCreditOverdue },
+    { q: 'මේ මාසේ අලුත් Credits ගණන/වටිනාකම', fn: aiqCreditNewThisMonth },
+    { q: 'ගිය මාසේ අලුත් Credits ගණන/වටිනාකම', fn: aiqCreditNewLastMonth }
+  ],
+  cheque: [
+    { q: 'Active Cheques ගණන/එකතුව', fn: aiqChequeActiveSummary },
+    { q: 'අද Due Cheques මොනවද?', fn: aiqChequeDueToday },
+    { q: 'මේ සතියේ Due Cheques මොනවද?', fn: aiqChequeDueThisWeek },
+    { q: 'Overdue Cheques මොනවද?', fn: aiqChequeOverdue },
+    { q: 'Settled Cheques (මුළු) කීයද?', fn: aiqChequeSettledTotal }
+  ],
+  supplier: [
+    { q: 'Risk Supplier කවුරුන්ද?', fn: aiqSupplierRisk },
+    { q: 'Top 5 Suppliers (Purchase Value අනුව)', fn: aiqSupplierTopPurchases }
+  ],
+  payroll: [
+    { q: 'මේ මාසේ ගෙවපු Total Salary කීයද?', fn: aiqPayrollTotalThisMonth },
+    { q: 'ගිය මාසේ ගෙවපු Total Salary කීයද?', fn: aiqPayrollTotalLastMonth },
+    { q: 'Unsettled Advances මොනවද?', fn: aiqAdvanceUnsettled },
+    { q: 'මේ මාසේ Process නොකළ Employees', fn: aiqPayrollPendingEmployees }
+  ],
+  reload: [
+    { q: 'අද Reload Sales කීයද?', fn: aiqReloadToday },
+    { q: 'මේ මාසේ Reload Sales කීයද?', fn: aiqReloadThisMonth }
+  ],
+  risk: [
+    { q: 'Active Risk Alerts මොනවද?', fn: aiqRiskAlertsActive },
+    { q: 'මේ මාසේ Anomalies මොනවද?', fn: aiqAnomaliesRecent }
+  ]
+};
+let aiBotActiveCat = 'cash';
+
+function openAiAskBot() {
+  if (!(isAdmin() || isManager())) { toast('Admin/Manager only', 'red'); return; }
+  renderAiBotCats();
+  renderAiBotQuestions();
+  openModal('aiAskModal');
+}
+function renderAiBotCats() {
+  const wrap = $('aiAskCats');
+  if (!wrap) return;
+  wrap.innerHTML = AI_BOT_CATS.map(c =>
+    `<button class="ai-cat-pill ${c.id === aiBotActiveCat ? 'active' : ''}" style="--cat-color:${c.color}" onclick="selectAiBotCat('${c.id}')">${c.label}</button>`
+  ).join('');
+}
+function selectAiBotCat(catId) {
+  aiBotActiveCat = catId;
+  renderAiBotCats();
+  renderAiBotQuestions();
+}
+function renderAiBotQuestions() {
+  const wrap = $('aiAskQuestions');
+  if (!wrap) return;
+  const cat = AI_BOT_CATS.find(c => c.id === aiBotActiveCat);
+  const items = AI_BOT_QUESTIONS[aiBotActiveCat] || [];
+  wrap.innerHTML = items.map((it, i) =>
+    `<button class="ai-q-chip" style="--cat-color:${cat.color};animation-delay:${(i * 0.035).toFixed(2)}s" onclick="askAiBotQuestion('${aiBotActiveCat}', ${i})">${it.q}</button>`
+  ).join('');
+}
+// Shared "post a question bubble → typing dots → reveal answer bubble" flow,
+// used by both the click-to-ask chips and the typed free-text input.
+function aiAppendToFeed(questionText, resolve) {
+  const feed = $('aiAskFeed');
+  if (!feed) return;
+  feed.querySelector('.ai-feed-empty')?.remove();
+
+  const qEl = document.createElement('div');
+  qEl.className = 'ai-feed-q';
+  qEl.textContent = questionText;
+  feed.appendChild(qEl);
+
+  const typingEl = document.createElement('div');
+  typingEl.className = 'ai-typing';
+  typingEl.innerHTML = '<span></span><span></span><span></span>';
+  feed.appendChild(typingEl);
+  feed.scrollTop = feed.scrollHeight;
+
+  setTimeout(() => {
+    let result;
+    try { result = resolve(); }
+    catch (e) { console.error('AI Ask Bot error:', e); result = null; }
+    typingEl.remove();
+    const aEl = document.createElement('div');
+    aEl.className = 'ai-feed-a';
+    if (result) {
+      aEl.style.setProperty('--cat-color', result.color);
+      aEl.innerHTML = `<div class="ai-feed-a-head"><span class="bot-ico">🤖</span>${result.label}</div><div class="ai-feed-a-body">${result.html}</div>`;
+    } else {
+      aEl.style.setProperty('--cat-color', '#94a3b8');
+      aEl.innerHTML = `<div class="ai-feed-a-head"><span class="bot-ico">🤖</span>Local Smart Assistant</div><div class="ai-feed-a-body">🤔 සමාවෙන්න, මට මේ ප්‍රශ්නය හරියටම තේරුනේ නෑ.<br><br>උත්සාහ කරන්න:<br>• ඉහළින් category එකක් තෝරලා ready-made ප්‍රශ්නයක් click කරන්න<br>• Bank නමක් (e.g. HNB, PB) + "cheque" + "week"/"7 days" වගේ වචන එකතු කරලා type කරන්න</div>`;
+    }
+    feed.appendChild(aEl);
+    feed.scrollTop = feed.scrollHeight;
+  }, 420 + Math.random() * 220);
+}
+
+function askAiBotQuestion(catId, qIndex) {
+  const cat = AI_BOT_CATS.find(c => c.id === catId);
+  const item = (AI_BOT_QUESTIONS[catId] || [])[qIndex];
+  if (!cat || !item) return;
+  aiAppendToFeed(item.q, () => {
+    let answerHtml;
+    try { answerHtml = item.fn(); }
+    catch (e) { console.error('AI Ask Bot handler error:', e); answerHtml = `<div style="color:var(--red);">⚠️ මේ ප්‍රශ්නයට උත්තර ගණනය කරගන්න බැරි වුණා.</div>`; }
+    return { label: cat.label, color: cat.color, html: answerHtml };
+  });
+}
+
+function submitAiTypedQuestion() {
+  const input = $('aiAskInput');
+  const text = input?.value?.trim();
+  if (!text) return;
+  input.value = '';
+  aiAppendToFeed(text, () => {
+    const dynamic = aiParseTypedQuery(text);
+    if (dynamic) return dynamic;
+    const fuzzy = aiFuzzyMatchQuestion(text);
+    if (fuzzy) {
+      let answerHtml;
+      try { answerHtml = fuzzy.item.fn(); }
+      catch (e) { console.error('AI Ask Bot handler error:', e); answerHtml = `<div style="color:var(--red);">⚠️ මේ ප්‍රශ්නයට උත්තර ගණනය කරගන්න බැරි වුණා.</div>`; }
+      return { label: fuzzy.cat.label, color: fuzzy.cat.color, html: answerHtml };
+    }
+    return null;
+  });
+}
+
 function renderAIInsights() {
   const series = aiMonthlySeries();
   const forecast = aiForecastNextMonth(series);
@@ -7762,6 +8309,12 @@ function saveThemeGlobal(theme) {
     syncUser(admin);
   }
   renderThemeSettings();
+  // Charts (Chart.js/ApexCharts) bake theme colors in at creation time, so
+  // re-render the Overview dashboard now if it's the visible section —
+  // otherwise its charts would keep the old theme's colors until next visit.
+  if ($('overviewSection')?.classList.contains('show')) {
+    setTimeout(() => { try { renderOverview(); } catch (e) {} }, 260);
+  }
   toast(`${THEMES[theme].name} යොදවා ඇත! ✅`);
 }
 
