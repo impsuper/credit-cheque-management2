@@ -3433,7 +3433,21 @@ async function saveUserDoc(user) {
   }
   setSyncStatus('syncing');
   try {
-    await usersCol.doc(user.username).set(clean(user));
+    // Firestore rule: a manager may only touch admin's `cashLog` field
+    // (see cms_users write rule — hasOnly(['cashLog'])). A manager's local
+    // copy of admin's doc is routinely stale on every OTHER field (admin's
+    // own credits/cheques/suppliers/activityLog keep changing independently),
+    // so a full set(clean(user)) here would touch those stale fields too and
+    // get the ENTIRE write silently permission-denied — the manager's cash
+    // log entry never reaches the server even though the local UI already
+    // shows it as saved. Scope the write down to just cashLog via a merge
+    // so it matches exactly what the rule allows.
+    const isManagerWritingAdmin = user.username === 'admin' && DB.currentUser?.role === 'manager';
+    if (isManagerWritingAdmin) {
+      await usersCol.doc('admin').set({ cashLog: clean(user).cashLog || [] }, { merge: true });
+    } else {
+      await usersCol.doc(user.username).set(clean(user));
+    }
     markSynced('cloud');
   } catch (e) {
     console.error('saveUserDoc', e);
