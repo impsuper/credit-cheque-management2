@@ -1100,14 +1100,14 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
     </div>
     <div class="sb-section">Main</div>
     <div class="sb-link active" onclick="showSection('overview')"><span class="ico">📊</span><span>Dashboard</span></div>
-    <div class="sb-link" onclick="showSection('credits')"><span class="ico">💳</span><span>Credits</span></div>
-    <div class="sb-link" onclick="showSection('cheques')"><span class="ico">✅</span><span>Cheques</span></div>
-    <div class="sb-link" onclick="showSection('suppliers')"><span class="ico">🏪</span><span>Suppliers</span></div>
-    <div class="sb-link" onclick="showSection('reports')"><span class="ico">📋</span><span>Reports</span></div>
-    <div class="sb-link" onclick="showSection('analytics')"><span class="ico">📈</span><span>Analytics</span></div>
-    <div class="sb-link" onclick="showSection('aiinsights')"><span class="ico">🤖</span><span>AI Insights</span></div>
+    <div class="sb-link" id="navLink-credits" onclick="showSection('credits')"><span class="ico">💳</span><span>Credits</span></div>
+    <div class="sb-link" id="navLink-cheques" onclick="showSection('cheques')"><span class="ico">✅</span><span>Cheques</span></div>
+    <div class="sb-link" id="navLink-suppliers" onclick="showSection('suppliers')"><span class="ico">🏪</span><span>Suppliers</span></div>
+    <div class="sb-link" id="navLink-reports" onclick="showSection('reports')"><span class="ico">📋</span><span>Reports</span></div>
+    <div class="sb-link" id="navLink-analytics" onclick="showSection('analytics')"><span class="ico">📈</span><span>Analytics</span></div>
+    <div class="sb-link" id="navLink-aiinsights" onclick="showSection('aiinsights')"><span class="ico">🤖</span><span>AI Insights</span></div>
     <div class="sb-link hidden" id="plNavLink" onclick="showSection('pl')"><span class="ico">💹</span><span>Profit &amp; Loss</span></div>
-    <div class="sb-link" onclick="showSection('reload')"><span class="ico">📱</span><span>Reload</span></div>
+    <div class="sb-link" id="navLink-reload" onclick="showSection('reload')"><span class="ico">📱</span><span>Reload</span></div>
     <div class="sb-link hidden" id="cashNavLink" onclick="showSection('cash')"><span class="ico">💰</span><span>Cash</span></div>
     <div class="sb-link hidden" id="payrollNavLink" onclick="showSection('payroll')"><span class="ico">🧑‍💼</span><span>Payroll</span></div>
     <div class="sb-divider"></div>
@@ -1139,6 +1139,9 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
 
     <!-- OVERVIEW -->
     <div id="overviewSection" class="section show">
+      <div id="ov-data-warn" class="hidden" style="background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;padding:.7rem 1rem;border-radius:10px;margin-bottom:1rem;font-size:.9rem;font-weight:600;">
+        ⚠️ Data sync issue — some figures below (e.g. Cash in Hand) may be incomplete right now. Check your internet connection and tap Refresh.
+      </div>
       <div class="stats-grid">
         <div class="stat-card yellow">
           <div class="stat-label">💰 Active Cheques Amount</div>
@@ -1289,6 +1292,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
         <div id="cr-total-bar" style="margin:1rem 1.5rem 0;padding:.75rem 1.1rem;background:#eef6ff;border:1.5px solid var(--accent);border-radius:10px;display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">
           <span style="font-weight:700;color:var(--navy);font-size:.9rem;">🧾 Active Bills: <span id="cr-total-count">0</span></span>
           <span style="font-weight:700;color:var(--navy);font-size:.9rem;">💵 Active Amount: <span id="cr-total-amount">LKR 0</span></span>
+          <span style="font-weight:700;color:var(--red,#dc2626);font-size:.9rem;">⚖️ Active Balance: <span id="cr-total-balance">LKR 0</span></span>
         </div>
         <div class="tab-bar">
           <div class="tab active" onclick="switchCreditTab('active')" id="credit-tab-active">⏳ Active <span class="tab-count" id="cnt-credit-active">0</span></div>
@@ -1397,7 +1401,6 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
           <select id="ch-filter-user" onchange="renderCheques()" class="hidden">
             <option value="">All Entered By</option>
           </select>
-          <button class="btn btn-ghost btn-sm" onclick="sortTable('cheques','bank')" title="Sort by Bank">🏦 Sort by Bank</button>
           <button class="clear-btn" onclick="clearFilters('ch')">✕ Clear</button>
         </div>
         <div class="sa-filter-bar" style="flex-wrap:wrap;">
@@ -1575,6 +1578,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
         </div>
         <div class="tab-bar">
           <div class="tab active" onclick="switchSettingsTab('users')" id="set-tab-users">👥 Users</div>
+          <div class="tab" onclick="switchSettingsTab('permissions')" id="set-tab-permissions">🔐 Permissions</div>
           <div class="tab" onclick="switchSettingsTab('activity')" id="set-tab-activity">🕐 Activity Log</div>
           <div class="tab" onclick="switchSettingsTab('backups')" id="set-tab-backups">☁️ Cloud Backup</div>
           <div class="tab" onclick="switchSettingsTab('localbackup')" id="set-tab-localbackup">💾 Backup &amp; Restore</div>
@@ -1599,6 +1603,19 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
               </thead>
               <tbody id="usersBody"></tbody>
             </table>
+          </div>
+        </div>
+
+        <!-- PERMISSIONS -->
+        <div id="settings-tab-content-permissions" class="tab-content">
+          <div class="card-head">
+            <div class="card-title">🔐 Dashboard Permissions</div>
+          </div>
+          <div style="padding:1.2rem 1.5rem;">
+            <p style="color:var(--muted);font-size:.85rem;margin-bottom:1.1rem;">
+              🔐 මෙතනින් ✅ Tick කරන Sections විතරයි <b>Manager</b> කෙනෙක්ගේ Sidebar එකේ පේන්නේ — Untick කළොත් ඒ Section එක ඒ අයට සම්පූර්ණයෙන්ම වැහෙනවා (URL/link එකෙන් වුනත් යන්න බෑ). <b>Admin</b> ට හැමවිටම සියලුම Sections පේනවා, මේකෙන් වෙනසක් වෙන්නේ නෑ. <b>Cashier</b> දිගටම Cash Entry screen එකට locked වෙලා ඉන්නවා — එකත් මේකෙන් වෙනස් වෙන්නේ නෑ.
+            </p>
+            <div id="permissions-settings-wrap"></div>
           </div>
         </div>
 
@@ -1927,7 +1944,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
           <div class="table-wrap">
             <table>
               <thead><tr>
-                <th>📅 Date</th><th>👤 Cashier</th><th>💵 Cash</th><th>💳 Card SDB</th><th>💳 Card DFCC</th>
+                <th>📅 Date</th><th>👤 Cashier</th><th>💵 Payments</th><th>💳 Card Sale</th>
                 <th>💰 Total</th><th>💸 Advance</th><th>🏦 Total Banked Cash</th><th>🛒 Total Purchase</th><th>🧾 Pay Credit Bills (Cash)</th><th>✅ Net Cash</th><th>⚙️</th>
               </tr></thead>
               <tbody id="cashBody"></tbody>
@@ -2263,11 +2280,6 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
               <div class="stat-val" style="font-size:1rem;">⬇️ Download PDF</div>
               <div class="stat-sub">Cheques with bank & due date details</div>
             </div>
-            <div class="stat-card accent report-card" onclick="generateReport('suppliers')">
-              <div class="stat-label">🏪 Suppliers Report</div>
-              <div class="stat-val" style="font-size:1rem;">⬇️ Download PDF</div>
-              <div class="stat-sub">Supplier balances & credit summary</div>
-            </div>
             <div class="stat-card report-card" style="border-top:3px solid var(--amber2,#fbbf24);" onclick="generateReport('cash')">
               <div class="stat-label">💰 Cash Report</div>
               <div class="stat-val" style="font-size:1rem;">⬇️ Download PDF</div>
@@ -2322,7 +2334,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
         <div class="table-wrap">
           <table>
             <thead><tr>
-              <th>📅 Date</th><th>👤 Cashier</th><th>💵 Cash</th><th>💳 Card SDB</th><th>💳 Card DFCC</th><th>📱 QR</th><th>🏦 Cheque</th>
+              <th>📅 Date</th><th>👤 Cashier</th><th>💵 Payments</th><th>💳 Card Sale</th>
               <th>💰 Total</th><th>💸 Advance</th><th>🧾 Pay Credit Bills (Cash)</th><th>🏦 Banked (PB)</th><th>🏦 Banked (SDB)</th><th>📝 Other</th><th>✅ Net Cash</th><th>👤 By</th><th>⚙️</th>
             </tr></thead>
             <tbody id="cashHistBody"></tbody>
@@ -2592,36 +2604,11 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
       </div>
       <div class="form-group">
         <label>💵 Bill Amount (LKR)</label>
-        <input type="number" id="cr-amount" placeholder="0.00" step="0.01" min="0" oninput="updateCrBalance()">
+        <input type="number" id="cr-amount" placeholder="0.00" step="0.01" min="0">
       </div>
       <div class="form-group">
         <label>📝 Notes</label>
         <textarea id="cr-notes" rows="2" placeholder="Optional notes..."></textarea>
-      </div>
-
-      <!-- Legacy part-payment section (shown only when editing) -->
-      <div id="cr-pay-section" class="pay-section" style="display:none;">
-        <div class="pay-section-title">💰 Part Payments</div>
-        <div class="pay-row">
-          <label>Pay 1</label>
-          <input type="number" id="cr-p1" placeholder="Amount" step="0.01" min="0" oninput="updateCrBalance()">
-          <input type="date" id="cr-p1-date">
-        </div>
-        <div class="pay-row">
-          <label>Pay 2</label>
-          <input type="number" id="cr-p2" placeholder="Amount" step="0.01" min="0" oninput="updateCrBalance()">
-          <input type="date" id="cr-p2-date">
-        </div>
-        <div class="pay-row">
-          <label>Pay 3</label>
-          <input type="number" id="cr-p3" placeholder="Amount" step="0.01" min="0" oninput="updateCrBalance()">
-          <input type="date" id="cr-p3-date">
-        </div>
-        <div class="pay-balance-bar">
-          <div class="pay-bal-item"><div class="lbl">💵 Bill</div><div class="val" id="cr-bal-amt">LKR 0</div></div>
-          <div class="pay-bal-item"><div class="lbl">✅ Paid</div><div class="val text-green" id="cr-bal-paid">LKR 0</div></div>
-          <div class="pay-bal-item"><div class="lbl">⚖️ Balance</div><div class="val text-red" id="cr-bal-rem">LKR 0</div></div>
-        </div>
       </div>
     </div>
     <div class="modal-foot">
@@ -3178,6 +3165,16 @@ let DB = {
   users: [],
   currentUser: null,
   currentUsername: null,
+  // true whenever the most recent attempt to load/sync DB.users from the
+  // server (initial load, live listener, or manual refresh) failed and we're
+  // relying on whatever is already sitting in memory/localStorage instead.
+  // Company-wide figures like Cash-in-Hand are computed by summing across
+  // EVERY user's doc — if even one user's doc is missing from DB.users
+  // because a fetch failed partway, that sum comes out wrong (and can look
+  // like a scary negative number) without anything on screen saying the
+  // data isn't trustworthy. This flag lets the dashboard show a warning and
+  // hide numbers it can't vouch for instead of rendering them as if normal.
+  dataIncomplete: false,
   sortState: {
     credits: { col: 'date', dir: 'desc' },
     cheques: { col: 'date', dir: 'desc' },
@@ -3205,6 +3202,35 @@ let payrollLiveUnsub = null;
 const EPF_EMPLOYEE_RATE = 0.08;
 const EPF_EMPLOYER_RATE = 0.12;
 const ETF_EMPLOYER_RATE = 0.03;
+
+// ===== DASHBOARD PERMISSIONS (shared company-wide, admin-editable) =====
+// Controls which sidebar sections the Manager role can see. Stored at
+// cms_settings/dashboardPermissions as { manager: { credits:true, ... } }.
+// Admin is never restricted by this (isAdmin() always bypasses it below),
+// and Cashier keeps its existing dedicated cash-entry lock untouched — this
+// only governs Manager's sidebar.
+let rolePermDocRef = null;
+let rolePermLiveUnsub = null;
+let ROLE_PERMS = { manager: {} };
+// Defaults match the app's original behavior (Manager could see all of
+// these) so an empty/missing doc changes nothing for existing installs.
+const DEFAULT_MANAGER_PERMS = {
+  credits: true, cheques: true, suppliers: true, reports: true,
+  analytics: true, aiinsights: true, reload: true, cash: true, payroll: true
+};
+// key = internal section name (matches showSection()'s `name` argument),
+// navId = the sidebar <div> id to show/hide, label = shown in Settings.
+const DASHBOARD_SECTIONS = [
+  { key: 'credits',    navId: 'navLink-credits',    label: '💳 Credits' },
+  { key: 'cheques',    navId: 'navLink-cheques',    label: '✅ Cheques' },
+  { key: 'suppliers',  navId: 'navLink-suppliers',  label: '🏪 Suppliers' },
+  { key: 'reports',    navId: 'navLink-reports',    label: '📋 Reports' },
+  { key: 'analytics',  navId: 'navLink-analytics',  label: '📈 Analytics' },
+  { key: 'aiinsights', navId: 'navLink-aiinsights', label: '🤖 AI Insights' },
+  { key: 'reload',     navId: 'navLink-reload',     label: '📱 Reload' },
+  { key: 'cash',       navId: 'cashNavLink',        label: '💰 Cash' },
+  { key: 'payroll',    navId: 'payrollNavLink',     label: '🧑\u200d💼 Payroll' }
+];
 
 let fdb = null;
 let fauth = null;
@@ -3275,6 +3301,34 @@ function isCashier() {
 }
 function canAccessPayroll() {
   return isAdmin() || isManager();
+}
+
+// Is `section` (one of DASHBOARD_SECTIONS' keys) visible to the CURRENT user?
+// Admin always sees everything. Cashier is intentionally untouched by this —
+// its sidebar-hidden/cash-only lock is handled entirely elsewhere.
+function sectionAllowed(section) {
+  if (isAdmin()) return true;
+  if (!isManager()) return false;
+  const perms = ROLE_PERMS.manager || {};
+  return perms.hasOwnProperty(section) ? !!perms[section] : !!DEFAULT_MANAGER_PERMS[section];
+}
+
+// Shows/hides each togglable sidebar link for the current user based on
+// ROLE_PERMS, and bounces them off any section they're currently viewing
+// if it was just switched off (e.g. an admin changed permissions live while
+// this manager already had that section open).
+function applyNavPermissions() {
+  if (!DB.currentUser || isCashier()) return;
+  DASHBOARD_SECTIONS.forEach(s => {
+    $(s.navId)?.classList.toggle('hidden', !sectionAllowed(s.key));
+  });
+  const active = document.querySelector('.section.show');
+  if (active) {
+    const id = active.id.replace('Section', '');
+    if (DASHBOARD_SECTIONS.some(s => s.key === id) && !sectionAllowed(id)) {
+      showSection('overview');
+    }
+  }
 }
 
 function getScopeUsers() {
@@ -3733,6 +3787,7 @@ async function initFirebase() {
     ffun = firebase.functions();
     usersCol = fdb.collection('cms_users');
     payrollDocRef = fdb.collection('cms_payroll').doc('company');
+    rolePermDocRef = fdb.collection('cms_settings').doc('dashboardPermissions');
     try { await fdb.enablePersistence({ synchronizeTabs: true }); } catch (e) {}
     return true;
   } catch (e) {
@@ -3786,10 +3841,14 @@ async function loadDB() {
       DB.users = snap.docs.map(d => d.data());
     }
 
+    DB.dataIncomplete = false;
     startLiveSync();
     return true;
   } catch (e) {
     console.error('loadDB', e);
+    // Couldn't get a fresh read (offline, blocked, backend unreachable...).
+    // Whatever loadDBLocal() falls back to next isn't guaranteed current.
+    DB.dataIncomplete = true;
     return false;
   }
 }
@@ -3800,6 +3859,7 @@ function startLiveSync() {
   liveUnsub = usersCol.onSnapshot(snap => {
     _liveSyncRetried = false; // a good snapshot means the token is fine again
     DB.users = snap.docs.map(d => d.data());
+    DB.dataIncomplete = false;
     if (DB.currentUsername) {
       const fresh = getUserByUsername(DB.currentUsername);
       if (fresh) DB.currentUser = fresh;
@@ -3810,6 +3870,12 @@ function startLiveSync() {
   }, async err => {
     console.error('live sync', err);
     setSyncStatus('offline');
+    // The listener that keeps DB.users current has died — whatever's in
+    // memory right now is frozen and may already be missing other users'
+    // latest entries. Flag it and re-render so the dashboard stops trusting
+    // company-wide sums (like Cash-in-Hand) until this recovers.
+    DB.dataIncomplete = true;
+    refreshActiveSection();
     // A previously-working listener that suddenly gets permission-denied
     // almost always means the ID token's role claim went stale (e.g. it
     // was refreshed without the claim before the login Cloud Function fix
@@ -3926,6 +3992,73 @@ async function savePayrollDB() {
   } catch (e) {
     console.error('savePayrollDB', e);
     toast('⚠️ Payroll save failed', 'red');
+  }
+}
+
+// ===== Dashboard permissions load/sync/save (see globals above) =====
+async function loadRolePermissions() {
+  if (!firebaseReady() || !rolePermDocRef) return loadRolePermissionsLocal();
+  try {
+    const snap = await rolePermDocRef.get({ source: 'server' });
+    if (snap.exists) {
+      const data = snap.data();
+      ROLE_PERMS.manager = data.manager || {};
+      try { localStorage.setItem('cms_role_perms', JSON.stringify(ROLE_PERMS)); } catch (e) {}
+    }
+    startRolePermLiveSync();
+  } catch (e) {
+    console.error('loadRolePermissions', e);
+    loadRolePermissionsLocal();
+  }
+}
+
+function loadRolePermissionsLocal() {
+  try {
+    const raw = localStorage.getItem('cms_role_perms');
+    if (raw) ROLE_PERMS.manager = JSON.parse(raw).manager || {};
+  } catch (e) { console.error('loadRolePermissionsLocal', e); }
+}
+
+let _rolePermSyncRetried = false;
+function startRolePermLiveSync() {
+  if (rolePermLiveUnsub || !rolePermDocRef) return;
+  rolePermLiveUnsub = rolePermDocRef.onSnapshot(snap => {
+    _rolePermSyncRetried = false;
+    if (!snap.exists) return;
+    const data = snap.data();
+    ROLE_PERMS.manager = data.manager || {};
+    try { localStorage.setItem('cms_role_perms', JSON.stringify(ROLE_PERMS)); } catch (e) { console.error('role perm live sync local mirror', e); }
+    applyNavPermissions();
+    const active = document.querySelector('.section.show');
+    if (active && active.id === 'settingsSection' && DB.settingsTab === 'permissions') renderPermissionsSettings();
+  }, async err => {
+    console.error('role perm live sync', err);
+    if (err.code === 'permission-denied' && !_rolePermSyncRetried && fauth && fauth.currentUser) {
+      _rolePermSyncRetried = true;
+      rolePermLiveUnsub = null;
+      try {
+        await fauth.currentUser.getIdToken(true);
+        startRolePermLiveSync();
+      } catch (e) { console.error('role perm sync token refresh', e); }
+    }
+  });
+}
+
+async function saveRolePermissions(newManagerPerms) {
+  if (!isAdmin()) { toast('⚠️ Admin only', 'red'); return; }
+  ROLE_PERMS.manager = newManagerPerms;
+  try { localStorage.setItem('cms_role_perms', JSON.stringify(ROLE_PERMS)); } catch (e) { console.error('saveRolePermissions local mirror', e); }
+  applyNavPermissions();
+  if (!firebaseReady() || !rolePermDocRef) {
+    toast('✅ Saved locally (offline mode)');
+    return;
+  }
+  try {
+    await rolePermDocRef.set({ manager: newManagerPerms }, { merge: true });
+    toast('✅ Permissions updated');
+  } catch (e) {
+    console.error('saveRolePermissions', e);
+    toast('⚠️ Save failed — internet connection එක check කරන්න', 'red');
   }
 }
 
@@ -4078,8 +4211,7 @@ function initDashboard() {
   $('cr-filter-user')?.classList.toggle('hidden', !isAdmin());
   $('ch-filter-user')?.classList.toggle('hidden', !isAdmin());
   if (isAdmin()) checkPushSubscriptionState();
-  $('cashNavLink')?.classList.remove('hidden');
-  $('payrollNavLink')?.classList.remove('hidden');
+  applyNavPermissions();
   $('avgSaleStat')?.classList.remove('hidden');
   $('cashInHandStat')?.classList.remove('hidden');
   $('plNavLink')?.classList.toggle('hidden', !isAdmin());
@@ -4132,6 +4264,11 @@ const sectionTitles = {
 
 function showSection(name) {
   if (isCashier() && name !== 'cash') return; // Cashier locked to cash only
+  if (!isAdmin() && DASHBOARD_SECTIONS.some(s => s.key === name) && !sectionAllowed(name)) {
+    toast('⚠️ ඔබට මෙම කොටසට ප්‍රවේශය නැත', 'red');
+    showSection('overview');
+    return;
+  }
   document.querySelectorAll('.section').forEach(s => s.classList.remove('show'));
   document.querySelectorAll('.sb-link').forEach(l => l.classList.remove('active'));
   $(`${name}Section`)?.classList.add('show');
@@ -4224,6 +4361,7 @@ async function manualRefresh() {
     // Force a real round-trip to the server (bypass any stale local cache).
     const snap = await usersCol.get({ source: 'server' });
     DB.users = snap.docs.map(d => d.data());
+    DB.dataIncomplete = false;
     if (DB.currentUsername) {
       const fresh = getUserByUsername(DB.currentUsername);
       if (fresh) DB.currentUser = fresh;
@@ -4254,6 +4392,23 @@ async function manualRefresh() {
       }
     }
 
+    // Also re-pull dashboard permissions — everyone can read this doc
+    // (unlike payroll), since each device needs it to build its own sidebar.
+    if (rolePermDocRef) {
+      try {
+        const rpSnap = await rolePermDocRef.get({ source: 'server' });
+        if (rpSnap.exists) {
+          const rpData = rpSnap.data();
+          ROLE_PERMS.manager = rpData.manager || {};
+          try { localStorage.setItem('cms_role_perms', JSON.stringify(ROLE_PERMS)); } catch (e) {}
+          applyNavPermissions();
+        }
+        if (!rolePermLiveUnsub) startRolePermLiveSync();
+      } catch (e) {
+        console.error('manualRefresh role perms', e);
+      }
+    }
+
     markSynced('cloud');
 
     // Self-heal: if the realtime listener had died, restart it so future
@@ -4265,6 +4420,7 @@ async function manualRefresh() {
   } catch (e) {
     console.error('manualRefresh', e);
     setSyncStatus('offline');
+    DB.dataIncomplete = true;
     refreshActiveSection();
     toast('⚠️ Refresh වුනේ නෑ — internet connection එක check කරන්න', 'red');
   }
@@ -4407,6 +4563,7 @@ function renderCredits() {
   $('cnt-credit-settled').textContent = settledData.length;
   if ($('cr-total-count')) $('cr-total-count').textContent = activeData.length;
   if ($('cr-total-amount')) $('cr-total-amount').textContent = fmt(activeData.reduce((a, c) => a + (Number(c.amount) || 0), 0));
+  if ($('cr-total-balance')) $('cr-total-balance').textContent = fmt(activeData.reduce((a, c) => a + getCreditBalance(c), 0));
 
   const { col, dir } = DB.sortState.credits;
   const sortFn = arr => sortData(arr, col, dir, (c, key) => {
@@ -5235,7 +5392,7 @@ function renderOverview() {
   if ($('ov-avg-day-month')) $('ov-avg-day-month').textContent = fmt(avgDayMonth);
   if ($('ov-avg-day-year')) $('ov-avg-day-year').textContent = fmt(avgDayYear);
   const cih=calcCashInHand();
-  if($('ov-cash-inhand'))$('ov-cash-inhand').textContent=fmt(cih);
+  if($('ov-cash-inhand'))$('ov-cash-inhand').textContent=cashInHandDisplayText();
   const rlEntries = getReloadEntries();
   if (rlEntries.length) {
     const latest = rlEntries[0];
@@ -5608,7 +5765,6 @@ function openModal(id) {
     }
     $('cr-amount').value = '';
     $('cr-notes').value = '';
-    $('cr-pay-section').style.display = 'none';
     clearSupSelection('cr');
     const nextNum = (DB.currentUser.counters?.credit || 0) + 1;
     $('cr-entry-id').value = 'CR' + String(nextNum).padStart(4, '0');
@@ -6253,18 +6409,6 @@ function openBillForSupplier(type, ownerUsername, supplierId) {
   }
 }
 
-function updateCrBalance() {
-  const amt = parseFloat($('cr-amount').value) || 0;
-  const p1 = parseFloat($('cr-p1').value) || 0;
-  const p2 = parseFloat($('cr-p2').value) || 0;
-  const p3 = parseFloat($('cr-p3').value) || 0;
-  const paid = p1 + p2 + p3;
-  const bal = amt - paid;
-  $('cr-bal-amt').textContent = fmt(amt);
-  $('cr-bal-paid').textContent = fmt(paid);
-  $('cr-bal-rem').textContent = fmt(bal);
-}
-
 function syncCreditTabUI() {
   document.querySelectorAll('#creditsSection .tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('#creditsSection .tab-content').forEach(t => t.classList.remove('show'));
@@ -6299,6 +6443,7 @@ function switchSettingsTab(tab) {
   $(`settings-tab-content-${tab}`)?.classList.add('show');
   DB.settingsTab = tab;
   if (tab === 'users') renderUsers();
+  else if (tab === 'permissions') renderPermissionsSettings();
   else if (tab === 'activity') renderActivityLog();
   else if (tab === 'backups') renderBackupsSection();
   else if (tab === 'alerts') checkPushSubscriptionState();
@@ -6620,14 +6765,6 @@ function editCredit(id, ownerUsername) {
   $('cr-date').value = c.date || today();
   $('cr-amount').value = c.amount || '';
   $('cr-notes').value = c.notes || '';
-  $('cr-p1').value = c.pay1 || '';
-  $('cr-p1-date').value = c.pay1date || '';
-  $('cr-p2').value = c.pay2 || '';
-  $('cr-p2-date').value = c.pay2date || '';
-  $('cr-p3').value = c.pay3 || '';
-  $('cr-p3-date').value = c.pay3date || '';
-  $('cr-pay-section').style.display = 'block';
-  updateCrBalance();
   const sup = (owner.suppliers || []).find(s => s.id === c.supplierId);
   if (sup) selectSupplier('cr', sup.id, sup.name);
   $('creditModal').classList.add('show');
@@ -7017,12 +7154,6 @@ function saveCredit() {
       existing.date = $('cr-date').value;
       existing.supplierId = supId;
       existing.amount = amount;
-      existing.pay1 = parseFloat($('cr-p1').value) || 0;
-      existing.pay1date = $('cr-p1-date').value || '';
-      existing.pay2 = parseFloat($('cr-p2').value) || 0;
-      existing.pay2date = $('cr-p2-date').value || '';
-      existing.pay3 = parseFloat($('cr-p3').value) || 0;
-      existing.pay3date = $('cr-p3-date').value || '';
       existing.notes = $('cr-notes').value || '';
       owner.credits[idx] = existing;
     }
@@ -7510,7 +7641,7 @@ function aiMonthLabel(offset) { const d = new Date(); d.setMonth(d.getMonth() + 
 
 // ----- 💰 Cash & Sales -----
 function aiqCashToday() {
-  return `<div class="ai-stat">${fmt(calcCashInHand())}</div><div style="color:var(--muted);font-size:.8rem;margin-top:.4rem;">සියලුම cashier ලාගේ sales − Cash Disposal Log entries — Manager අතේ දැනට තියෙන මුදල</div>`;
+  return `<div class="ai-stat">${cashInHandDisplayText()}</div><div style="color:var(--muted);font-size:.8rem;margin-top:.4rem;">සියලුම cashier ලාගේ sales − Cash Disposal Log entries — Manager අතේ දැනට තියෙන මුදල</div>`;
 }
 function aiqSalesForDay(dateStr, label) {
   const rows = getAllCashEntries().filter(e => e.date === dateStr);
@@ -8332,6 +8463,34 @@ function saveThemeGlobal(theme) {
   toast(`${THEMES[theme].name} යොදවා ඇත! ✅`);
 }
 
+function renderPermissionsSettings() {
+  const wrap = $('permissions-settings-wrap');
+  if (!wrap) return;
+  const perms = ROLE_PERMS.manager || {};
+  wrap.innerHTML = `
+    <div style="font-weight:700;font-size:.9rem;margin-bottom:.7rem;">💼 Manager — Sidebar Sections</div>
+    <div style="display:flex;flex-direction:column;gap:.55rem;max-width:420px;margin-bottom:1.2rem;">
+      ${DASHBOARD_SECTIONS.map(s => {
+        const checked = perms.hasOwnProperty(s.key) ? !!perms[s.key] : !!DEFAULT_MANAGER_PERMS[s.key];
+        return `<label style="display:flex;align-items:center;gap:.6rem;font-size:.9rem;cursor:pointer;">
+          <input type="checkbox" class="perm-chk" data-key="${s.key}" ${checked ? 'checked' : ''} style="width:18px;height:18px;flex-shrink:0;">
+          <span>${s.label}</span>
+        </label>`;
+      }).join('')}
+    </div>
+    <button class="btn btn-navy btn-sm" onclick="savePermissionsFromForm()">💾 Save Permissions</button>
+  `;
+}
+
+function savePermissionsFromForm() {
+  if (!isAdmin()) { toast('⚠️ Admin only', 'red'); return; }
+  const wrap = $('permissions-settings-wrap');
+  if (!wrap) return;
+  const newPerms = {};
+  wrap.querySelectorAll('.perm-chk').forEach(chk => { newPerms[chk.dataset.key] = chk.checked; });
+  saveRolePermissions(newPerms);
+}
+
 function renderThemeSettings() {
   const wrap = $('theme-settings-wrap');
   if (!wrap) return;
@@ -8646,6 +8805,20 @@ function calcCashInHand() {
   const totalNet=allEntries.reduce((a,e)=>a+(Number(e.netCash)||0),0);
   const totalDisposed=getCashLog().reduce((a,e)=>a+(Number(e.amount)||0),0);
   return totalNet-totalDisposed;
+}
+
+// Cash-in-Hand is a sum across EVERY user's doc — if DB.dataIncomplete is
+// true, the last attempt to load/sync those docs didn't fully succeed, so
+// the raw number from calcCashInHand() can't be trusted (it can even come
+// out as a scary-looking negative just because some docs are missing).
+// Every place that shows Cash-in-Hand on screen should go through this
+// helper instead of calling fmt(calcCashInHand()) directly, so a sync
+// problem shows "Syncing…" rather than a wrong figure. Also flips the
+// dashboard warning banner on/off to match.
+function cashInHandDisplayText() {
+  $('ov-data-warn')?.classList.toggle('hidden', !DB.dataIncomplete);
+  if (DB.dataIncomplete) return '⏳ Syncing…';
+  return fmt(calcCashInHand());
 }
 
 // Cash-in-hand balance as of just before a given date (YYYY-MM-DD), e.g. the 1st of the
@@ -9534,8 +9707,9 @@ function buildCashLogRowHtml(e, labels) {
 
 function renderCashLog() {
   const cih=calcCashInHand();
-  if($('cashInHandDisplay'))$('cashInHandDisplay').textContent=fmt(cih);
-  if($('ov-cash-inhand'))$('ov-cash-inhand').textContent=fmt(cih);
+  const cihText = cashInHandDisplayText();
+  if($('cashInHandDisplay'))$('cashInHandDisplay').textContent=cihText;
+  if($('ov-cash-inhand'))$('ov-cash-inhand').textContent=cihText;
   const logs=getCashLog();
   const labels={banked:'🏦 Banked',handed_owner:'🤝 Handed to Owner',cash_purchase:'🛒 Cash Purchase',credit_payment:'🧾 Credit Bill Payment',salary:'💼 Salary',other1:'📝 Other 1',other2:'📝 Other 2',other3:'📝 Other 3'};
 
@@ -9631,7 +9805,7 @@ function renderManagerCashLedger() {
   const tbody = $('mgrLedgerBody');
   const mobileEl = $('mgrLedgerMobile');
   if (!tbody) return;
-  if ($('mgrLedgerBalance')) $('mgrLedgerBalance').textContent = fmt(calcCashInHand());
+  if ($('mgrLedgerBalance')) $('mgrLedgerBalance').textContent = cashInHandDisplayText();
   const rows = getManagerCashLedger();
   const totalPages = Math.max(1, Math.ceil(rows.length / MGR_LEDGER_PAGE_SIZE));
   if (mgrLedgerPage > totalPages) mgrLedgerPage = totalPages;
@@ -10323,6 +10497,37 @@ function buildCashRowsHtml(rows, cashiers, opts) {
       <div style="font-size:.72rem;color:var(--muted);font-weight:500;white-space:normal;">${names}</div>
     </td>`;
   };
+  // Combined "💵 Payments" cell — Cash + QR + Cheque totalled together (every
+  // way a customer pays that isn't a card), breakdown of which underneath.
+  // Same on-top-total / below-breakdown pattern as bankedCell(), just for the
+  // Sales Breakdown side of the entry instead of the Expenses side.
+  const paymentCell = (cash, qr, cheque) => {
+    const c = Number(cash)||0, q = Number(qr)||0, ch = Number(cheque)||0;
+    const total = c + q + ch;
+    if (!total) return '<td style="color:var(--muted);">—</td>';
+    const parts = [];
+    if (c) parts.push(`💵 Cash: ${fmt(c)}`);
+    if (q) parts.push(`📱 QR: ${fmt(q)}`);
+    if (ch) parts.push(`🏦 Cheque: ${fmt(ch)}`);
+    return `<td>
+      <div class="fw700">${fmt(total)}</div>
+      <div style="font-size:.72rem;color:var(--muted);font-weight:500;white-space:normal;">${parts.join('<br>')}</div>
+    </td>`;
+  };
+  // Combined "💳 Card Sale" cell — SDB + DFCC card machines totalled together,
+  // which machine underneath.
+  const cardSaleCell = (sdb, dfcc) => {
+    const s = Number(sdb)||0, d = Number(dfcc)||0;
+    const total = s + d;
+    if (!total) return '<td style="color:var(--muted);">—</td>';
+    const parts = [];
+    if (s) parts.push(`SDB: ${fmt(s)}`);
+    if (d) parts.push(`DFCC: ${fmt(d)}`);
+    return `<td style="color:#0e7490;">
+      <div class="fw700">${fmt(total)}</div>
+      <div style="font-size:.72rem;color:var(--muted);font-weight:500;white-space:normal;">${parts.join('<br>')}</div>
+    </td>`;
+  };
   // 🧾 Pay Credit Bills (Cash) cell — total on top, and *which* bill(s) got reduced
   // underneath (supplier + bill reference), same idea as the Temp Queue breakdown.
   const creditPayCell = (creditPayments, ownerUsername) => {
@@ -10343,11 +10548,6 @@ function buildCashRowsHtml(rows, cashiers, opts) {
     const sdb = getExpByType(e.expenses, 'sdb', 1);
     const other = getExpByType(e.expenses, 'other', 2);
     const cashierName=cashiers[Number(e.cashierIdx)||0]||'Cashier '+(Number(e.cashierIdx||0)+1);
-    // Card SDB (creditSales) always comes right after Cash, then Card DFCC (cardPayments) —
-    // matches the column order in both the compact and full table headers.
-    const cardCells = opts.compact
-      ? `<td>${fmt(e.creditSales)}</td><td>${fmt(e.cardPayments)}</td>`
-      : `<td>${fmt(e.creditSales)}</td><td>${fmt(e.cardPayments)}</td><td>${fmt(e.qrPayments)}</td><td>${fmt(e.chequeReceived)}</td>`;
     const bankedSection = opts.compact
       ? bankedCell(pb, sdb) + purchaseCell(e.purchases)
       : expCell(pb,'var(--navy3)') + expCell(sdb,'var(--navy3)');
@@ -10360,8 +10560,8 @@ function buildCashRowsHtml(rows, cashiers, opts) {
     return `<tr>
       <td>${e.date||'—'}</td>
       <td><span class="user-data-badge">${cashierName}</span></td>
-      <td class="fw700">${fmt(e.totalCash)}</td>
-      ${cardCells}
+      ${paymentCell(e.totalCash, e.qrPayments, e.chequeReceived)}
+      ${cardSaleCell(e.creditSales, e.cardPayments)}
       <td class="fw700">${fmt(e.totalSales)}</td>
       ${advCell(e.advances)}
       ${opts.compact ? '' : creditPaySection}
@@ -10375,21 +10575,26 @@ function buildCashRowsHtml(rows, cashiers, opts) {
   }).join('');
   if (opts.showSummary === false) return rowsHtml;
   const summaryRows = opts.summaryRows || rows;
-  let tCash=0, tCardSDB=0, tCardDFCC=0, tSales=0, tAdv=0, tPurchase=0, tCreditPay=0, tPB=0, tSDB=0, tOther=0, tNet=0;
+  let tCash=0, tCardSDB=0, tCardDFCC=0, tQR=0, tCheque=0, tSales=0, tAdv=0, tPurchase=0, tCreditPay=0, tPB=0, tSDB=0, tOther=0, tNet=0;
   summaryRows.forEach(e => {
     const pb = getExpByType(e.expenses, 'pb', 0);
     const sdb = getExpByType(e.expenses, 'sdb', 1);
     const other = getExpByType(e.expenses, 'other', 2);
-    tCash+=Number(e.totalCash)||0; tCardSDB+=Number(e.creditSales)||0; tCardDFCC+=Number(e.cardPayments)||0; tSales+=Number(e.totalSales)||0;
+    tCash+=Number(e.totalCash)||0; tCardSDB+=Number(e.creditSales)||0; tCardDFCC+=Number(e.cardPayments)||0;
+    tQR+=Number(e.qrPayments)||0; tCheque+=Number(e.chequeReceived)||0;
+    tSales+=Number(e.totalSales)||0;
     tAdv+=(e.advances||[]).reduce((s,a)=>s+(Number(a.amount)||0),0);
     tPurchase+=(e.purchases||[]).reduce((s,p)=>s+(Number(p.amount)||0),0);
     tCreditPay+=(e.creditPayments||[]).reduce((s,p)=>s+(Number(p.amount)||0),0);
     tPB+=Number(pb.amount)||0; tSDB+=Number(sdb.amount)||0; tOther+=Number(other.amount)||0;
     tNet+=Number(e.netCash)||0;
   });
+  const tPayments = tCash + tQR + tCheque;
+  const tCardSale = tCardSDB + tCardDFCC;
   const summaryHtml = opts.compact ? `<tr class="summary-row">
-    <td>📊 Total (${summaryRows.length})</td><td></td><td class="fw700">${fmt(tCash)}</td>
-    <td class="fw700">${fmt(tCardSDB)}</td><td class="fw700">${fmt(tCardDFCC)}</td>
+    <td>📊 Total (${summaryRows.length})</td><td></td>
+    <td class="fw700">${fmt(tPayments)}</td>
+    <td class="fw700">${fmt(tCardSale)}</td>
     <td class="fw700">${fmt(tSales)}</td>
     <td style="color:#b45309;">${fmt(tAdv)}</td>
     <td style="color:var(--navy3);">${fmt(tPB+tSDB)}</td>
@@ -10397,7 +10602,9 @@ function buildCashRowsHtml(rows, cashiers, opts) {
     <td style="color:#0d9488;">${fmt(tCreditPay)}</td>
     <td class="fw700" style="color:#16a34a;">${fmt(tNet)}</td><td></td>
   </tr>` : `<tr class="summary-row">
-    <td>📊 Total (${summaryRows.length})</td><td></td><td class="fw700">${fmt(tCash)}</td><td colspan="4"></td>
+    <td>📊 Total (${summaryRows.length})</td><td></td>
+    <td class="fw700">${fmt(tPayments)}</td>
+    <td class="fw700">${fmt(tCardSale)}</td>
     <td class="fw700">${fmt(tSales)}</td>
     <td style="color:#b45309;">${fmt(tAdv)}</td>
     <td style="color:#0d9488;">${fmt(tCreditPay)}</td>
@@ -10429,12 +10636,12 @@ function renderCashCurrentMonth() {
   const opening = showOpening ? calcCashInHandBefore(monthKey+'-01') : 0;
   const openingHtml = (showOpening && opening !== 0)
     ? `<tr style="background:#eff6ff;">
-        <td colspan="8" style="font-weight:700;color:#1d4ed8;">🔄 Opening Balance <span style="font-weight:500;color:var(--muted);">(Cash in Hand carried from previous month)</span></td>
+        <td colspan="7" style="font-weight:700;color:#1d4ed8;">🔄 Opening Balance <span style="font-weight:500;color:var(--muted);">(Cash in Hand carried from previous month)</span></td>
         <td class="fw700" style="color:#1d4ed8;">${fmt(opening)}</td><td colspan="3"></td>
       </tr>`
     : '';
   if (!recentRows.length) {
-    tbody.innerHTML = openingHtml + `<tr><td colspan="12" class="no-data"><span class="ico">💰</span>No cash entries yet this month</td></tr>`;
+    tbody.innerHTML = openingHtml + `<tr><td colspan="11" class="no-data"><span class="ico">💰</span>No cash entries yet this month</td></tr>`;
     return;
   }
   tbody.innerHTML = openingHtml + buildCashRowsHtml(recentRows, cashiers, {showSummary:false, compact:true});
@@ -10452,7 +10659,7 @@ function renderSalesHistory() {
   if (cashHistPage > totalPages) cashHistPage = totalPages;
   if (cashHistPage < 1) cashHistPage = 1;
   if (!allRows.length) {
-    tbody.innerHTML='<tr><td colspan="16" class="no-data"><span class="ico">📜</span>No sales history yet</td></tr>';
+    tbody.innerHTML='<tr><td colspan="13" class="no-data"><span class="ico">📜</span>No sales history yet</td></tr>';
     renderPagination('cashHistPagination', 0, cashHistPage, 'goCashHistPage');
     return;
   }
@@ -11051,9 +11258,18 @@ function generateReport(type) {
     const cashRows = getCashRows();
     const totNet = cashRows.reduce((a,e)=>a+(Number(e.netCash)||0),0);
     doc.autoTable({ startY:37, styles:{fontSize:7.5}, headStyles:{fillColor:[15,23,42]},
-      head:[['Date','Cashier','Cash','Card SDB','Card DFCC','QR','Cheque','Total Sales','Advances','Expenses','Net Cash','By']],
-      body: cashRows.map(e=>{ const expAmt=(e.expenses||[]).reduce((a,ex)=>a+(Number(ex.amount)||0),0); const advAmt=(e.advances||[]).reduce((a,ad)=>a+(Number(ad.amount)||0),0); const cn=getCashiers(); return [e.date||'—',cn[Number(e.cashierIdx)||0]||'Cashier '+(Number(e.cashierIdx||0)+1),fmt(e.totalCash),fmt(e.creditSales),fmt(e.cardPayments),fmt(e.qrPayments),fmt(e.chequeReceived),fmt(e.totalSales),fmt(advAmt),fmt(expAmt),fmt(e.netCash),e._owner||'—']; }),
-      foot:[['Total ('+cashRows.length+')', '', '', '', '', '', '', '', '', '', fmt(totNet), '']]
+      head:[['Date','Cashier','Payments (Cash/QR/Cheque)','Card Sale (SDB/DFCC)','Total Sales','Advances','Expenses','Net Cash','By']],
+      body: cashRows.map(e=>{
+        const expAmt=(e.expenses||[]).reduce((a,ex)=>a+(Number(ex.amount)||0),0);
+        const advAmt=(e.advances||[]).reduce((a,ad)=>a+(Number(ad.amount)||0),0);
+        const cn=getCashiers();
+        const cash=Number(e.totalCash)||0, qr=Number(e.qrPayments)||0, chq=Number(e.chequeReceived)||0;
+        const sdb=Number(e.creditSales)||0, dfcc=Number(e.cardPayments)||0;
+        const paymentsStr = fmt(cash+qr+chq) + `\nCash: ${fmt(cash)}  QR: ${fmt(qr)}  Chq: ${fmt(chq)}`;
+        const cardSaleStr = fmt(sdb+dfcc) + `\nSDB: ${fmt(sdb)}  DFCC: ${fmt(dfcc)}`;
+        return [e.date||'—',cn[Number(e.cashierIdx)||0]||'Cashier '+(Number(e.cashierIdx||0)+1),paymentsStr,cardSaleStr,fmt(e.totalSales),fmt(advAmt),fmt(expAmt),fmt(e.netCash),e._owner||'—'];
+      }),
+      foot:[['Total ('+cashRows.length+')', '', '', '', '', '', '', fmt(totNet), '']]
     });
     doc.save('cash_report_'+today()+'.pdf');
   } else if (type === 'reload') {
@@ -11973,6 +12189,7 @@ restoreSidebarState();
   initMessaging();
   const loggedIn = await loadDB();
   await loadPayrollDB();
+  await loadRolePermissions();
 
   // Sync the admin's globally-chosen theme (source of truth) now that DB is loaded
   try {
