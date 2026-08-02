@@ -1143,12 +1143,12 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
         ⚠️ Data sync issue — some figures below (e.g. Cash in Hand) may be incomplete right now. Check your internet connection and tap Refresh.
       </div>
       <div class="stats-grid">
-        <div class="stat-card yellow">
+        <div class="stat-card yellow" id="tile-activeCheques">
           <div class="stat-label">💰 Active Cheques Amount</div>
           <div class="stat-val" id="ov-tc">LKR 0</div>
           <div class="stat-sub">✅ <span id="ov-chq">0</span> cheques active &nbsp;·&nbsp; ⚠️ <span id="ov-over">0</span> overdue</div>
         </div>
-        <div class="stat-card red">
+        <div class="stat-card red" id="tile-outstanding">
           <div class="stat-label">⏳ Outstanding</div>
           <div class="stat-val" id="ov-out">LKR 0</div>
           <div class="stat-sub">📋 <span id="ov-active-cr">0</span> active bills</div>
@@ -1166,6 +1166,19 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
         </div>
         <div class="stat-card accent" id="rlStatTotal"><div class="stat-label">📱 Total Reload Balance</div><div class="stat-val" id="ov-rl-total">LKR 0</div></div>
         <div class="stat-card green" id="rlStatCash"><div class="stat-label">💵 Reload Cash in Hand</div><div class="stat-val" id="ov-rl-cash">LKR 0</div></div>
+        <div class="stat-card hidden" id="tile-totalPurchasesMonth" style="border-top:3px solid #7c3aed;">
+          <div class="stat-label">🛒 Total Purchases This Month</div>
+          <div class="stat-val" id="ov-total-purch-month">LKR 0</div>
+        </div>
+        <div class="stat-card hidden" id="tile-chequesDueWeek" style="border-top:3px solid #ea580c;">
+          <div class="stat-label">📆 Cheques Due This Week</div>
+          <div class="stat-val" id="ov-cheques-due-week">LKR 0</div>
+          <div class="stat-sub">🔴 <span id="ov-cheques-due-overdue">0</span> overdue &nbsp;·&nbsp; 🟡 <span id="ov-cheques-due-soon">0</span> due soon</div>
+        </div>
+        <div class="stat-card hidden" id="tile-netProfitMonth" style="border-top:3px solid var(--green,#15803d);">
+          <div class="stat-label">💰 Net Profit This Month</div>
+          <div class="stat-val" id="ov-net-profit-month">LKR 0</div>
+        </div>
       </div>
       <!-- Rotating carousel 2: cycles Monthly Sales Growth / Daily Total Sales / Daily Sales
            Comparison, one slide at a time, every 6s (same rotation as the mini-chart carousel
@@ -1175,7 +1188,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
            quick glance away. -->
       <div class="card ov-carousel hidden" id="ov-carousel2-card" style="margin-top:.6rem;margin-bottom:1.2rem;">
         <div class="ov-carousel-slides" id="ov-carousel2-slides">
-          <div class="ov-carousel-slide active" data-slide="0">
+          <div class="ov-carousel-slide active" data-slide="0" id="ov-slide-salesGrowth">
             <div class="card-head">
               <div class="card-title">📊 Monthly Sales Growth</div>
               <select id="ov-monthly-growth-range" onchange="renderMonthlySalesGrowthChart()" style="padding:.4rem .8rem;border:1.5px solid var(--border);border-radius:8px;font-size:.82rem;background:var(--surface);color:var(--text);">
@@ -1188,7 +1201,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
               <div id="ov-monthly-growth-chart" class="simple-chart mini-apex-wrap" style="min-height:230px;"></div>
             </div>
           </div>
-          <div class="ov-carousel-slide" data-slide="1">
+          <div class="ov-carousel-slide" data-slide="1" id="ov-slide-dailySales">
             <div class="card-head">
               <div class="card-title">📈 Daily Total Sales</div>
               <select id="ov-daily-sales-range" onchange="renderDailySalesChart()" style="padding:.4rem .8rem;border:1.5px solid var(--border);border-radius:8px;font-size:.82rem;background:var(--surface);color:var(--text);">
@@ -1203,7 +1216,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
               <div id="ov-daily-sales-chart" class="simple-chart mini-apex-wrap" style="min-height:170px;"></div>
             </div>
           </div>
-          <div class="ov-carousel-slide" data-slide="2">
+          <div class="ov-carousel-slide" data-slide="2" id="ov-slide-salesComparison">
             <div class="card-head">
               <div class="card-title">📊 Daily Sales Comparison</div>
               <select id="ov-sales-comparison-range" onchange="renderDailySalesComparisonChart()" style="padding:.4rem .8rem;border:1.5px solid var(--border);border-radius:8px;font-size:.82rem;background:var(--surface);color:var(--text);">
@@ -1225,7 +1238,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
       <!-- Rotating carousel: cycles the 5 dashboard mini-charts, one at a time, every 4s -->
       <div class="card ov-carousel" id="ov-carousel-card" style="margin-top:.6rem;">
         <div class="ov-carousel-slides" id="ov-carousel-slides">
-          <div class="ov-carousel-slide active" data-slide="0">
+          <div class="ov-carousel-slide active" data-slide="0" id="ov-slide-creditTrend">
             <div class="card-head">
               <div class="card-title">📈 Monthly Credit Trend</div>
               <select id="ov-credit-range" onchange="renderOverview()" style="padding:.35rem .7rem;border:1.5px solid var(--border);border-radius:7px;font-size:.78rem;background:var(--surface);color:var(--text);">
@@ -1236,7 +1249,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
             </div>
             <div id="ov-credit-chart" class="simple-chart mini-chartjs-wrap" style="min-height:160px;"></div>
           </div>
-          <div class="ov-carousel-slide" data-slide="1">
+          <div class="ov-carousel-slide" data-slide="1" id="ov-slide-chequeStatus">
             <div class="card-head"><div class="card-title">📊 Cheque Status Overview</div></div>
             <div id="ov-cheque-chart" class="simple-chart mini-apex-wrap" style="min-height:160px;"></div>
           </div>
@@ -1261,12 +1274,18 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
             </div>
             <div id="ov-payment-chart" class="simple-chart mini-apex-wrap" style="min-height:160px;padding:1rem 1.2rem;"></div>
           </div>
-          <div class="ov-carousel-slide" data-slide="4">
+          <div class="ov-carousel-slide" data-slide="4" id="ov-slide-purchasesBreakdown">
             <div class="card-head">
               <div class="card-title">🛒 Purchases Breakdown</div>
               <select id="ov-purch-month" onchange="renderPurchasesBreakdown()" style="padding:.35rem .7rem;border:1.5px solid var(--border);border-radius:7px;font-size:.78rem;background:var(--surface);color:var(--text);"></select>
             </div>
             <div id="ov-purchases-breakdown" class="simple-chart" style="min-height:140px;padding:.6rem 1.2rem 1rem;"></div>
+          </div>
+          <div class="ov-carousel-slide" data-slide="5" id="ov-slide-topSuppliers">
+            <div class="card-head">
+              <div class="card-title">🏆 Top Suppliers by Purchase Value</div>
+            </div>
+            <div id="ov-top-suppliers-chart" class="simple-chart mini-chartjs-wrap" style="min-height:160px;"></div>
           </div>
         </div>
         <div class="ov-carousel-dots" id="ov-carousel-dots">
@@ -1275,6 +1294,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
           <span class="ov-dot" onclick="ovGoToSlide(2)" title="Monthly Sales Trend"></span>
           <span class="ov-dot" onclick="ovGoToSlide(3)" title="Payment Breakdown"></span>
           <span class="ov-dot" onclick="ovGoToSlide(4)" title="Purchases Breakdown"></span>
+          <span class="ov-dot" onclick="ovGoToSlide(5)" title="Top Suppliers by Purchase Value"></span>
         </div>
       </div>
     </div>
@@ -1613,7 +1633,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
           </div>
           <div style="padding:1.2rem 1.5rem;">
             <p style="color:var(--muted);font-size:.85rem;margin-bottom:1.1rem;">
-              🔐 මෙතනින් ✅ Tick කරන Sections විතරයි <b>Manager</b> කෙනෙක්ගේ Sidebar එකේ පේන්නේ — Untick කළොත් ඒ Section එක ඒ අයට සම්පූර්ණයෙන්ම වැහෙනවා (URL/link එකෙන් වුනත් යන්න බෑ). <b>Admin</b> ට හැමවිටම සියලුම Sections පේනවා, මේකෙන් වෙනසක් වෙන්නේ නෑ. <b>Cashier</b> දිගටම Cash Entry screen එකට locked වෙලා ඉන්නවා — එකත් මේකෙන් වෙනස් වෙන්නේ නෑ.
+              🔐 මෙතනින් ✅ Tick කරන Sidebar Sections, Dashboard Tiles සහ Charts විතරයි <b>Manager</b> කෙනෙක්ට පේන්නේ — Untick කළොත් ඒ එක ඒ අයගෙන් සම්පූර්ණයෙන්ම වැහෙනවා (URL/link එකෙන් වුනත් යන්න බෑ). <b>Admin</b> ට හැමවිටම සියල්ල පේනවා, මේකෙන් වෙනසක් වෙන්නේ නෑ. <b>Cashier</b> දිගටම Cash Entry screen එකට locked වෙලා ඉන්නවා — එකත් මේකෙන් වෙනස් වෙන්නේ නෑ.
             </p>
             <div id="permissions-settings-wrap"></div>
           </div>
@@ -3204,19 +3224,49 @@ const EPF_EMPLOYER_RATE = 0.12;
 const ETF_EMPLOYER_RATE = 0.03;
 
 // ===== DASHBOARD PERMISSIONS (shared company-wide, admin-editable) =====
-// Controls which sidebar sections the Manager role can see. Stored at
-// cms_settings/dashboardPermissions as { manager: { credits:true, ... } }.
-// Admin is never restricted by this (isAdmin() always bypasses it below),
-// and Cashier keeps its existing dedicated cash-entry lock untouched — this
-// only governs Manager's sidebar.
+// Controls which sidebar sections, dashboard stat tiles, and dashboard
+// charts the Manager role can see. Stored at cms_settings/dashboardPermissions
+// as a single flat { manager: { <key>: true/false, ... } } map — sidebar keys,
+// tile_* keys and chart_* keys all live together since the name prefixes
+// keep them from colliding. Admin is never restricted by this (isAdmin()
+// always bypasses it below), and Cashier keeps its existing dedicated
+// cash-entry lock untouched — this only governs Manager's sidebar/dashboard.
 let rolePermDocRef = null;
 let rolePermLiveUnsub = null;
-let ROLE_PERMS = { manager: {} };
+// manager: gates what Manager sees (Admin bypasses these). admin: a small
+// separate set of items where even ADMIN gets an independent on/off tick
+// instead of always seeing it — see ADMIN_TOGGLEABLE_KEYS below.
+let ROLE_PERMS = { manager: {}, admin: {} };
 // Defaults match the app's original behavior (Manager could see all of
 // these) so an empty/missing doc changes nothing for existing installs.
+// EXTENDING THIS LATER: adding a brand-new toggleable sidebar section, stat
+// tile, or chart is just: (1) one default key here, (2) one entry in
+// DASHBOARD_SECTIONS/DASHBOARD_TILES/DASHBOARD_CHARTS below pointing at its
+// DOM id, and (3) wrap that element with a matching id in the HTML if it
+// doesn't have one yet. It then automatically appears as a checkbox in
+// Settings > Permissions and gets enforced — no other code changes needed.
+// Add `adminToggle: true` to a registry entry if Admin should ALSO get an
+// independent tick for it (see DEFAULT_ADMIN_PERMS + ADMIN_TOGGLEABLE_KEYS).
 const DEFAULT_MANAGER_PERMS = {
+  // Sidebar sections
   credits: true, cheques: true, suppliers: true, reports: true,
-  analytics: true, aiinsights: true, reload: true, cash: true, payroll: true
+  analytics: true, aiinsights: true, reload: true, cash: true, payroll: true,
+  // Dashboard stat tiles
+  tile_activeCheques: true, tile_outstanding: true, tile_avgDaySale: true,
+  tile_cashInHand: true, tile_reloadTotal: true, tile_reloadCash: true,
+  tile_totalPurchasesMonth: true, tile_chequesDueWeek: true, tile_netProfitMonth: true,
+  // Dashboard charts (both mini-chart carousels)
+  chart_monthlyCreditTrend: true, chart_chequeStatusOverview: true,
+  chart_monthlySalesTrend: true, chart_paymentBreakdown: true,
+  chart_purchasesBreakdown: true, chart_monthlySalesGrowth: true,
+  chart_dailyTotalSales: true, chart_dailySalesComparison: true,
+  chart_topSuppliers: true
+};
+// Defaults for the small set of items Admin can also independently toggle
+// (see `adminToggle: true` entries in DASHBOARD_TILES/DASHBOARD_CHARTS).
+const DEFAULT_ADMIN_PERMS = {
+  tile_totalPurchasesMonth: true, tile_chequesDueWeek: true, tile_netProfitMonth: true,
+  chart_topSuppliers: true
 };
 // key = internal section name (matches showSection()'s `name` argument),
 // navId = the sidebar <div> id to show/hide, label = shown in Settings.
@@ -3231,6 +3281,40 @@ const DASHBOARD_SECTIONS = [
   { key: 'cash',       navId: 'cashNavLink',        label: '💰 Cash' },
   { key: 'payroll',    navId: 'payrollNavLink',     label: '🧑\u200d💼 Payroll' }
 ];
+// Dashboard stat tiles (the small cards at the top of the Dashboard/Overview
+// page). elId = the tile's own DOM id, toggled with a plain hidden class.
+const DASHBOARD_TILES = [
+  { key: 'tile_activeCheques', elId: 'tile-activeCheques', label: '💰 Active Cheques Amount' },
+  { key: 'tile_outstanding',   elId: 'tile-outstanding',   label: '⏳ Outstanding' },
+  { key: 'tile_avgDaySale',    elId: 'avgSaleStat',        label: '📊 Average Day Sale' },
+  { key: 'tile_cashInHand',    elId: 'cashInHandStat',     label: '💵 Cash in Hand' },
+  { key: 'tile_reloadTotal',   elId: 'rlStatTotal',        label: '📱 Total Reload Balance' },
+  { key: 'tile_reloadCash',    elId: 'rlStatCash',         label: '💵 Reload Cash in Hand' },
+  { key: 'tile_totalPurchasesMonth', elId: 'tile-totalPurchasesMonth', label: '🛒 Total Purchases This Month', adminToggle: true },
+  { key: 'tile_chequesDueWeek',      elId: 'tile-chequesDueWeek',      label: '📆 Cheques Due This Week',      adminToggle: true },
+  { key: 'tile_netProfitMonth',      elId: 'tile-netProfitMonth',      label: '💰 Net Profit This Month',       adminToggle: true }
+];
+// Dashboard mini-charts, both carousels. slideId = the chart's carousel-slide
+// wrapper id; dotsId = that carousel's dot-strip id (so its dot can be
+// hidden alongside the slide). Availability is applied via the same
+// ovSetSlideAvailable() mechanism the carousels already use to skip
+// "no data yet" slides — permission-off behaves exactly like "no data".
+const DASHBOARD_CHARTS = [
+  { key: 'chart_monthlyCreditTrend',   slideId: 'ov-slide-creditTrend',        dotsId: 'ov-carousel-dots',  label: '📈 Monthly Credit Trend' },
+  { key: 'chart_chequeStatusOverview', slideId: 'ov-slide-chequeStatus',       dotsId: 'ov-carousel-dots',  label: '📊 Cheque Status Overview' },
+  { key: 'chart_monthlySalesTrend',    slideId: 'ov-sales-row',                dotsId: 'ov-carousel-dots',  label: '💰 Monthly Sales Trend' },
+  { key: 'chart_paymentBreakdown',     slideId: 'ov-payment-row',              dotsId: 'ov-carousel-dots',  label: '💳 Payment Breakdown' },
+  { key: 'chart_purchasesBreakdown',   slideId: 'ov-slide-purchasesBreakdown', dotsId: 'ov-carousel-dots',  label: '🛒 Purchases Breakdown' },
+  { key: 'chart_monthlySalesGrowth',   slideId: 'ov-slide-salesGrowth',        dotsId: 'ov-carousel2-dots', label: '📊 Monthly Sales Growth' },
+  { key: 'chart_dailyTotalSales',      slideId: 'ov-slide-dailySales',         dotsId: 'ov-carousel2-dots', label: '📈 Daily Total Sales' },
+  { key: 'chart_dailySalesComparison', slideId: 'ov-slide-salesComparison',    dotsId: 'ov-carousel2-dots', label: '📊 Daily Sales Comparison' },
+  { key: 'chart_topSuppliers',         slideId: 'ov-slide-topSuppliers',       dotsId: 'ov-carousel-dots',  label: '🏆 Top Suppliers by Purchase Value', adminToggle: true }
+];
+// Keys that get an independent Admin tick (built from the `adminToggle`
+// flags above) — for every other key, Admin always sees it, unrestricted.
+const ADMIN_TOGGLEABLE_KEYS = new Set(
+  [...DASHBOARD_TILES, ...DASHBOARD_CHARTS].filter(x => x.adminToggle).map(x => x.key)
+);
 
 let fdb = null;
 let fauth = null;
@@ -3303,24 +3387,39 @@ function canAccessPayroll() {
   return isAdmin() || isManager();
 }
 
-// Is `section` (one of DASHBOARD_SECTIONS' keys) visible to the CURRENT user?
-// Admin always sees everything. Cashier is intentionally untouched by this —
-// its sidebar-hidden/cash-only lock is handled entirely elsewhere.
-function sectionAllowed(section) {
-  if (isAdmin()) return true;
+// Is `key` (a DASHBOARD_SECTIONS/DASHBOARD_TILES/DASHBOARD_CHARTS key)
+// visible to the CURRENT user? Admin normally always sees everything —
+// EXCEPT for the small set of keys in ADMIN_TOGGLEABLE_KEYS, where Admin
+// gets its own independent tick too (see DEFAULT_ADMIN_PERMS). Cashier is
+// intentionally untouched by this — its sidebar-hidden/cash-only lock is
+// handled entirely elsewhere.
+function isDashPermAllowed(key) {
+  if (isAdmin()) {
+    if (!ADMIN_TOGGLEABLE_KEYS.has(key)) return true;
+    const aPerms = ROLE_PERMS.admin || {};
+    return aPerms.hasOwnProperty(key) ? !!aPerms[key] : !!DEFAULT_ADMIN_PERMS[key];
+  }
   if (!isManager()) return false;
   const perms = ROLE_PERMS.manager || {};
-  return perms.hasOwnProperty(section) ? !!perms[section] : !!DEFAULT_MANAGER_PERMS[section];
+  return perms.hasOwnProperty(key) ? !!perms[key] : !!DEFAULT_MANAGER_PERMS[key];
 }
+function sectionAllowed(section) { return isDashPermAllowed(section); }
+function tileAllowed(key) { return isDashPermAllowed(key); }
+function chartAllowed(key) { return isDashPermAllowed(key); }
 
-// Shows/hides each togglable sidebar link for the current user based on
-// ROLE_PERMS, and bounces them off any section they're currently viewing
-// if it was just switched off (e.g. an admin changed permissions live while
-// this manager already had that section open).
+// Shows/hides each togglable sidebar link + dashboard stat tile for the
+// current user based on ROLE_PERMS, and bounces them off any section
+// they're currently viewing if it was just switched off (e.g. an admin
+// changed permissions live while this manager already had that section
+// open). Dashboard charts are handled separately inside renderOverview(),
+// since their visibility also depends on whether there's data to show.
 function applyNavPermissions() {
   if (!DB.currentUser || isCashier()) return;
   DASHBOARD_SECTIONS.forEach(s => {
     $(s.navId)?.classList.toggle('hidden', !sectionAllowed(s.key));
+  });
+  DASHBOARD_TILES.forEach(t => {
+    $(t.elId)?.classList.toggle('hidden', !tileAllowed(t.key));
   });
   const active = document.querySelector('.section.show');
   if (active) {
@@ -3434,6 +3533,18 @@ function isChequeSettled(ch) {
 
 function isOverdue(ch) {
   return !!(ch.dueDate && ch.dueDate < today() && ch.status !== 'cleared');
+}
+
+// Pending cheques (within the CURRENT VIEWER's scope — same as the
+// "Active Cheques Amount"/"Outstanding" tiles: Manager sees only their own,
+// Admin sees everyone's) that need attention soon: already overdue, OR due
+// within the next 7 days. Same window/logic as aiComputeRiskAlerts()'s
+// overdue_cheque + due_soon buckets (and the chequeDueReminder push
+// notification function), just returned as a flat list for the
+// "Cheques Due This Week" dashboard tile.
+function getChequesNeedingAttention() {
+  const soon = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  return getDataRows('cheques').filter(ch => !isChequeSettled(ch) && (isOverdue(ch) || (ch.dueDate && ch.dueDate <= soon && ch.dueDate >= today())));
 }
 
 // ============= CHEQUES IN MANAGER'S HAND (blank-cheque pool) =============
@@ -4003,6 +4114,7 @@ async function loadRolePermissions() {
     if (snap.exists) {
       const data = snap.data();
       ROLE_PERMS.manager = data.manager || {};
+      ROLE_PERMS.admin = data.admin || {};
       try { localStorage.setItem('cms_role_perms', JSON.stringify(ROLE_PERMS)); } catch (e) {}
     }
     startRolePermLiveSync();
@@ -4015,7 +4127,11 @@ async function loadRolePermissions() {
 function loadRolePermissionsLocal() {
   try {
     const raw = localStorage.getItem('cms_role_perms');
-    if (raw) ROLE_PERMS.manager = JSON.parse(raw).manager || {};
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      ROLE_PERMS.manager = parsed.manager || {};
+      ROLE_PERMS.admin = parsed.admin || {};
+    }
   } catch (e) { console.error('loadRolePermissionsLocal', e); }
 }
 
@@ -4027,9 +4143,11 @@ function startRolePermLiveSync() {
     if (!snap.exists) return;
     const data = snap.data();
     ROLE_PERMS.manager = data.manager || {};
+    ROLE_PERMS.admin = data.admin || {};
     try { localStorage.setItem('cms_role_perms', JSON.stringify(ROLE_PERMS)); } catch (e) { console.error('role perm live sync local mirror', e); }
     applyNavPermissions();
     const active = document.querySelector('.section.show');
+    if (active && active.id === 'overviewSection') renderOverview();
     if (active && active.id === 'settingsSection' && DB.settingsTab === 'permissions') renderPermissionsSettings();
   }, async err => {
     console.error('role perm live sync', err);
@@ -4044,17 +4162,19 @@ function startRolePermLiveSync() {
   });
 }
 
-async function saveRolePermissions(newManagerPerms) {
+async function saveRolePermissions(newManagerPerms, newAdminPerms) {
   if (!isAdmin()) { toast('⚠️ Admin only', 'red'); return; }
   ROLE_PERMS.manager = newManagerPerms;
+  ROLE_PERMS.admin = newAdminPerms || {};
   try { localStorage.setItem('cms_role_perms', JSON.stringify(ROLE_PERMS)); } catch (e) { console.error('saveRolePermissions local mirror', e); }
   applyNavPermissions();
+  refreshActiveSection();
   if (!firebaseReady() || !rolePermDocRef) {
     toast('✅ Saved locally (offline mode)');
     return;
   }
   try {
-    await rolePermDocRef.set({ manager: newManagerPerms }, { merge: true });
+    await rolePermDocRef.set({ manager: newManagerPerms, admin: ROLE_PERMS.admin }, { merge: true });
     toast('✅ Permissions updated');
   } catch (e) {
     console.error('saveRolePermissions', e);
@@ -4212,8 +4332,6 @@ function initDashboard() {
   $('ch-filter-user')?.classList.toggle('hidden', !isAdmin());
   if (isAdmin()) checkPushSubscriptionState();
   applyNavPermissions();
-  $('avgSaleStat')?.classList.remove('hidden');
-  $('cashInHandStat')?.classList.remove('hidden');
   $('plNavLink')?.classList.toggle('hidden', !isAdmin());
   $('aiAskBtn')?.classList.toggle('hidden', !(isAdmin() || isManager()));
   $('dateEl').textContent = '📅 ' + new Date().toLocaleDateString('en-US', {
@@ -5380,6 +5498,24 @@ function renderOverview() {
   const nowD = new Date();
   const curMonthKey = `${nowD.getFullYear()}-${String(nowD.getMonth() + 1).padStart(2, '0')}`;
   const curYearKey = String(nowD.getFullYear());
+  const curMonthNum = String(nowD.getMonth() + 1).padStart(2, '0');
+
+  // Cheques Due This Week tile — overdue pending cheques ("පරන බිල්") PLUS
+  // ones due within the next 7 days, same window aiComputeRiskAlerts() uses.
+  const chequesAttn = getChequesNeedingAttention();
+  const chequesAttnAmt = chequesAttn.reduce((a, c) => a + (Number(c.amount) || 0), 0);
+  const chequesAttnOverdue = chequesAttn.filter(isOverdue).length;
+  if ($('ov-cheques-due-week')) $('ov-cheques-due-week').textContent = fmt(chequesAttnAmt);
+  if ($('ov-cheques-due-overdue')) $('ov-cheques-due-overdue').textContent = chequesAttnOverdue;
+  if ($('ov-cheques-due-soon')) $('ov-cheques-due-soon').textContent = chequesAttn.length - chequesAttnOverdue;
+
+  // Total Purchases This Month tile — same calc as the Purchases Breakdown chart below.
+  const purchThisMonth = computeTotalPurchases(curMonthKey);
+  if ($('ov-total-purch-month')) $('ov-total-purch-month').textContent = fmt(purchThisMonth.total);
+
+  // Net Profit This Month tile — same calc as the P&L page.
+  const plThisMonth = computePL(curYearKey, curMonthNum);
+  if ($('ov-net-profit-month')) $('ov-net-profit-month').textContent = fmt(plThisMonth.netProfit);
   const monthDays = new Set(), yearDays = new Set();
   let monthSalesTotal = 0, yearSalesTotal = 0;
   allCashForAvg.forEach(e => {
@@ -5418,6 +5554,7 @@ function renderOverview() {
     return { label, value: monthMap.get(k) };
   });
   renderBarChartJS('ov-credit-chart', monthItems, v => fmt(v), '#2563eb');
+  ovSetSlideAvailable('ov-slide-creditTrend', chartAllowed('chart_monthlyCreditTrend'), 'ov-carousel-dots');
 
   // Chart 2: Cheque Status Overview
   const pending = cheques.filter(c => c.status === 'pending').length;
@@ -5430,16 +5567,20 @@ function renderOverview() {
     { label: '⚠️ Overdue', value: overdue.length, color: '#ea580c' }
   ].filter(i => i.value > 0);
   renderDonutApex('ov-cheque-chart', chequeItems);
+  ovSetSlideAvailable('ov-slide-chequeStatus', chartAllowed('chart_chequeStatusOverview'), 'ov-carousel-dots');
 
   // Mini Sales Charts on Dashboard
   const allCash = getAllCashEntries ? getAllCashEntries() : [];
-  ovSetSlideAvailable('ov-sales-row', !!allCash.length);
-  ovSetSlideAvailable('ov-payment-row', !!allCash.length);
+  ovSetSlideAvailable('ov-sales-row', !!allCash.length && chartAllowed('chart_monthlySalesTrend'), 'ov-carousel-dots');
+  ovSetSlideAvailable('ov-payment-row', !!allCash.length && chartAllowed('chart_paymentBreakdown'), 'ov-carousel-dots');
   if ($('ov-carousel2-card')) $('ov-carousel2-card').classList.toggle('hidden', !allCash.length);
   if (allCash.length) {
     try { renderDailySalesChart(); } catch (e) { console.error('renderDailySalesChart failed:', e); }
     try { renderMonthlySalesGrowthChart(); } catch (e) { console.error('renderMonthlySalesGrowthChart failed:', e); }
     try { renderDailySalesComparisonChart(); } catch (e) { console.error('renderDailySalesComparisonChart failed:', e); }
+    ovSetSlideAvailable('ov-slide-salesGrowth', chartAllowed('chart_monthlySalesGrowth'), 'ov-carousel2-dots');
+    ovSetSlideAvailable('ov-slide-dailySales', chartAllowed('chart_dailyTotalSales'), 'ov-carousel2-dots');
+    ovSetSlideAvailable('ov-slide-salesComparison', chartAllowed('chart_dailySalesComparison'), 'ov-carousel2-dots');
     const mSales = new Map();
     allCash.forEach(e => {
       if (!e.date) return;
@@ -5480,6 +5621,21 @@ function renderOverview() {
     try { renderDonutApex('ov-payment-chart', ptypes2); } catch (e) { console.error('ov-payment-chart failed:', e); }
   }
   try { renderPurchasesBreakdown(); } catch (e) { console.error('renderPurchasesBreakdown failed:', e); }
+  ovSetSlideAvailable('ov-slide-purchasesBreakdown', chartAllowed('chart_purchasesBreakdown'), 'ov-carousel-dots');
+
+  // Top Suppliers by Purchase Value — all-time ranking, top 5 (reuses the same
+  // _purchaseValue figure the Suppliers page sorts by, just re-ranked here).
+  try {
+    const topSup = renderSupplierRows()
+      .slice()
+      .sort((a, b) => b._purchaseValue - a._purchaseValue)
+      .filter(s => s._purchaseValue > 0)
+      .slice(0, 5)
+      .map(s => ({ label: s.name, value: s._purchaseValue }));
+    renderBarChartJS('ov-top-suppliers-chart', topSup, v => fmt(v), '#0e7490');
+    ovSetSlideAvailable('ov-slide-topSuppliers', !!topSup.length && chartAllowed('chart_topSuppliers'), 'ov-carousel-dots');
+  } catch (e) { console.error('ov-top-suppliers-chart failed:', e); }
+
   try { ovInitCarousel(); } catch (e) { console.error('ovInitCarousel failed:', e); }
   try { ovInitCarousel2(); } catch (e) { console.error('ovInitCarousel2 failed:', e); }
 }
@@ -5493,10 +5649,16 @@ let ovCarouselIndex = 0;
 let ovCarouselTimer = null;
 let ovCarouselStarted = false;
 
-function ovSetSlideAvailable(slideId, available) {
+function ovSetSlideAvailable(slideId, available, dotsId) {
   const el = $(slideId);
   if (!el) return;
   el.setAttribute('data-nodata', available ? '0' : '1');
+  if (dotsId) {
+    const slides = [...el.parentElement.children];
+    const idx = slides.indexOf(el);
+    const dot = document.querySelectorAll(`#${dotsId} .ov-dot`)[idx];
+    dot?.classList.toggle('hidden', !available);
+  }
 }
 
 function ovAvailableSlides() {
@@ -5630,6 +5792,21 @@ function ovRefreshChartVisibility2(idx) {
   } catch (e) { console.error('ovRefreshChartVisibility2 failed:', e); }
 }
 
+// Total purchases (Cash + Credit + Cheque) for a given 'YYYY-MM' month —
+// shared by the Purchases Breakdown chart above and the "Total Purchases
+// This Month" dashboard tile, so both always agree with each other and
+// with the P&L's own purchase figures (same exclusions: admin-owned
+// supplier records, credit-settlement-linked cheques/cash purchases).
+function computeTotalPurchases(monthKey) {
+  const inMonth = d => (d || '').slice(0, 7) === monthKey;
+  const cashAmt = getCashPurchaseRowsRaw().filter(p => inMonth(p.date) && !isAdminOwnedRecord(p._owner) && !p.linkedCreditId).reduce((a, p) => a + (Number(p.amount) || 0), 0);
+  const creditsThisMonth = getAllCredits().filter(c => inMonth(c.date) && !isAdminOwnedRecord(c._owner));
+  const creditAmt = creditsThisMonth.reduce((a, c) => a + getCreditPurchaseAmt(c), 0);
+  const chequeAmt = getAllCheques().filter(c => inMonth(c.date) && !isAdminOwnedRecord(c._owner) && !c.linkedCreditId).reduce((a, c) => a + (Number(c.amount) || 0), 0)
+    + creditsThisMonth.reduce((a, c) => a + getCreditSettledByChequeAmt(c), 0);
+  return { cashAmt, creditAmt, chequeAmt, total: cashAmt + creditAmt + chequeAmt };
+}
+
 // Purchases broken down by type (Cash / Credit / Cheque) for a selectable month
 // (defaults to the current month), with each type's share of the total and a
 // "View List →" link that jumps straight to that type's filtered list for the
@@ -5660,17 +5837,7 @@ function renderPurchasesBreakdown() {
   }
   const monthKey = monthSel?.value || curKey;
 
-  const inMonth = d => (d || '').slice(0, 7) === monthKey;
-  const cashAmt = getCashPurchaseRowsRaw().filter(p => inMonth(p.date) && !isAdminOwnedRecord(p._owner) && !p.linkedCreditId).reduce((a, p) => a + (Number(p.amount) || 0), 0);
-  const creditsThisMonth = getAllCredits().filter(c => inMonth(c.date) && !isAdminOwnedRecord(c._owner));
-  // Credit bills settled by a linked Cheque no longer count under Credit — that
-  // paid-off portion moves to Cheque instead (see getCreditSettledByChequeAmt),
-  // attributed to the credit's own month so the month's Total Purchases doesn't
-  // shift just because the settling cheque happens to be dated in a later month.
-  const creditAmt = creditsThisMonth.reduce((a, c) => a + getCreditPurchaseAmt(c), 0);
-  const chequeAmt = getAllCheques().filter(c => inMonth(c.date) && !isAdminOwnedRecord(c._owner) && !c.linkedCreditId).reduce((a, c) => a + (Number(c.amount) || 0), 0)
-    + creditsThisMonth.reduce((a, c) => a + getCreditSettledByChequeAmt(c), 0);
-  const total = cashAmt + creditAmt + chequeAmt;
+  const { cashAmt, creditAmt, chequeAmt, total } = computeTotalPurchases(monthKey);
 
   if (!total) {
     el.innerHTML = '<div class="no-data" style="padding:1.5rem;"><span class="ico">📭</span>No purchases recorded this month yet</div>';
@@ -8466,29 +8633,54 @@ function saveThemeGlobal(theme) {
 function renderPermissionsSettings() {
   const wrap = $('permissions-settings-wrap');
   if (!wrap) return;
-  const perms = ROLE_PERMS.manager || {};
-  wrap.innerHTML = `
-    <div style="font-weight:700;font-size:.9rem;margin-bottom:.7rem;">💼 Manager — Sidebar Sections</div>
-    <div style="display:flex;flex-direction:column;gap:.55rem;max-width:420px;margin-bottom:1.2rem;">
-      ${DASHBOARD_SECTIONS.map(s => {
-        const checked = perms.hasOwnProperty(s.key) ? !!perms[s.key] : !!DEFAULT_MANAGER_PERMS[s.key];
-        return `<label style="display:flex;align-items:center;gap:.6rem;font-size:.9rem;cursor:pointer;">
-          <input type="checkbox" class="perm-chk" data-key="${s.key}" ${checked ? 'checked' : ''} style="width:18px;height:18px;flex-shrink:0;">
-          <span>${s.label}</span>
-        </label>`;
-      }).join('')}
-    </div>
-    <button class="btn btn-navy btn-sm" onclick="savePermissionsFromForm()">💾 Save Permissions</button>
-  `;
+  const mgrPerms = ROLE_PERMS.manager || {};
+  const adminPerms = ROLE_PERMS.admin || {};
+  const rowHtml = s => {
+    if (s.adminToggle) {
+      const mChecked = mgrPerms.hasOwnProperty(s.key) ? !!mgrPerms[s.key] : !!DEFAULT_MANAGER_PERMS[s.key];
+      const aChecked = adminPerms.hasOwnProperty(s.key) ? !!adminPerms[s.key] : !!DEFAULT_ADMIN_PERMS[s.key];
+      return `<div style="grid-column:1/-1;display:flex;align-items:center;flex-wrap:wrap;gap:.6rem 1rem;font-size:.88rem;padding:.35rem 0;border-bottom:1px dashed var(--border);">
+        <span style="flex:1;min-width:180px;">${s.label}</span>
+        <label style="display:flex;align-items:center;gap:.35rem;cursor:pointer;white-space:nowrap;">
+          <input type="checkbox" class="perm-chk" data-key="${s.key}" data-role="admin" ${aChecked ? 'checked' : ''} style="width:16px;height:16px;">
+          <span style="font-size:.74rem;color:var(--muted);">👑 Admin</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:.35rem;cursor:pointer;white-space:nowrap;">
+          <input type="checkbox" class="perm-chk" data-key="${s.key}" data-role="manager" ${mChecked ? 'checked' : ''} style="width:16px;height:16px;">
+          <span style="font-size:.74rem;color:var(--muted);">💼 Manager</span>
+        </label>
+      </div>`;
+    }
+    const checked = mgrPerms.hasOwnProperty(s.key) ? !!mgrPerms[s.key] : !!DEFAULT_MANAGER_PERMS[s.key];
+    return `<label style="display:flex;align-items:center;gap:.6rem;font-size:.88rem;cursor:pointer;">
+      <input type="checkbox" class="perm-chk" data-key="${s.key}" data-role="manager" ${checked ? 'checked' : ''} style="width:17px;height:17px;flex-shrink:0;">
+      <span>${s.label}</span>
+    </label>`;
+  };
+  const group = title => items => `
+    <div style="font-weight:700;font-size:.9rem;margin-bottom:.7rem;">${title}</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:.5rem .8rem;max-width:700px;margin-bottom:1.4rem;">
+      ${items.map(rowHtml).join('')}
+    </div>`;
+  wrap.innerHTML =
+    `<p style="font-size:.78rem;color:var(--muted);margin-bottom:1.1rem;">👑 Admin / 💼 Manager — dual-tick items මගින් Admin ට හා Manager ට වෙන වෙනම on/off කරන්න පුළුවන්. ඉතුරු ඒවා Manager-only (Admin ට හැමවිටම පේනවා).</p>` +
+    group('💼 Sidebar Sections')(DASHBOARD_SECTIONS) +
+    group('📊 Dashboard Tiles')(DASHBOARD_TILES) +
+    group('📈 Dashboard Charts')(DASHBOARD_CHARTS) +
+    `<button class="btn btn-navy btn-sm" onclick="savePermissionsFromForm()">💾 Save Permissions</button>`;
 }
 
 function savePermissionsFromForm() {
   if (!isAdmin()) { toast('⚠️ Admin only', 'red'); return; }
   const wrap = $('permissions-settings-wrap');
   if (!wrap) return;
-  const newPerms = {};
-  wrap.querySelectorAll('.perm-chk').forEach(chk => { newPerms[chk.dataset.key] = chk.checked; });
-  saveRolePermissions(newPerms);
+  const newManagerPerms = {};
+  const newAdminPerms = {};
+  wrap.querySelectorAll('.perm-chk').forEach(chk => {
+    if (chk.dataset.role === 'admin') newAdminPerms[chk.dataset.key] = chk.checked;
+    else newManagerPerms[chk.dataset.key] = chk.checked;
+  });
+  saveRolePermissions(newManagerPerms, newAdminPerms);
 }
 
 function renderThemeSettings() {
