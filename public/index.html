@@ -638,6 +638,7 @@ tr:hover td{background:var(--row-hover);}
   .modal-lg{max-width:100%;}
   .form-row{grid-template-columns:1fr;}
   .card-head{padding:1rem;}
+  .date-badge{display:none;}
   .toolbar{padding:.8rem 1rem;}
   .toolbar input[type=text]{min-width:0;flex:1 1 100%;width:100%;}
   .toolbar select,.clear-btn{flex:1 1 auto;}
@@ -960,6 +961,21 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
 .ov-dot{width:8px;height:8px;border-radius:50%;background:var(--border);cursor:pointer;transition:all .25s ease;}
 .ov-dot:hover{background:#b9c4d1;}
 .ov-dot.active{background:var(--accent);width:22px;border-radius:5px;}
+.ov-arrow-btn{background:none;border:none;color:var(--muted);font-size:1.15rem;line-height:1;cursor:pointer;padding:.15rem .55rem;border-radius:6px;transition:all .15s ease;}
+.ov-arrow-btn:hover{background:var(--border);color:var(--text);}
+.ov-lock-btn{position:absolute;top:.65rem;right:.75rem;z-index:5;width:30px;height:30px;border-radius:50%;border:1.5px solid var(--border);background:var(--surface);cursor:pointer;font-size:.9rem;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.1);transition:transform .15s ease;}
+.ov-lock-btn:hover{transform:scale(1.1);}
+.ov-lock-btn.locked{border-color:var(--accent);background:var(--navy-bg,#eef2ff);}
+/* The lock button floats (position:absolute) over the top-right corner of
+   the carousel card, on top of each slide's header. Reserve matching room
+   on the right of every slide's first header so its range <select> wraps
+   to its own line instead of rendering underneath — and getting hidden
+   behind — the lock icon on narrow/mobile screens. */
+.ov-carousel-slide>.card-head:first-child{padding-right:3.4rem;}
+@media(max-width:768px){
+  .ov-lock-btn{width:26px;height:26px;top:.55rem;right:.6rem;font-size:.8rem;}
+  .ov-carousel-slide>.card-head:first-child{padding-right:3rem;}
+}
 
 /* ===== Chart.js / ApexCharts dashboard chart containers ===== */
 .mini-chartjs-wrap{position:relative;width:100%;height:200px;}
@@ -1140,7 +1156,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
     <!-- OVERVIEW -->
     <div id="overviewSection" class="section show">
       <div id="ov-data-warn" class="hidden" style="background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;padding:.7rem 1rem;border-radius:10px;margin-bottom:1rem;font-size:.9rem;font-weight:600;">
-        ⚠️ Data sync issue — some figures below (e.g. Cash in Hand) may be incomplete right now. Check your internet connection and tap Refresh.
+        ⚠️ Data sync issue — some figures below (e.g. Cash in Managers Hand) may be incomplete right now. Check your internet connection and tap Refresh.
       </div>
       <div class="stats-grid">
         <div class="stat-card yellow" id="tile-activeCheques">
@@ -1161,7 +1177,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
           <div class="stat-sub">🗓️ This Year</div>
         </div>
         <div class="stat-card hidden" id="cashInHandStat" style="border-top:3px solid var(--navy3);">
-          <div class="stat-label">💵 Cash in Hand</div>
+          <div class="stat-label">💵 Cash in Managers Hand</div>
           <div class="stat-val" id="ov-cash-inhand">LKR 0</div>
         </div>
         <div class="stat-card accent" id="rlStatTotal"><div class="stat-label">📱 Total Reload Balance</div><div class="stat-val" id="ov-rl-total">LKR 0</div></div>
@@ -1181,12 +1197,15 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
         </div>
       </div>
       <!-- Rotating carousel 2: cycles Monthly Sales Growth / Daily Total Sales / Daily Sales
-           Comparison, one slide at a time, every 6s (same rotation as the mini-chart carousel
-           below). Monthly Sales Growth is a cumulative line chart per month; Daily Sales
-           Comparison is a bar chart comparing the same day-of-month across the current month
-           and recent months, so e.g. the 15th of this month vs the 15th of last month is a
-           quick glance away. -->
+           Comparison / This Month vs Past Months (Day-by-Day), one slide at a time, every 6s
+           (same rotation as the mini-chart carousel below). Monthly Sales Growth is a
+           cumulative line chart per month; Daily Sales Comparison is a bar chart comparing the
+           same day-of-month across the current month and recent months, so e.g. the 15th of
+           this month vs the 15th of last month is a quick glance away; This Month vs Past
+           Months overlays each month's daily totals as lines on one chart, in its own slide
+           so it's not cramped underneath Daily Total Sales anymore. -->
       <div class="card ov-carousel hidden" id="ov-carousel2-card" style="margin-top:.6rem;margin-bottom:1.2rem;">
+        <button type="button" class="ov-lock-btn" id="ov-carousel2-lock-btn" onclick="ovToggleLock2()" title="Lock — stop this carousel changing automatically">🔓</button>
         <div class="ov-carousel-slides" id="ov-carousel2-slides">
           <div class="ov-carousel-slide active" data-slide="0" id="ov-slide-salesGrowth">
             <div class="card-head">
@@ -1228,15 +1247,31 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
               <div id="ov-sales-comparison-chart" class="simple-chart mini-apex-wrap" style="min-height:230px;"></div>
             </div>
           </div>
+          <div class="ov-carousel-slide" data-slide="3" id="ov-slide-monthlyTrend">
+            <div class="card-head">
+              <div class="card-title">🐛 This Month vs Past Months (Day-by-Day)</div>
+              <select id="ov-daily-sales-monthly-trend-range" onchange="renderDailySalesMonthlyTrendChart()" style="padding:.4rem .8rem;border:1.5px solid var(--border);border-radius:8px;font-size:.82rem;background:var(--surface);color:var(--text);">
+                <option value="3" selected>Last 3 Months</option>
+                <option value="6">Last 6 Months</option>
+              </select>
+            </div>
+            <div style="padding:1rem 1.2rem;">
+              <div id="ov-daily-sales-monthly-trend-chart" class="simple-chart mini-apex-wrap" style="min-height:230px;"></div>
+            </div>
+          </div>
         </div>
         <div class="ov-carousel-dots" id="ov-carousel2-dots">
+          <button type="button" class="ov-arrow-btn" onclick="ovPrevSlide2()" title="Previous chart">‹</button>
           <span class="ov-dot active" onclick="ovGoToSlide2(0)" title="Monthly Sales Growth"></span>
           <span class="ov-dot" onclick="ovGoToSlide2(1)" title="Daily Total Sales"></span>
           <span class="ov-dot" onclick="ovGoToSlide2(2)" title="Daily Sales Comparison"></span>
+          <span class="ov-dot" onclick="ovGoToSlide2(3)" title="This Month vs Past Months"></span>
+          <button type="button" class="ov-arrow-btn" onclick="ovNextSlide2()" title="Next chart">›</button>
         </div>
       </div>
       <!-- Rotating carousel: cycles the 5 dashboard mini-charts, one at a time, every 4s -->
       <div class="card ov-carousel" id="ov-carousel-card" style="margin-top:.6rem;">
+        <button type="button" class="ov-lock-btn" id="ov-carousel-lock-btn" onclick="ovToggleLock()" title="Lock — stop this carousel changing automatically">🔓</button>
         <div class="ov-carousel-slides" id="ov-carousel-slides">
           <div class="ov-carousel-slide active" data-slide="0" id="ov-slide-creditTrend">
             <div class="card-head">
@@ -1289,12 +1324,14 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
           </div>
         </div>
         <div class="ov-carousel-dots" id="ov-carousel-dots">
+          <button type="button" class="ov-arrow-btn" onclick="ovPrevSlide()" title="Previous chart">‹</button>
           <span class="ov-dot active" onclick="ovGoToSlide(0)" title="Monthly Credit Trend"></span>
           <span class="ov-dot" onclick="ovGoToSlide(1)" title="Cheque Status Overview"></span>
           <span class="ov-dot" onclick="ovGoToSlide(2)" title="Monthly Sales Trend"></span>
           <span class="ov-dot" onclick="ovGoToSlide(3)" title="Payment Breakdown"></span>
           <span class="ov-dot" onclick="ovGoToSlide(4)" title="Purchases Breakdown"></span>
           <span class="ov-dot" onclick="ovGoToSlide(5)" title="Top Suppliers by Purchase Value"></span>
+          <button type="button" class="ov-arrow-btn" onclick="ovNextSlide()" title="Next chart">›</button>
         </div>
       </div>
     </div>
@@ -1633,7 +1670,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
           </div>
           <div style="padding:1.2rem 1.5rem;">
             <p style="color:var(--muted);font-size:.85rem;margin-bottom:1.1rem;">
-              🔐 මෙතනින් ✅ Tick කරන Sidebar Sections, Dashboard Tiles සහ Charts විතරයි <b>Manager</b> කෙනෙක්ට පේන්නේ — Untick කළොත් ඒ එක ඒ අයගෙන් සම්පූර්ණයෙන්ම වැහෙනවා (URL/link එකෙන් වුනත් යන්න බෑ). <b>Admin</b> ට හැමවිටම සියල්ල පේනවා, මේකෙන් වෙනසක් වෙන්නේ නෑ. <b>Cashier</b> දිගටම Cash Entry screen එකට locked වෙලා ඉන්නවා — එකත් මේකෙන් වෙනස් වෙන්නේ නෑ.
+              🔐 පහත වගුවේ ✅ Tick කරන Sidebar Sections, Dashboard Tiles සහ Charts <b>👑 Admin</b> තීරුවෙන් Admin ටත්, <b>💼 Manager</b> තීරුවෙන් Manager ටත් වෙන වෙනම පේනවා/නොපේනවා විදියට set කරන්න පුළුවන් — Untick කළොත් ඒ එක ඒ role එකෙන් සම්පූර්ණයෙන්ම වැහෙනවා (URL/link එකෙන් වුනත් යන්න බෑ). <b>Cashier</b> දිගටම Cash Entry screen එකට locked වෙලා ඉන්නවා — එකට මේකෙන් වෙනසක් වෙන්නේ නෑ. ⚠️ Admin ට Settings/Users/Activity Log tabs මේකෙන් වැහෙන්නේ නෑ — ඒ නිසා වැරදීමකින් Admin ම lock වුනත් ආපහු මෙතනටම ඇවිත් fix කරගන්න පුළුවන්.
             </p>
             <div id="permissions-settings-wrap"></div>
           </div>
@@ -3225,28 +3262,23 @@ const ETF_EMPLOYER_RATE = 0.03;
 
 // ===== DASHBOARD PERMISSIONS (shared company-wide, admin-editable) =====
 // Controls which sidebar sections, dashboard stat tiles, and dashboard
-// charts the Manager role can see. Stored at cms_settings/dashboardPermissions
-// as a single flat { manager: { <key>: true/false, ... } } map — sidebar keys,
-// tile_* keys and chart_* keys all live together since the name prefixes
-// keep them from colliding. Admin is never restricted by this (isAdmin()
-// always bypasses it below), and Cashier keeps its existing dedicated
-// cash-entry lock untouched — this only governs Manager's sidebar/dashboard.
+// charts each of Admin and Manager can see. Stored at
+// cms_settings/dashboardPermissions as { manager: {...}, admin: {...} } —
+// two independent flat maps, same key set in both. Cashier keeps its
+// existing dedicated cash-entry lock untouched — this only governs
+// Admin's/Manager's sidebar/dashboard.
 let rolePermDocRef = null;
 let rolePermLiveUnsub = null;
-// manager: gates what Manager sees (Admin bypasses these). admin: a small
-// separate set of items where even ADMIN gets an independent on/off tick
-// instead of always seeing it — see ADMIN_TOGGLEABLE_KEYS below.
 let ROLE_PERMS = { manager: {}, admin: {} };
-// Defaults match the app's original behavior (Manager could see all of
+// Defaults match the app's original behavior (both roles could see all of
 // these) so an empty/missing doc changes nothing for existing installs.
 // EXTENDING THIS LATER: adding a brand-new toggleable sidebar section, stat
-// tile, or chart is just: (1) one default key here, (2) one entry in
-// DASHBOARD_SECTIONS/DASHBOARD_TILES/DASHBOARD_CHARTS below pointing at its
-// DOM id, and (3) wrap that element with a matching id in the HTML if it
-// doesn't have one yet. It then automatically appears as a checkbox in
-// Settings > Permissions and gets enforced — no other code changes needed.
-// Add `adminToggle: true` to a registry entry if Admin should ALSO get an
-// independent tick for it (see DEFAULT_ADMIN_PERMS + ADMIN_TOGGLEABLE_KEYS).
+// tile, or chart is just: (1) one default key in EACH of the two objects
+// below, (2) one entry in DASHBOARD_SECTIONS/DASHBOARD_TILES/DASHBOARD_CHARTS
+// pointing at its DOM id, and (3) wrap that element with a matching id in
+// the HTML if it doesn't have one yet. It then automatically appears as a
+// row with both ticks in Settings > Permissions and gets enforced — no
+// other code changes needed.
 const DEFAULT_MANAGER_PERMS = {
   // Sidebar sections
   credits: true, cheques: true, suppliers: true, reports: true,
@@ -3260,14 +3292,11 @@ const DEFAULT_MANAGER_PERMS = {
   chart_monthlySalesTrend: true, chart_paymentBreakdown: true,
   chart_purchasesBreakdown: true, chart_monthlySalesGrowth: true,
   chart_dailyTotalSales: true, chart_dailySalesComparison: true,
-  chart_topSuppliers: true
+  chart_dailySalesMonthlyTrend: true, chart_topSuppliers: true
 };
-// Defaults for the small set of items Admin can also independently toggle
-// (see `adminToggle: true` entries in DASHBOARD_TILES/DASHBOARD_CHARTS).
-const DEFAULT_ADMIN_PERMS = {
-  tile_totalPurchasesMonth: true, tile_chequesDueWeek: true, tile_netProfitMonth: true,
-  chart_topSuppliers: true
-};
+// Admin's own defaults — same key set as Manager's, all true (Admin sees
+// everything out of the box, same as before this per-role tick existed).
+const DEFAULT_ADMIN_PERMS = { ...DEFAULT_MANAGER_PERMS };
 // key = internal section name (matches showSection()'s `name` argument),
 // navId = the sidebar <div> id to show/hide, label = shown in Settings.
 const DASHBOARD_SECTIONS = [
@@ -3287,12 +3316,12 @@ const DASHBOARD_TILES = [
   { key: 'tile_activeCheques', elId: 'tile-activeCheques', label: '💰 Active Cheques Amount' },
   { key: 'tile_outstanding',   elId: 'tile-outstanding',   label: '⏳ Outstanding' },
   { key: 'tile_avgDaySale',    elId: 'avgSaleStat',        label: '📊 Average Day Sale' },
-  { key: 'tile_cashInHand',    elId: 'cashInHandStat',     label: '💵 Cash in Hand' },
+  { key: 'tile_cashInHand',    elId: 'cashInHandStat',     label: '💵 Cash in Managers Hand' },
   { key: 'tile_reloadTotal',   elId: 'rlStatTotal',        label: '📱 Total Reload Balance' },
   { key: 'tile_reloadCash',    elId: 'rlStatCash',         label: '💵 Reload Cash in Hand' },
-  { key: 'tile_totalPurchasesMonth', elId: 'tile-totalPurchasesMonth', label: '🛒 Total Purchases This Month', adminToggle: true },
-  { key: 'tile_chequesDueWeek',      elId: 'tile-chequesDueWeek',      label: '📆 Cheques Due This Week',      adminToggle: true },
-  { key: 'tile_netProfitMonth',      elId: 'tile-netProfitMonth',      label: '💰 Net Profit This Month',       adminToggle: true }
+  { key: 'tile_totalPurchasesMonth', elId: 'tile-totalPurchasesMonth', label: '🛒 Total Purchases This Month' },
+  { key: 'tile_chequesDueWeek',      elId: 'tile-chequesDueWeek',      label: '📆 Cheques Due This Week' },
+  { key: 'tile_netProfitMonth',      elId: 'tile-netProfitMonth',      label: '💰 Net Profit This Month' }
 ];
 // Dashboard mini-charts, both carousels. slideId = the chart's carousel-slide
 // wrapper id; dotsId = that carousel's dot-strip id (so its dot can be
@@ -3308,13 +3337,9 @@ const DASHBOARD_CHARTS = [
   { key: 'chart_monthlySalesGrowth',   slideId: 'ov-slide-salesGrowth',        dotsId: 'ov-carousel2-dots', label: '📊 Monthly Sales Growth' },
   { key: 'chart_dailyTotalSales',      slideId: 'ov-slide-dailySales',         dotsId: 'ov-carousel2-dots', label: '📈 Daily Total Sales' },
   { key: 'chart_dailySalesComparison', slideId: 'ov-slide-salesComparison',    dotsId: 'ov-carousel2-dots', label: '📊 Daily Sales Comparison' },
-  { key: 'chart_topSuppliers',         slideId: 'ov-slide-topSuppliers',       dotsId: 'ov-carousel-dots',  label: '🏆 Top Suppliers by Purchase Value', adminToggle: true }
+  { key: 'chart_dailySalesMonthlyTrend', slideId: 'ov-slide-monthlyTrend',     dotsId: 'ov-carousel2-dots', label: '🐛 This Month vs Past Months (Day-by-Day)' },
+  { key: 'chart_topSuppliers',         slideId: 'ov-slide-topSuppliers',       dotsId: 'ov-carousel-dots',  label: '🏆 Top Suppliers by Purchase Value' }
 ];
-// Keys that get an independent Admin tick (built from the `adminToggle`
-// flags above) — for every other key, Admin always sees it, unrestricted.
-const ADMIN_TOGGLEABLE_KEYS = new Set(
-  [...DASHBOARD_TILES, ...DASHBOARD_CHARTS].filter(x => x.adminToggle).map(x => x.key)
-);
 
 let fdb = null;
 let fauth = null;
@@ -3388,14 +3413,16 @@ function canAccessPayroll() {
 }
 
 // Is `key` (a DASHBOARD_SECTIONS/DASHBOARD_TILES/DASHBOARD_CHARTS key)
-// visible to the CURRENT user? Admin normally always sees everything —
-// EXCEPT for the small set of keys in ADMIN_TOGGLEABLE_KEYS, where Admin
-// gets its own independent tick too (see DEFAULT_ADMIN_PERMS). Cashier is
-// intentionally untouched by this — its sidebar-hidden/cash-only lock is
-// handled entirely elsewhere.
+// visible to the CURRENT user? Both Admin and Manager are governed by their
+// own independent tick now (see ROLE_PERMS.admin / ROLE_PERMS.manager) —
+// defaults to "visible" for both roles if nothing's been saved yet, so an
+// empty/missing permissions doc changes nothing for existing installs.
+// Note: Settings/Users/Activity Log are never in these registries, so Admin
+// can never accidentally tick themselves out of Settings to fix a mistake.
+// Cashier is intentionally untouched by this — its sidebar-hidden/cash-only
+// lock is handled entirely elsewhere.
 function isDashPermAllowed(key) {
   if (isAdmin()) {
-    if (!ADMIN_TOGGLEABLE_KEYS.has(key)) return true;
     const aPerms = ROLE_PERMS.admin || {};
     return aPerms.hasOwnProperty(key) ? !!aPerms[key] : !!DEFAULT_ADMIN_PERMS[key];
   }
@@ -3537,14 +3564,27 @@ function isOverdue(ch) {
 
 // Pending cheques (within the CURRENT VIEWER's scope — same as the
 // "Active Cheques Amount"/"Outstanding" tiles: Manager sees only their own,
-// Admin sees everyone's) that need attention soon: already overdue, OR due
-// within the next 7 days. Same window/logic as aiComputeRiskAlerts()'s
-// overdue_cheque + due_soon buckets (and the chequeDueReminder push
-// notification function), just returned as a flat list for the
-// "Cheques Due This Week" dashboard tile.
+// Admin sees everyone's) that need attention: already overdue (due date has
+// passed and not marked "cleared"), OR due within the CALENDAR WEEK that
+// contains today — Saturday through the following Friday (not a rolling
+// 7-day window). E.g. if today is Wed Aug 5, the window is Sat Aug 1 – Fri
+// Aug 7. Cheques already marked "cleared" are explicitly excluded, however
+// they get there (status check below is on top of isChequeSettled(), not a
+// replacement for it, so it also stays correct if a cheque somehow keeps a
+// stray dueDate in-range after being cleared). Returned as a flat list for
+// the "Cheques Due This Week" dashboard tile.
 function getChequesNeedingAttention() {
-  const soon = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  return getDataRows('cheques').filter(ch => !isChequeSettled(ch) && (isOverdue(ch) || (ch.dueDate && ch.dueDate <= soon && ch.dueDate >= today())));
+  const t = new Date(today() + 'T00:00:00Z');
+  const daysSinceSat = (t.getUTCDay() + 1) % 7; // Sat=6→0, Sun=0→1, Mon=1→2 … Fri=5→6
+  const weekStart = new Date(t); weekStart.setUTCDate(t.getUTCDate() - daysSinceSat);
+  const weekEnd = new Date(weekStart); weekEnd.setUTCDate(weekStart.getUTCDate() + 6);
+  const weekStartStr = weekStart.toISOString().slice(0, 10);
+  const weekEndStr = weekEnd.toISOString().slice(0, 10);
+  return getDataRows('cheques').filter(ch =>
+    ch.status !== 'cleared' &&
+    !isChequeSettled(ch) &&
+    (isOverdue(ch) || (ch.dueDate && ch.dueDate >= weekStartStr && ch.dueDate <= weekEndStr))
+  );
 }
 
 // ============= CHEQUES IN MANAGER'S HAND (blank-cheque pool) =============
@@ -4382,7 +4422,7 @@ const sectionTitles = {
 
 function showSection(name) {
   if (isCashier() && name !== 'cash') return; // Cashier locked to cash only
-  if (!isAdmin() && DASHBOARD_SECTIONS.some(s => s.key === name) && !sectionAllowed(name)) {
+  if (DASHBOARD_SECTIONS.some(s => s.key === name) && !sectionAllowed(name)) {
     toast('⚠️ ඔබට මෙම කොටසට ප්‍රවේශය නැත', 'red');
     showSection('overview');
     return;
@@ -5500,8 +5540,9 @@ function renderOverview() {
   const curYearKey = String(nowD.getFullYear());
   const curMonthNum = String(nowD.getMonth() + 1).padStart(2, '0');
 
-  // Cheques Due This Week tile — overdue pending cheques ("පරන බිල්") PLUS
-  // ones due within the next 7 days, same window aiComputeRiskAlerts() uses.
+  // Cheques Due This Week tile — overdue-and-not-cleared pending cheques
+  // ("පරන බිල්") PLUS ones due within the calendar week (Sat–Fri) containing
+  // today — see getChequesNeedingAttention().
   const chequesAttn = getChequesNeedingAttention();
   const chequesAttnAmt = chequesAttn.reduce((a, c) => a + (Number(c.amount) || 0), 0);
   const chequesAttnOverdue = chequesAttn.filter(isOverdue).length;
@@ -5576,11 +5617,13 @@ function renderOverview() {
   if ($('ov-carousel2-card')) $('ov-carousel2-card').classList.toggle('hidden', !allCash.length);
   if (allCash.length) {
     try { renderDailySalesChart(); } catch (e) { console.error('renderDailySalesChart failed:', e); }
+    try { renderDailySalesMonthlyTrendChart(); } catch (e) { console.error('renderDailySalesMonthlyTrendChart failed:', e); }
     try { renderMonthlySalesGrowthChart(); } catch (e) { console.error('renderMonthlySalesGrowthChart failed:', e); }
     try { renderDailySalesComparisonChart(); } catch (e) { console.error('renderDailySalesComparisonChart failed:', e); }
     ovSetSlideAvailable('ov-slide-salesGrowth', chartAllowed('chart_monthlySalesGrowth'), 'ov-carousel2-dots');
     ovSetSlideAvailable('ov-slide-dailySales', chartAllowed('chart_dailyTotalSales'), 'ov-carousel2-dots');
     ovSetSlideAvailable('ov-slide-salesComparison', chartAllowed('chart_dailySalesComparison'), 'ov-carousel2-dots');
+    ovSetSlideAvailable('ov-slide-monthlyTrend', chartAllowed('chart_dailySalesMonthlyTrend'), 'ov-carousel2-dots');
     const mSales = new Map();
     allCash.forEach(e => {
       if (!e.date) return;
@@ -5648,6 +5691,7 @@ function renderOverview() {
 let ovCarouselIndex = 0;
 let ovCarouselTimer = null;
 let ovCarouselStarted = false;
+let ovCarouselLocked = false;
 
 function ovSetSlideAvailable(slideId, available, dotsId) {
   const el = $(slideId);
@@ -5689,8 +5733,22 @@ function ovGoToSlide(idx) {
   ovResetCarouselTimer();
 }
 
+// Step one slide backward/forward manually — used by the ‹ › arrows either
+// side of the dot row. Wraps around at either end.
+function ovPrevSlide() {
+  const slides = document.querySelectorAll('#ov-carousel-slides .ov-carousel-slide');
+  if (!slides.length) return;
+  ovGoToSlide((ovCarouselIndex - 1 + slides.length) % slides.length);
+}
+function ovNextSlide() {
+  const slides = document.querySelectorAll('#ov-carousel-slides .ov-carousel-slide');
+  if (!slides.length) return;
+  ovGoToSlide((ovCarouselIndex + 1) % slides.length);
+}
+
 function ovResetCarouselTimer() {
-  if (ovCarouselTimer) clearInterval(ovCarouselTimer);
+  if (ovCarouselTimer) { clearInterval(ovCarouselTimer); ovCarouselTimer = null; }
+  if (ovCarouselLocked) return; // stay paused while locked, regardless of who/what called this
   ovCarouselTimer = setInterval(() => {
     const slides = [...document.querySelectorAll('#ov-carousel-slides .ov-carousel-slide')];
     if (!slides.length) return;
@@ -5709,7 +5767,22 @@ function ovPauseCarousel() {
 }
 
 function ovResumeCarousel() {
+  if (ovCarouselLocked) return; // manual lock takes priority over hover-based pause/resume
   if (!ovCarouselTimer) ovResetCarouselTimer();
+}
+
+// 🔒/🔓 toggle — lets the user pin the carousel on whichever chart it's
+// currently showing, so it stops auto-changing every 6 seconds (useful on
+// touch devices with no hover, or just to keep one chart open to study it).
+function ovToggleLock() {
+  ovCarouselLocked = !ovCarouselLocked;
+  const btn = $('ov-carousel-lock-btn');
+  if (btn) {
+    btn.textContent = ovCarouselLocked ? '🔒' : '🔓';
+    btn.classList.toggle('locked', ovCarouselLocked);
+    btn.title = ovCarouselLocked ? 'Locked — click to resume auto-rotation' : 'Lock — stop this carousel changing automatically';
+  }
+  if (ovCarouselLocked) ovPauseCarousel(); else ovResumeCarousel();
 }
 
 function ovInitCarousel() {
@@ -5732,11 +5805,18 @@ function ovInitCarousel() {
 let ovCarousel2Index = 0;
 let ovCarousel2Timer = null;
 let ovCarousel2Started = false;
+let ovCarousel2Locked = false;
 
 function ovShowSlide2(idx) {
   const slides = [...document.querySelectorAll('#ov-carousel2-slides .ov-carousel-slide')];
   const dots = [...document.querySelectorAll('#ov-carousel2-dots .ov-dot')];
   if (!slides.length) return;
+  // Skip unavailable (no-data / permission-off) slides — same mechanism as carousel 1.
+  let tries = 0;
+  while (slides[idx] && slides[idx].getAttribute('data-nodata') === '1' && tries < slides.length) {
+    idx = (idx + 1) % slides.length;
+    tries++;
+  }
   slides.forEach((s, i) => s.classList.toggle('active', i === idx));
   dots.forEach((d, i) => d.classList.toggle('active', i === idx));
   ovCarousel2Index = idx;
@@ -5750,8 +5830,20 @@ function ovGoToSlide2(idx) {
   ovResetCarouselTimer2();
 }
 
+function ovPrevSlide2() {
+  const slides = document.querySelectorAll('#ov-carousel2-slides .ov-carousel-slide');
+  if (!slides.length) return;
+  ovGoToSlide2((ovCarousel2Index - 1 + slides.length) % slides.length);
+}
+function ovNextSlide2() {
+  const slides = document.querySelectorAll('#ov-carousel2-slides .ov-carousel-slide');
+  if (!slides.length) return;
+  ovGoToSlide2((ovCarousel2Index + 1) % slides.length);
+}
+
 function ovResetCarouselTimer2() {
-  if (ovCarousel2Timer) clearInterval(ovCarousel2Timer);
+  if (ovCarousel2Timer) { clearInterval(ovCarousel2Timer); ovCarousel2Timer = null; }
+  if (ovCarousel2Locked) return;
   ovCarousel2Timer = setInterval(() => {
     const slides = [...document.querySelectorAll('#ov-carousel2-slides .ov-carousel-slide')];
     if (!slides.length) return;
@@ -5768,7 +5860,19 @@ function ovPauseCarousel2() {
 }
 
 function ovResumeCarousel2() {
+  if (ovCarousel2Locked) return;
   if (!ovCarousel2Timer) ovResetCarouselTimer2();
+}
+
+function ovToggleLock2() {
+  ovCarousel2Locked = !ovCarousel2Locked;
+  const btn = $('ov-carousel2-lock-btn');
+  if (btn) {
+    btn.textContent = ovCarousel2Locked ? '🔒' : '🔓';
+    btn.classList.toggle('locked', ovCarousel2Locked);
+    btn.title = ovCarousel2Locked ? 'Locked — click to resume auto-rotation' : 'Lock — stop this carousel changing automatically';
+  }
+  if (ovCarousel2Locked) ovPauseCarousel2(); else ovResumeCarousel2();
 }
 
 function ovInitCarousel2() {
@@ -5789,6 +5893,7 @@ function ovRefreshChartVisibility2(idx) {
     if (idx === 0) renderMonthlySalesGrowthChart();
     if (idx === 1) renderDailySalesChart();
     if (idx === 2) renderDailySalesComparisonChart();
+    if (idx === 3) renderDailySalesMonthlyTrendChart();
   } catch (e) { console.error('ovRefreshChartVisibility2 failed:', e); }
 }
 
@@ -8636,38 +8741,42 @@ function renderPermissionsSettings() {
   const mgrPerms = ROLE_PERMS.manager || {};
   const adminPerms = ROLE_PERMS.admin || {};
   const rowHtml = s => {
-    if (s.adminToggle) {
-      const mChecked = mgrPerms.hasOwnProperty(s.key) ? !!mgrPerms[s.key] : !!DEFAULT_MANAGER_PERMS[s.key];
-      const aChecked = adminPerms.hasOwnProperty(s.key) ? !!adminPerms[s.key] : !!DEFAULT_ADMIN_PERMS[s.key];
-      return `<div style="grid-column:1/-1;display:flex;align-items:center;flex-wrap:wrap;gap:.6rem 1rem;font-size:.88rem;padding:.35rem 0;border-bottom:1px dashed var(--border);">
-        <span style="flex:1;min-width:180px;">${s.label}</span>
-        <label style="display:flex;align-items:center;gap:.35rem;cursor:pointer;white-space:nowrap;">
-          <input type="checkbox" class="perm-chk" data-key="${s.key}" data-role="admin" ${aChecked ? 'checked' : ''} style="width:16px;height:16px;">
-          <span style="font-size:.74rem;color:var(--muted);">👑 Admin</span>
-        </label>
-        <label style="display:flex;align-items:center;gap:.35rem;cursor:pointer;white-space:nowrap;">
-          <input type="checkbox" class="perm-chk" data-key="${s.key}" data-role="manager" ${mChecked ? 'checked' : ''} style="width:16px;height:16px;">
-          <span style="font-size:.74rem;color:var(--muted);">💼 Manager</span>
-        </label>
-      </div>`;
-    }
-    const checked = mgrPerms.hasOwnProperty(s.key) ? !!mgrPerms[s.key] : !!DEFAULT_MANAGER_PERMS[s.key];
-    return `<label style="display:flex;align-items:center;gap:.6rem;font-size:.88rem;cursor:pointer;">
-      <input type="checkbox" class="perm-chk" data-key="${s.key}" data-role="manager" ${checked ? 'checked' : ''} style="width:17px;height:17px;flex-shrink:0;">
-      <span>${s.label}</span>
-    </label>`;
+    const mChecked = mgrPerms.hasOwnProperty(s.key) ? !!mgrPerms[s.key] : !!DEFAULT_MANAGER_PERMS[s.key];
+    const aChecked = adminPerms.hasOwnProperty(s.key) ? !!adminPerms[s.key] : !!DEFAULT_ADMIN_PERMS[s.key];
+    return `<tr>
+      <td style="padding:.5rem .7rem;border-bottom:1px solid var(--border);">${s.label}</td>
+      <td style="padding:.5rem .7rem;border-bottom:1px solid var(--border);text-align:center;">
+        <input type="checkbox" class="perm-chk" data-key="${s.key}" data-role="admin" ${aChecked ? 'checked' : ''} style="width:17px;height:17px;cursor:pointer;">
+      </td>
+      <td style="padding:.5rem .7rem;border-bottom:1px solid var(--border);text-align:center;">
+        <input type="checkbox" class="perm-chk" data-key="${s.key}" data-role="manager" ${mChecked ? 'checked' : ''} style="width:17px;height:17px;cursor:pointer;">
+      </td>
+    </tr>`;
   };
-  const group = title => items => `
-    <div style="font-weight:700;font-size:.9rem;margin-bottom:.7rem;">${title}</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:.5rem .8rem;max-width:700px;margin-bottom:1.4rem;">
-      ${items.map(rowHtml).join('')}
-    </div>`;
-  wrap.innerHTML =
-    `<p style="font-size:.78rem;color:var(--muted);margin-bottom:1.1rem;">👑 Admin / 💼 Manager — dual-tick items මගින් Admin ට හා Manager ට වෙන වෙනම on/off කරන්න පුළුවන්. ඉතුරු ඒවා Manager-only (Admin ට හැමවිටම පේනවා).</p>` +
-    group('💼 Sidebar Sections')(DASHBOARD_SECTIONS) +
-    group('📊 Dashboard Tiles')(DASHBOARD_TILES) +
-    group('📈 Dashboard Charts')(DASHBOARD_CHARTS) +
-    `<button class="btn btn-navy btn-sm" onclick="savePermissionsFromForm()">💾 Save Permissions</button>`;
+  const groupHeaderRow = title => `<tr><td colspan="3" style="padding:1rem .7rem .5rem;font-weight:700;font-size:.9rem;color:var(--navy);background:var(--bg);">${title}</td></tr>`;
+  wrap.innerHTML = `
+    <p style="font-size:.78rem;color:var(--muted);margin-bottom:1rem;">👑 Admin තීරුවෙන් Admin ටත්, 💼 Manager තීරුවෙන් Manager ටත් වෙන වෙනම on/off කරන්න පුළුවන් — දෙන්නටම එකම item එකක් වෙනස් විදියට පේනවා/නොපේනවා විදියට set කරන්න පුළුවන්.</p>
+    <div style="overflow-x:auto;">
+    <table style="width:100%;max-width:640px;border-collapse:collapse;font-size:.88rem;">
+      <thead>
+        <tr style="border-bottom:2px solid var(--border);">
+          <th style="text-align:left;padding:.55rem .7rem;">Item</th>
+          <th style="text-align:center;padding:.55rem .7rem;width:90px;">👑 Admin</th>
+          <th style="text-align:center;padding:.55rem .7rem;width:90px;">💼 Manager</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${groupHeaderRow('💼 Sidebar Sections')}
+        ${DASHBOARD_SECTIONS.map(rowHtml).join('')}
+        ${groupHeaderRow('📊 Dashboard Tiles')}
+        ${DASHBOARD_TILES.map(rowHtml).join('')}
+        ${groupHeaderRow('📈 Dashboard Charts')}
+        ${DASHBOARD_CHARTS.map(rowHtml).join('')}
+      </tbody>
+    </table>
+    </div>
+    <button class="btn btn-navy btn-sm" style="margin-top:1.2rem;" onclick="savePermissionsFromForm()">💾 Save Permissions</button>
+  `;
 }
 
 function savePermissionsFromForm() {
@@ -9504,6 +9613,64 @@ function renderDailySalesComparisonChart() {
   });
 
   renderMultiBarApex('ov-sales-comparison-chart', series, categories, v => fmt(v));
+  ovPlayFadeIn(el);
+}
+
+// This Month vs Past Months (Day-by-Day) — its own carousel-2 slide (4th
+// dot). Same raw (non-cumulative) day-of-month grouping as Daily Sales
+// Comparison above, just drawn as overlaid LINES instead of bars, so each
+// month's daily up-and-down pattern ("worm") can be compared directly
+// against the others — e.g. did this month dip around the 15th the same
+// way last month did? Defaults to current + past 2 months (3 total).
+function renderDailySalesMonthlyTrendChart() {
+  const el = $('ov-daily-sales-monthly-trend-chart');
+  if (!el) return;
+  const monthsBack = Number($('ov-daily-sales-monthly-trend-range')?.value) || 3;
+  const allCash = getAllCashEntries ? getAllCashEntries() : [];
+
+  const monthDayMap = new Map();
+  allCash.forEach(e => {
+    if (!e.date) return;
+    const monthKey = e.date.slice(0, 7);
+    const day = Number(e.date.slice(8, 10));
+    if (!monthKey || !day) return;
+    if (!monthDayMap.has(monthKey)) monthDayMap.set(monthKey, new Map());
+    const dm = monthDayMap.get(monthKey);
+    dm.set(day, (dm.get(day) || 0) + (Number(e.totalSales) || 0));
+  });
+
+  const palette = ['#0e7490', '#2563eb', '#15803d', '#b45309', '#b91c1c', '#7c3aed'];
+  const now = new Date();
+  const months = [];
+  for (let i = monthsBack - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({ year: d.getFullYear(), month: d.getMonth() });
+  }
+
+  const maxDays = Math.max(...months.map(m => new Date(m.year, m.month + 1, 0).getDate()));
+  const categories = Array.from({ length: maxDays }, (_, i) => String(i + 1));
+  const todayDate = now.getDate();
+
+  const series = [];
+  months.forEach((m, idx) => {
+    const key = `${m.year}-${String(m.month + 1).padStart(2, '0')}`;
+    const dm = monthDayMap.get(key);
+    if (!dm || !dm.size) return; // skip months with no sales data at all
+    const daysInMonth = new Date(m.year, m.month + 1, 0).getDate();
+    const isCurrentMonth = m.year === now.getFullYear() && m.month === now.getMonth();
+    const data = [];
+    for (let day = 1; day <= maxDays; day++) {
+      if (day > daysInMonth || (isCurrentMonth && day > todayDate)) { data.push(null); continue; }
+      data.push(dm.get(day) || 0);
+    }
+    const label = new Date(m.year, m.month).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) + (isCurrentMonth ? ' (Current)' : '');
+    // Most recent month always gets the first palette color so it stays
+    // visually consistent as the range selector switches between 3 / 6 months.
+    const colorIdx = (months.length - 1 - idx) % palette.length;
+    series.push({ name: label, data, color: palette[colorIdx] });
+  });
+
+  renderMultiLineApex('ov-daily-sales-monthly-trend-chart', series, categories, v => fmt(v));
   ovPlayFadeIn(el);
 }
 
