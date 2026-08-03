@@ -220,13 +220,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.8rem;}
 .topbar h1{font-size:1.6rem;font-weight:700;color:var(--navy);}
 .topbar-right{display:flex;align-items:center;gap:.8rem;}
-.topbar-user{display:flex;align-items:center;gap:.4rem;font-size:.85rem;font-weight:700;color:var(--navy);background:var(--surface);border:1px solid var(--border);padding:.45rem .9rem .45rem .7rem;border-radius:20px;max-width:170px;box-shadow:var(--shadow);}
+.topbar-user{display:flex;align-items:center;gap:.4rem;font-size:.85rem;font-weight:700;color:var(--navy);background:var(--surface);border:1px solid var(--border);padding:.45rem .9rem .45rem .7rem;border-radius:20px;max-width:none;box-shadow:var(--shadow);}
 .topbar-user .ico{font-size:1rem;flex-shrink:0;}
-.topbar-user span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.topbar-user span:last-child{white-space:nowrap;}
 @keyframes refreshSpin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
 .refresh-spin{display:inline-block;animation:refreshSpin .6s ease;}
 @media(max-width:768px){
-  .topbar-user{font-size:.76rem;padding:.35rem .7rem .35rem .55rem;max-width:118px;order:-1;}
+  .topbar-user{display:none!important;}
 }
 .date-badge{background:var(--surface);padding:.5rem 1rem;border-radius:8px;color:var(--muted);font-size:.85rem;box-shadow:var(--shadow);}
 .section{display:none;}
@@ -1115,28 +1115,28 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
       <span>IMP Super City</span>
     </div>
     <div class="sb-section">Main</div>
-    <div class="sb-link active" onclick="showSection('overview')"><span class="ico">📊</span><span>Dashboard</span></div>
-    <div class="sb-link" id="navLink-credits" onclick="showSection('credits')"><span class="ico">💳</span><span>Credits</span></div>
-    <div class="sb-link" id="navLink-cheques" onclick="showSection('cheques')"><span class="ico">✅</span><span>Cheques</span></div>
-    <div class="sb-link" id="navLink-suppliers" onclick="showSection('suppliers')"><span class="ico">🏪</span><span>Suppliers</span></div>
-    <div class="sb-link" id="navLink-reports" onclick="showSection('reports')"><span class="ico">📋</span><span>Reports</span></div>
-    <div class="sb-link" id="navLink-analytics" onclick="showSection('analytics')"><span class="ico">📈</span><span>Analytics</span></div>
-    <div class="sb-link" id="navLink-aiinsights" onclick="showSection('aiinsights')"><span class="ico">🤖</span><span>AI Insights</span></div>
-    <div class="sb-link hidden" id="plNavLink" onclick="showSection('pl')"><span class="ico">💹</span><span>Profit &amp; Loss</span></div>
-    <div class="sb-link" id="navLink-reload" onclick="showSection('reload')"><span class="ico">📱</span><span>Reload</span></div>
-    <div class="sb-link hidden" id="cashNavLink" onclick="showSection('cash')"><span class="ico">💰</span><span>Cash</span></div>
-    <div class="sb-link hidden" id="payrollNavLink" onclick="showSection('payroll')"><span class="ico">🧑‍💼</span><span>Payroll</span></div>
+    <div class="sb-link active" title="Dashboard" onclick="showSection('overview')"><span class="ico">📊</span><span>Dashboard</span></div>
+    <div class="sb-link" id="navLink-cheques" title="Cheques" onclick="showSection('cheques')"><span class="ico">✅</span><span>Cheques</span></div>
+    <div class="sb-link" id="navLink-credits" title="Credits" onclick="showSection('credits')"><span class="ico">💳</span><span>Credits</span></div>
+    <div class="sb-link hidden" id="cashNavLink" title="Cash" onclick="showSection('cash')"><span class="ico">💰</span><span>Cash</span></div>
+    <div class="sb-link" id="navLink-suppliers" title="Suppliers" onclick="showSection('suppliers')"><span class="ico">🏪</span><span>Suppliers</span></div>
+    <div class="sb-link hidden" id="payrollNavLink" title="Payroll" onclick="showSection('payroll')"><span class="ico">🧑‍💼</span><span>Payroll</span></div>
+    <div class="sb-link" id="navLink-reload" title="Reload" onclick="showSection('reload')"><span class="ico">📱</span><span>Reload</span></div>
+    <div class="sb-link" id="navLink-aiinsights" title="AI Insights" onclick="showSection('aiinsights')"><span class="ico">🤖</span><span>AI Insights</span></div>
+    <div class="sb-link" id="navLink-reports" title="Reports" onclick="showSection('reports')"><span class="ico">📋</span><span>Reports</span></div>
+    <div class="sb-link" id="navLink-analytics" title="Analytics" onclick="showSection('analytics')"><span class="ico">📈</span><span>Analytics</span></div>
+    <div class="sb-link hidden" id="plNavLink" title="Profit &amp; Loss" onclick="showSection('pl')"><span class="ico">💹</span><span>Profit &amp; Loss</span></div>
     <div class="sb-divider"></div>
     <div id="adminNav" class="hidden">
       <div class="sb-section">Admin</div>
-      <div class="sb-link" onclick="showSection('settings')"><span class="ico">⚙️</span><span>Settings</span></div>
+      <div class="sb-link" title="Settings" onclick="showSection('settings')"><span class="ico">⚙️</span><span>Settings</span></div>
     </div>
-    <div class="sb-link sb-mob-logout" onclick="doLogout()"><span class="ico">🚪</span><span>Out</span></div>
+    <div class="sb-link sb-mob-logout" title="Logout" onclick="doLogout()"><span class="ico">🚪</span><span>Out</span></div>
     <div style="flex:1"></div>
     <div class="sb-user">
       <div class="sb-user-name" id="sbName">—<span id="sbBadge" class="sb-badge hidden">Admin</span></div>
       <div class="sb-user-biz" id="sbBiz"></div>
-      <button class="sb-logout" onclick="doLogout()">🚪 <span>Logout</span></button>
+      <button class="sb-logout" title="Logout" onclick="doLogout()">🚪 <span>Logout</span></button>
     </div>
   </div>
 
@@ -1147,6 +1147,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
         <div class="topbar-user" id="topbarUser" title="Logged in as"><span class="ico">👤</span><span id="topbarUserName">—</span></div>
         <button class="btn btn-ghost btn-sm" id="refreshBtn" onclick="manualRefresh()" title="Refresh"><span id="refreshIcon">🔄</span> <span class="bk-label">Refresh</span></button>
         <button class="btn btn-ghost btn-sm hidden" id="aiAskBtn" onclick="openAiAskBot()" title="Ask AI — Local Smart Assistant">🤖 <span class="bk-label">Ask AI</span><span class="ai-pulse-dot"></span></button>
+        <button class="btn btn-ghost btn-sm hidden" id="topbarSettingsBtn" onclick="showSection('settings')" title="Settings">⚙️ <span class="bk-label">Settings</span></button>
         <button class="btn btn-ghost btn-sm" onclick="doLogout()" title="Logout">🚪 <span class="bk-label">Logout</span></button>
         <button class="btn btn-ghost btn-sm" onclick="downloadBackup()" title="Backup your data">⬇️ <span class="bk-label">Backup</span></button>
         <div class="date-badge" id="dateEl">—</div>
@@ -4374,6 +4375,7 @@ function initDashboard() {
   applyNavPermissions();
   $('plNavLink')?.classList.toggle('hidden', !isAdmin());
   $('aiAskBtn')?.classList.toggle('hidden', !(isAdmin() || isManager()));
+  $('topbarSettingsBtn')?.classList.toggle('hidden', !isAdmin());
   $('dateEl').textContent = '📅 ' + new Date().toLocaleDateString('en-US', {
     weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'
   });
