@@ -254,6 +254,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .sort-btn:hover,.sort-btn.active{background:var(--navy-bg);color:var(--white);border-color:var(--navy-bg);}
 .clear-btn{padding:.45rem .8rem;border:1.5px solid var(--red);border-radius:7px;background:var(--surface);cursor:pointer;font-size:.82rem;color:var(--red);transition:all .2s;}
 .clear-btn:hover{background:var(--red);color:var(--white);}
+/* ===== Cheques quick-filter chips (This Week / Next Week / Week After Next) ===== */
+.ch-quick-filter-bar{display:flex;align-items:center;gap:.6rem;padding:.85rem 1.5rem;flex-wrap:wrap;background:var(--surface-2);border-bottom:1px solid var(--border);}
+.ch-quick-btn{padding:.45rem .95rem;border:1.5px solid var(--border);border-radius:20px;background:var(--surface);color:var(--text);cursor:pointer;font-size:.8rem;font-weight:600;transition:all .2s;white-space:nowrap;}
+.ch-quick-btn:hover{background:var(--hover-tint);border-color:var(--accent);}
+.ch-quick-btn.active[data-tone="red"]{background:var(--red);color:var(--white);border-color:var(--red);}
+.ch-quick-btn.active[data-tone="yellow"]{background:var(--yellow);color:var(--white);border-color:var(--yellow);}
+.ch-quick-btn.active[data-tone="blue"]{background:var(--navy3);color:var(--white);border-color:var(--navy3);}
 .table-wrap{overflow-x:auto;}
 table{width:100%;border-collapse:collapse;}
 th{padding:.9rem 1rem;text-align:left;font-size:.82rem;font-weight:600;color:var(--muted);background:var(--surface-2);border-bottom:2px solid var(--border);cursor:pointer;user-select:none;white-space:nowrap;}
@@ -1471,6 +1478,12 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
           <span style="color:var(--muted);font-size:.8rem;">to</span>
           <input type="date" id="ch-filter-due-to" onchange="renderCheques()" style="padding:.4rem .6rem;border:1.5px solid var(--border);border-radius:7px;font-size:.82rem;">
           <button class="clear-btn" onclick="clearChequeDateRange()">✕ Clear Dates</button>
+        </div>
+        <div class="ch-quick-filter-bar">
+          <span style="font-weight:700;font-size:.8rem;color:var(--navy);">⚡ Quick Filters:</span>
+          <button class="ch-quick-btn" id="ch-quick-1" data-tone="red" onclick="applyChequeQuickFilter(1)">🔴 This Week (incl. Overdue)</button>
+          <button class="ch-quick-btn" id="ch-quick-2" data-tone="yellow" onclick="applyChequeQuickFilter(2)">🟡 Next Week</button>
+          <button class="ch-quick-btn" id="ch-quick-3" data-tone="blue" onclick="applyChequeQuickFilter(3)">🔵 Week After Next</button>
         </div>
         <div class="hidden" id="ch-range-summary" style="margin:0 1.5rem 1rem;padding:.75rem 1.1rem;background:#eef6ff;border:1.5px solid var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;">
           <span id="ch-range-summary-text" style="font-weight:700;color:var(--navy);font-size:.9rem;"></span>
@@ -3588,6 +3601,21 @@ function getChequesNeedingAttention() {
   );
 }
 
+// Returns the Sat–Fri start/end date strings (YYYY-MM-DD) for the "cheque cycle"
+// week that is `offsetWeeks` cycles away from the one containing today. offsetWeeks
+// 0 = this week (same window used by getChequesNeedingAttention() above), 1 = the
+// following Sat–Fri cycle, 2 = the cycle after that, and so on. Used by the
+// Cheques tab's "This Week / Next Week / Week After Next" quick-filter buttons.
+function chequeCycleBounds(offsetWeeks) {
+  const t = new Date(today() + 'T00:00:00Z');
+  const daysSinceSat = (t.getUTCDay() + 1) % 7; // Sat=6→0, Sun=0→1, Mon=1→2 … Fri=5→6
+  const weekStart = new Date(t);
+  weekStart.setUTCDate(t.getUTCDate() - daysSinceSat + (offsetWeeks * 7));
+  const weekEnd = new Date(weekStart);
+  weekEnd.setUTCDate(weekStart.getUTCDate() + 6);
+  return { start: weekStart.toISOString().slice(0, 10), end: weekEnd.toISOString().slice(0, 10) };
+}
+
 // ============= CHEQUES IN MANAGER'S HAND (blank-cheque pool) =============
 // Each manager account can carry a `chequeBook` array — individual blank cheques
 // (bank + number) that Admin has registered as physically being in that manager's
@@ -4652,6 +4680,54 @@ function clearChequeDateRange(skipRender) {
   if (!skipRender) renderCheques();
 }
 
+// ============= CHEQUES QUICK FILTERS (This Week / Next Week / Week After Next) =============
+// which: 1 = This Week — every pending cheque due on/before this cheque cycle's
+//        Friday (i.e. all overdue pending cheques PLUS ones due within the current
+//        Sat–Fri week) — same set as the "Cheques Due This Week" dashboard tile.
+//        2 = Next Week — pending cheques due in the following Sat–Fri cheque cycle
+//        (the Saturday right after this cycle's Friday, through the next Friday).
+//        3 = Week After Next — pending cheques due in the cheque cycle after that.
+function applyChequeQuickFilter(which) {
+  // Reset the other filters/search so the quick filter's result set is exactly
+  // the due-date window described above, not narrowed further by leftovers.
+  if ($('ch-search')) $('ch-search').value = '';
+  if ($('ch-filter-sup')) $('ch-filter-sup').value = '';
+  if ($('ch-filter-bank')) $('ch-filter-bank').value = '';
+  if ($('ch-filter-user')) $('ch-filter-user').value = '';
+  if ($('ch-filter-date-from')) $('ch-filter-date-from').value = '';
+  if ($('ch-filter-date-to')) $('ch-filter-date-to').value = '';
+  if ($('ch-filter-status')) $('ch-filter-status').value = 'pending';
+
+  let from = '', to = '';
+  if (which === 1) {
+    const cur = chequeCycleBounds(0);
+    from = ''; // unbounded start so already-overdue pending cheques are included too
+    to = cur.end;
+  } else {
+    const wk = chequeCycleBounds(which === 2 ? 1 : 2);
+    from = wk.start;
+    to = wk.end;
+  }
+  if ($('ch-filter-due-from')) $('ch-filter-due-from').value = from;
+  if ($('ch-filter-due-to')) $('ch-filter-due-to').value = to;
+
+  switchChequeTab('active'); // pending cheques live in the Active tab; this also re-renders
+}
+
+// Highlights whichever quick-filter chip (if any) matches the filters currently
+// applied, so the buttons stay in sync even if the person edits the date fields
+// or filters by hand instead of clicking a chip. Called from renderCheques().
+function syncChequeQuickFilterButtons(statFilter, dueFrom, dueTo) {
+  if (!$('ch-quick-1')) return;
+  const cur = chequeCycleBounds(0), wk2 = chequeCycleBounds(1), wk3 = chequeCycleBounds(2);
+  const matches = {
+    1: statFilter === 'pending' && dueFrom === '' && dueTo === cur.end,
+    2: statFilter === 'pending' && dueFrom === wk2.start && dueTo === wk2.end,
+    3: statFilter === 'pending' && dueFrom === wk3.start && dueTo === wk3.end
+  };
+  [1, 2, 3].forEach(n => { const b = $(`ch-quick-${n}`); if (b) b.classList.toggle('active', !!matches[n]); });
+}
+
 function sortTable(tbl, col) {
   const st = DB.sortState[tbl];
   if (st.col === col) st.dir = st.dir === 'asc' ? 'desc' : 'asc';
@@ -4847,6 +4923,7 @@ function renderCheques() {
   const dateTo = $('ch-filter-date-to')?.value || '';
   const dueFrom = $('ch-filter-due-from')?.value || '';
   const dueTo = $('ch-filter-due-to')?.value || '';
+  syncChequeQuickFilterButtons(statFilter, dueFrom, dueTo);
   const rows = getDataRows('cheques').filter(c => {
     const owner = `${c._ownerName || ''} ${c._ownerUsername || ''}`.toLowerCase();
     const sn = getSupplierName(c.supplierId, c._owner).toLowerCase();
