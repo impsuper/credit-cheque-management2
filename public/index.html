@@ -84,9 +84,42 @@ html[data-theme="gold"]{
   --splash-bar-1:#d4af37;--splash-bar-2:#f0c75e;
   --splash-title-grad:#f0c75e;--splash-icon-glow:rgba(212,175,55,.35);
 }
+html[data-theme="nature"]{
+  --navy:#1b4332;--navy2:#2d6a4f;--navy3:#40916c;
+  --navy-bg:#1b4332;--navy2-bg:#2d6a4f;
+  --accent:#52b788;--red:#bc4749;--yellow:#dda15e;--green:#2d6a4f;
+  --bg:#f1f8f0;--text:#1c2e21;--muted:#6b8f71;--border:#d8e8d4;
+  --shadow:0 1px 3px rgba(27,67,50,.08);--shadow2:0 8px 24px rgba(27,67,50,.14);
+  --surface:#ffffff;--surface-2:#eef6ec;
+  --row-hover:#e6f4e1;--hover-tint:#e3f2e0;--hover-tint2:#eaf6e6;
+  --zebra-even:#edf7ea;--track-bg:#e2f0df;--card-grad-2:#f8fdf7;
+  --page-grad-1:#f1f8f0;--page-grad-2:#e3efe0;--accent2:#2d6a4f;
+  --splash-bg-1:#0b1f14;--splash-bg-2:#1b4332;--splash-bg-3:#40916c;
+  --splash-orb1:#52b788;--splash-orb2:#74c69d;--splash-orb3:#2d6a4f;
+  --splash-ring:rgba(82,183,136,.35);--splash-ring2:rgba(82,183,136,.18);
+  --splash-bar-1:#52b788;--splash-bar-2:#95d5b2;
+  --splash-title-grad:#b7e4c7;--splash-icon-glow:rgba(82,183,136,.25);
+}
+html[data-theme="sky"]{
+  --navy:#0c4a6e;--navy2:#075985;--navy3:#0284c7;
+  --navy-bg:#0c4a6e;--navy2-bg:#075985;
+  --accent:#0ea5e9;--red:#dc2626;--yellow:#d97706;--green:#16a34a;
+  --bg:#f0f9ff;--text:#0c2d48;--muted:#6493b0;--border:#cfeaf7;
+  --shadow:0 1px 3px rgba(12,74,110,.08);--shadow2:0 8px 24px rgba(12,74,110,.14);
+  --surface:#ffffff;--surface-2:#e8f6fd;
+  --row-hover:#e0f4fc;--hover-tint:#dff3fc;--hover-tint2:#e6f6fd;
+  --zebra-even:#eaf8fd;--track-bg:#ddf1fb;--card-grad-2:#fafdff;
+  --page-grad-1:#f0f9ff;--page-grad-2:#dff0fa;--accent2:#0284c7;
+  --splash-bg-1:#001d2e;--splash-bg-2:#0c4a6e;--splash-bg-3:#0ea5e9;
+  --splash-orb1:#0ea5e9;--splash-orb2:#38bdf8;--splash-orb3:#0284c7;
+  --splash-ring:rgba(14,165,233,.35);--splash-ring2:rgba(14,165,233,.18);
+  --splash-bar-1:#0ea5e9;--splash-bar-2:#7dd3fc;
+  --splash-title-grad:#bae6fd;--splash-icon-glow:rgba(14,165,233,.25);
+}
 html{transition:background-color .25s ease;}
 body,.card,.modal,.sidebar,.stat-card,.auth-card{transition:background-color .25s ease,border-color .25s ease,color .25s ease;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:14px;}
+
 
 /* ===== SPLASH SCREEN ===== */
 #splashScreen{
@@ -255,7 +288,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .clear-btn{padding:.45rem .8rem;border:1.5px solid var(--red);border-radius:7px;background:var(--surface);cursor:pointer;font-size:.82rem;color:var(--red);transition:all .2s;}
 .clear-btn:hover{background:var(--red);color:var(--white);}
 /* ===== Cheques quick-filter chips (This Week / Next Week / Week After Next) ===== */
-.ch-quick-filter-bar{display:flex;align-items:center;gap:.6rem;padding:.85rem 1.5rem;flex-wrap:wrap;background:var(--surface-2);border-bottom:1px solid var(--border);}
+.ch-quick-filter-label{font-weight:700;font-size:.82rem;color:var(--navy);white-space:nowrap;}
 .ch-quick-btn{padding:.45rem .95rem;border:1.5px solid var(--border);border-radius:20px;background:var(--surface);color:var(--text);cursor:pointer;font-size:.8rem;font-weight:600;transition:all .2s;white-space:nowrap;}
 .ch-quick-btn:hover{background:var(--hover-tint);border-color:var(--accent);}
 .ch-quick-btn.active[data-tone="red"]{background:var(--red);color:var(--white);border-color:var(--red);}
@@ -1354,7 +1387,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
             <button class="btn btn-navy btn-sm" onclick="openModal('creditModal')">➕ Add Credit</button>
           </div>
         </div>
-        <div id="cr-total-bar" style="margin:1rem 1.5rem 0;padding:.75rem 1.1rem;background:#eef6ff;border:1.5px solid var(--accent);border-radius:10px;display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">
+        <div id="cr-total-bar" style="margin:1rem 1.5rem 0;padding:.75rem 1.1rem;background:var(--hover-tint);border:1.5px solid var(--accent);border-radius:10px;display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">
           <span style="font-weight:700;color:var(--navy);font-size:.9rem;">🧾 Active Bills: <span id="cr-total-count">0</span></span>
           <span style="font-weight:700;color:var(--navy);font-size:.9rem;">💵 Active Amount: <span id="cr-total-amount">LKR 0</span></span>
           <span style="font-weight:700;color:var(--red,#dc2626);font-size:.9rem;">⚖️ Active Balance: <span id="cr-total-balance">LKR 0</span></span>
@@ -1437,10 +1470,14 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
         <div class="card-head">
           <div class="card-title">✅ Cheques Management</div>
           <div class="card-actions">
+            <span class="ch-quick-filter-label">⚡ Quick Filters:</span>
+            <button class="ch-quick-btn" id="ch-quick-1" data-tone="red" onclick="applyChequeQuickFilter(1)">🔴 This Week (incl. Overdue)</button>
+            <button class="ch-quick-btn" id="ch-quick-2" data-tone="yellow" onclick="applyChequeQuickFilter(2)">🟡 Next Week</button>
+            <button class="ch-quick-btn" id="ch-quick-3" data-tone="blue" onclick="applyChequeQuickFilter(3)">🔵 Week After Next</button>
             <button class="btn btn-navy btn-sm" onclick="openModal('chequeModal')">➕ Add Cheque</button>
           </div>
         </div>
-        <div id="ch-total-bar" style="margin:1rem 1.5rem 0;padding:.75rem 1.1rem;background:#eef6ff;border:1.5px solid var(--accent);border-radius:10px;display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">
+        <div id="ch-total-bar" style="margin:1rem 1.5rem 0;padding:.75rem 1.1rem;background:var(--hover-tint);border:1.5px solid var(--accent);border-radius:10px;display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">
           <span style="font-weight:700;color:var(--navy);font-size:.9rem;">🧾 Active Cheques: <span id="ch-total-count">0</span></span>
           <span style="font-weight:700;color:var(--navy);font-size:.9rem;">💵 Active Amount: <span id="ch-total-amount">LKR 0</span></span>
         </div>
@@ -1479,13 +1516,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
           <input type="date" id="ch-filter-due-to" onchange="renderCheques()" style="padding:.4rem .6rem;border:1.5px solid var(--border);border-radius:7px;font-size:.82rem;">
           <button class="clear-btn" onclick="clearChequeDateRange()">✕ Clear Dates</button>
         </div>
-        <div class="ch-quick-filter-bar">
-          <span style="font-weight:700;font-size:.8rem;color:var(--navy);">⚡ Quick Filters:</span>
-          <button class="ch-quick-btn" id="ch-quick-1" data-tone="red" onclick="applyChequeQuickFilter(1)">🔴 This Week (incl. Overdue)</button>
-          <button class="ch-quick-btn" id="ch-quick-2" data-tone="yellow" onclick="applyChequeQuickFilter(2)">🟡 Next Week</button>
-          <button class="ch-quick-btn" id="ch-quick-3" data-tone="blue" onclick="applyChequeQuickFilter(3)">🔵 Week After Next</button>
-        </div>
-        <div class="hidden" id="ch-range-summary" style="margin:0 1.5rem 1rem;padding:.75rem 1.1rem;background:#eef6ff;border:1.5px solid var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;">
+        <div class="hidden" id="ch-range-summary" style="margin:0 1.5rem 1rem;padding:.75rem 1.1rem;background:var(--hover-tint);border:1.5px solid var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;">
           <span id="ch-range-summary-text" style="font-weight:700;color:var(--navy);font-size:.9rem;"></span>
         </div>
         <!-- Sort Pills Bar — visible on mobile only -->
@@ -8776,9 +8807,19 @@ const THEMES = {
     name: '✨ Gold Luxury',
     desc: 'Black + Gold — premium, luxury aesthetic එකක්.',
     preview: { side:'#0a0806', topbar:'linear-gradient(135deg,#0a0806,#d4af37)', bodyBg:'#0c0a08', dots:['#d4af37','#f0c75e','#f1e6cd'] }
+  },
+  nature: {
+    name: '🌿 Green Nature',
+    desc: 'Forest green & sage — නැවුම්, සන්සුන් ස්වභාවික theme එකක්.',
+    preview: { side:'#1b4332', topbar:'linear-gradient(135deg,#1b4332,#52b788)', bodyBg:'#f1f8f0', dots:['#40916c','#52b788','#dda15e'] }
+  },
+  sky: {
+    name: '☁️ Sky Blue',
+    desc: 'Bright sky blue & white — සැහැල්ලු, පිරිසිදු, දීප්තිමත් theme එකක්.',
+    preview: { side:'#0c4a6e', topbar:'linear-gradient(135deg,#0c4a6e,#0ea5e9)', bodyBg:'#f0f9ff', dots:['#0ea5e9','#38bdf8','#0284c7'] }
   }
 };
-const THEME_METACOLORS = { light:'#0f172a', dark:'#0a0f1c', tie:'#111d33', gold:'#0a0806' };
+const THEME_METACOLORS = { light:'#0f172a', dark:'#0a0f1c', tie:'#111d33', gold:'#0a0806', nature:'#1b4332', sky:'#0c4a6e' };
 
 function applyTheme(theme) {
   if (!THEMES[theme]) theme = 'light';
@@ -9577,6 +9618,35 @@ function renderDailySalesChart() {
   ovPlayFadeIn(el);
 }
 
+// Shared fill logic for the three "day-of-month, one series per month" charts
+// (Monthly Sales Growth, This Month vs Past Months, Daily Sales Comparison).
+// For a given month's day->totalSales map (dm) and the last day of that month
+// that's actually "in play" (all of it for a past month, or up to today for
+// the current month), this returns one data point per day 1..maxDays:
+//   - null for any day before the month's first real cash entry (nothing to
+//     carry forward yet) and for any day after the LAST real entry within the
+//     in-play range (a trailing gap — e.g. today/yesterday not filled in yet —
+//     is left blank so the series visibly stops there instead of dipping to
+//     zero or flat-extending all the way to today)
+//   - for days between the first and last real entry that have no entry of
+//     their own, the last known value is repeated flat, so the line/bars stay
+//     continuous with no dip or visual break in the middle
+//   - cumulative=true (Monthly Sales Growth) accumulates a running total on
+//     each real entry instead of repeating that day's raw value
+function buildMonthlyDaySeries(dm, daysInMonth, maxDays, isCurrentMonth, todayDate, cumulative) {
+  const lastValidDay = isCurrentMonth ? Math.min(todayDate, daysInMonth) : daysInMonth;
+  let lastActualDay = 0;
+  for (let day = 1; day <= lastValidDay; day++) { if (dm.has(day)) lastActualDay = day; }
+  const data = [];
+  let running = 0, lastValue = null, started = false;
+  for (let day = 1; day <= maxDays; day++) {
+    if (day > lastActualDay) { data.push(null); continue; } // future day, or trailing gap up to today — stop here
+    if (dm.has(day)) { lastValue = cumulative ? (running += dm.get(day)) : dm.get(day); started = true; }
+    data.push(started ? lastValue : null); // interior gap (started) repeats flat; before first entry stays blank
+  }
+  return data;
+}
+
 // Monthly Sales Growth: cumulative Total Sales by day-of-month (day 1 → 30/31),
 // with one colored line per month so the current month's running pace can be
 // compared against the last 3 or 6 months. The current month's line naturally
@@ -9618,13 +9688,7 @@ function renderMonthlySalesGrowthChart() {
     if (!dm || !dm.size) return; // skip months with no sales data at all
     const daysInMonth = new Date(m.year, m.month + 1, 0).getDate();
     const isCurrentMonth = m.year === now.getFullYear() && m.month === now.getMonth();
-    let running = 0;
-    const data = [];
-    for (let day = 1; day <= maxDays; day++) {
-      if (day > daysInMonth || (isCurrentMonth && day > todayDate)) { data.push(null); continue; }
-      running += dm.get(day) || 0;
-      data.push(running);
-    }
+    const data = buildMonthlyDaySeries(dm, daysInMonth, maxDays, isCurrentMonth, todayDate, true);
     const label = new Date(m.year, m.month).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) + (isCurrentMonth ? ' (Current)' : '');
     // Most recent month always gets the first palette color so it stays visually
     // consistent as the range selector switches between 1 / 3 / 6 months.
@@ -9679,10 +9743,13 @@ function renderDailySalesComparisonChart() {
     if (!dm || !dm.size) return; // skip months with no sales data at all
     const daysInMonth = new Date(m.year, m.month + 1, 0).getDate();
     const isCurrentMonth = m.year === now.getFullYear() && m.month === now.getMonth();
+    // Unlike Monthly Sales Growth / This Month vs Past Months, this chart shows
+    // a blank (no bar) for ANY day with no recorded cash entry — no flat
+    // carry-forward fill, even for gaps in the middle of the month.
     const data = [];
     for (let day = 1; day <= maxDays; day++) {
       if (day > daysInMonth || (isCurrentMonth && day > todayDate)) { data.push(null); continue; }
-      data.push(dm.get(day) || 0);
+      data.push(dm.has(day) ? dm.get(day) : null);
     }
     const label = new Date(m.year, m.month).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) + (isCurrentMonth ? ' (Current)' : '');
     // Most recent month always gets the first palette color so it stays visually
@@ -9737,11 +9804,7 @@ function renderDailySalesMonthlyTrendChart() {
     if (!dm || !dm.size) return; // skip months with no sales data at all
     const daysInMonth = new Date(m.year, m.month + 1, 0).getDate();
     const isCurrentMonth = m.year === now.getFullYear() && m.month === now.getMonth();
-    const data = [];
-    for (let day = 1; day <= maxDays; day++) {
-      if (day > daysInMonth || (isCurrentMonth && day > todayDate)) { data.push(null); continue; }
-      data.push(dm.get(day) || 0);
-    }
+    const data = buildMonthlyDaySeries(dm, daysInMonth, maxDays, isCurrentMonth, todayDate, false);
     const label = new Date(m.year, m.month).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) + (isCurrentMonth ? ' (Current)' : '');
     // Most recent month always gets the first palette color so it stays
     // visually consistent as the range selector switches between 3 / 6 months.
