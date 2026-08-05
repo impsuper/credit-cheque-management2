@@ -294,6 +294,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .ch-quick-btn.active[data-tone="red"]{background:var(--red);color:var(--white);border-color:var(--red);}
 .ch-quick-btn.active[data-tone="yellow"]{background:var(--yellow);color:var(--white);border-color:var(--yellow);}
 .ch-quick-btn.active[data-tone="blue"]{background:var(--navy3);color:var(--white);border-color:var(--navy3);}
+/* ===== Daily Summary (Admin/Manager) ===== */
+.ds-summary-bar{margin:1rem 1.5rem 0;padding:.9rem 1.3rem;background:var(--hover-tint);border:1.5px solid var(--accent);border-radius:10px;display:flex;align-items:center;gap:2.2rem;flex-wrap:wrap;}
+.ds-summary-bar .ds-summary-item{display:flex;flex-direction:column;gap:.15rem;}
+.ds-summary-bar .ds-summary-item span{font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;}
+.ds-summary-bar .ds-summary-item b{font-size:1.25rem;font-weight:800;color:var(--navy);}
+.ds-cashier-head{display:flex;align-items:center;justify-content:space-between;padding:1.1rem 1.5rem;background:linear-gradient(135deg,var(--navy-bg),var(--navy2-bg));flex-wrap:wrap;gap:.6rem;}
+.ds-cashier-head .ds-cashier-name{font-weight:800;font-size:1.02rem;color:#fff;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;}
+.ds-cashier-head .ds-cashier-name small{font-weight:500;font-size:.75rem;opacity:.82;}
+.ds-cashier-head .ds-cashier-total{color:#fff;font-weight:700;font-size:.92rem;background:rgba(255,255,255,.16);padding:.4rem .9rem;border-radius:20px;white-space:nowrap;}
+.ds-mini-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:.8rem;padding:1.2rem 1.5rem 0;}
+.ds-mini-stat{background:var(--surface-2);border-radius:9px;padding:.7rem .9rem;display:flex;flex-direction:column;gap:.25rem;}
+.ds-mini-stat span{font-size:.72rem;color:var(--muted);font-weight:600;}
+.ds-mini-stat b{font-size:.98rem;color:var(--navy);}
+.ds-mini-stat.ds-highlight{background:var(--hover-tint);border:1.5px solid var(--accent);}
+.ds-mini-stat.ds-highlight b{color:var(--green);}
+.ds-subsection-title{font-weight:700;font-size:.85rem;color:var(--navy);margin:1.2rem 1.5rem .6rem;}
+.ds-empty-note{padding:1rem 1.5rem 1.4rem;color:var(--muted);font-size:.83rem;font-style:italic;}
 .table-wrap{overflow-x:auto;}
 table{width:100%;border-collapse:collapse;}
 th{padding:.9rem 1rem;text-align:left;font-size:.82rem;font-weight:600;color:var(--muted);background:var(--surface-2);border-bottom:2px solid var(--border);cursor:pointer;user-select:none;white-space:nowrap;}
@@ -912,8 +929,13 @@ tr:hover td{background:var(--row-hover);}
 .ho-dispute-btn:hover{background:#fff1f2;}
 
 /* ===== MODAL XL ===== */
-.modal-xl{max-width:1320px;width:95%;}
+.modal-xl{max-width:1500px;width:96%;max-height:94vh;}
 @media(max-width:768px){.modal-xl{max-width:100%;}}
+#supplierAnalyticsModal .stats-grid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.7rem;}
+#supplierAnalyticsModal .stat-card{padding:.75rem .85rem;border-radius:12px;}
+#supplierAnalyticsModal .stat-label{font-size:.72rem;margin-bottom:.2rem;}
+#supplierAnalyticsModal .stat-val{font-size:1.15rem;}
+#supplierAnalyticsModal .stat-sub{font-size:.68rem;margin-top:.15rem;}
 
 /* ===== CASHIER MODE — no sidebar ===== */
 body.cashier-mode .sidebar{display:none!important;}
@@ -1159,6 +1181,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
     <div class="sb-link" id="navLink-cheques" title="Cheques" onclick="showSection('cheques')"><span class="ico">✅</span><span>Cheques</span></div>
     <div class="sb-link" id="navLink-credits" title="Credits" onclick="showSection('credits')"><span class="ico">💳</span><span>Credits</span></div>
     <div class="sb-link hidden" id="cashNavLink" title="Cash" onclick="showSection('cash')"><span class="ico">💰</span><span>Cash</span></div>
+    <div class="sb-link hidden" id="dailySummaryNavLink" title="Daily Summary" onclick="showSection('dailySummary')"><span class="ico">📅</span><span>Daily Summary</span></div>
     <div class="sb-link" id="navLink-suppliers" title="Suppliers" onclick="showSection('suppliers')"><span class="ico">🏪</span><span>Suppliers</span></div>
     <div class="sb-link hidden" id="payrollNavLink" title="Payroll" onclick="showSection('payroll')"><span class="ico">🧑‍💼</span><span>Payroll</span></div>
     <div class="sb-link" id="navLink-reload" title="Reload" onclick="showSection('reload')"><span class="ico">📱</span><span>Reload</span></div>
@@ -1650,7 +1673,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
         </div>
         <div class="sa-filter-bar" style="border-bottom:1px solid var(--border);">
           <span style="font-weight:700;font-size:.85rem;color:var(--navy);">⚡ Quick Sort:</span>
-          <button class="quick-pill" id="sup-quick-records" onclick="supQuickSort('records')">🧾 Most Records Added</button>
+          <button class="quick-pill" id="sup-quick-invoices" onclick="supQuickSort('invoices')">🧾 Most Invoices Added</button>
           <button class="quick-pill" id="sup-quick-value" onclick="supQuickSort('value')">💰 Highest Value Purchases</button>
         </div>
         <div class="table-wrap">
@@ -1660,7 +1683,9 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
                 <th onclick="sortTable('suppliers','name')" data-col="name">🏪 Supplier<span class="sort-ico"></span></th>
                 <th onclick="sortTable('suppliers','balance')" data-col="balance">💳 Active Credit Balance<span class="sort-ico"></span></th>
                 <th onclick="sortTable('suppliers','activeCheque')" data-col="activeCheque">📄 Active Cheque Amount<span class="sort-ico"></span></th>
-                <th onclick="sortTable('suppliers','records')" data-col="records">🧾 No. of Records<span class="sort-ico"></span></th>
+                <th onclick="sortTable('suppliers','invoices')" data-col="invoices">🧾 No. of Invoices<span class="sort-ico"></span></th>
+                <th onclick="sortTable('suppliers','avgPurchase')" data-col="avgPurchase">📊 Monthly Average Purchases<span class="sort-ico"></span></th>
+                <th onclick="sortTable('suppliers','avgInvoices')" data-col="avgInvoices">📈 Avg Invoices/mo<span class="sort-ico"></span></th>
                 <th>⚙️ Action</th>
               </tr>
             </thead>
@@ -2129,6 +2154,23 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
           <button class="btn btn-ghost btn-sm" onclick="showSection('reports')">📤 View Full Disposal Log →</button>
         </div>
       </div>
+    </div>
+
+    <!-- DAILY SUMMARY -->
+    <div id="dailySummarySection" class="section">
+      <div class="card" style="margin-bottom:0;">
+        <div class="card-head">
+          <div class="card-title">📅 Daily Summary</div>
+          <div class="card-actions">
+            <input type="date" id="ds-date" onchange="renderDailySummary()" style="padding:.5rem .9rem;border:1.5px solid var(--border);border-radius:8px;font-size:.85rem;font-weight:600;">
+            <button class="btn btn-navy btn-sm" onclick="downloadDailySummaryPDF()">📄 Download PDF (A4)</button>
+          </div>
+        </div>
+        <div style="padding:.9rem 1.5rem;font-size:.8rem;color:var(--muted);border-bottom:2px solid var(--border);">
+          💡 තෝරාගත් දිනට Cashier ලා විසින් ඇතුළත් කරන ලද Sales, Purchase, Credit Pay, Cheque, Attendance සහ Manager Activity සියල්ල එකම තැනකින්. ඩිෆෝල්ට් ලෙස පෙන්වන්නේ ඊයේ දිනයයි.
+        </div>
+      </div>
+      <div id="ds-content"></div>
     </div>
 
     <!-- PAYROLL -->
@@ -3135,6 +3177,29 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
   </div>
 </div>
 
+<!-- ===== DAILY ATTENDANCE REMINDER MODAL ===== -->
+<div id="attendanceReminderModal" class="overlay">
+  <div class="modal">
+    <div class="modal-head" style="background:linear-gradient(135deg,#b45309,#d97706);color:#fff;">
+      <h3 style="color:#fff;">⏰ Attendance Reminder</h3>
+      <button class="modal-close" style="color:rgba(255,255,255,.8);" onclick="closeModal('attendanceReminderModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;gap:.8rem;align-items:flex-start;">
+        <div style="font-size:1.8rem;line-height:1;">🗓️</div>
+        <div>
+          <div style="font-weight:700;font-size:.95rem;color:var(--text);margin-bottom:.35rem;">ඔබ තවම සේවක පැමිනීම සටහන් කර නොමැත</div>
+          <div style="font-size:.83rem;color:var(--muted);line-height:1.6;">අද (<span id="attReminderDate"></span>) දිනට Attendance තවම mark කර නැහැ. දැන් සටහන් කරන්න, නැත්නම් පසුව මතක් කරගන්න.</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('attendanceReminderModal')">⏭ පසුව</button>
+      <button class="btn btn-navy" onclick="closeModal('attendanceReminderModal');showSection('payroll');switchPayrollTab('attendance');">🗓️ දැන් සටහන් කරන්න</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== SUPPLIER ANALYTICS MODAL ===== -->
 <div id="supplierAnalyticsModal" class="overlay">
   <div class="modal modal-xl">
@@ -3144,6 +3209,10 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
     </div>
     <div class="modal-body">
       <div id="sup-analytics-header" style="margin-bottom:.8rem;padding:.9rem 1rem;background:var(--surface-2);border-radius:10px;border-left:4px solid var(--navy3);"></div>
+      <div class="stats-grid" style="margin-bottom:.8rem;">
+        <div class="stat-card" style="background:linear-gradient(135deg,#0e7490,#22d3ee);"><div class="stat-label" style="color:#fff;">🧾 Total Purchases (Last 3 Months)</div><div class="stat-val" id="sup-an-3m-value" style="color:#fff;">LKR 0</div><div class="stat-sub" style="color:#e0f7fa;"><span id="sup-an-3m-count">0</span> invoices</div></div>
+        <div class="stat-card" style="background:linear-gradient(135deg,#15803d,#4ade80);"><div class="stat-label" style="color:#fff;">📊 Monthly Average Purchases</div><div class="stat-val" id="sup-an-avg-value" style="color:#fff;">LKR 0</div><div class="stat-sub" style="color:#dcfce7;"><span id="sup-an-avg-count">0</span> invoices/mo</div></div>
+      </div>
       <div id="sup-profile-actions" style="display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:1rem;"></div>
       <div class="stats-grid" style="margin-bottom:1rem;">
         <div class="stat-card green"><div class="stat-label">✅ Purchased &amp; Settled</div><div class="stat-val" id="sup-an-settled-value">LKR 0</div><div class="stat-sub"><span id="sup-an-settled-count">0</span> bills settled</div></div>
@@ -3328,6 +3397,7 @@ const DEFAULT_MANAGER_PERMS = {
   // Sidebar sections
   credits: true, cheques: true, suppliers: true, reports: true,
   analytics: true, aiinsights: true, reload: true, cash: true, payroll: true,
+  dailySummary: true,
   // Dashboard stat tiles
   tile_activeCheques: true, tile_outstanding: true, tile_avgDaySale: true,
   tile_cashInHand: true, tile_reloadTotal: true, tile_reloadCash: true,
@@ -3353,6 +3423,7 @@ const DASHBOARD_SECTIONS = [
   { key: 'aiinsights', navId: 'navLink-aiinsights', label: '🤖 AI Insights' },
   { key: 'reload',     navId: 'navLink-reload',     label: '📱 Reload' },
   { key: 'cash',       navId: 'cashNavLink',        label: '💰 Cash' },
+  { key: 'dailySummary', navId: 'dailySummaryNavLink', label: '📅 Daily Summary' },
   { key: 'payroll',    navId: 'payrollNavLink',     label: '🧑\u200d💼 Payroll' }
 ];
 // Dashboard stat tiles (the small cards at the top of the Dashboard/Overview
@@ -4461,6 +4532,7 @@ function initDashboard() {
   showPage('dashboardPage');
   showSection('overview');
   setTimeout(checkPendingHandovers, 1200);
+  setTimeout(checkAttendanceReminder, 1900);
 }
 
 const sectionTitles = {
@@ -4476,6 +4548,7 @@ const sectionTitles = {
   pl: '💹 Profit & Loss',
   activity: '🕐 Activity Log',
   cash: '💰 Cash Management',
+  dailySummary: '📅 Daily Summary',
   reload: '📱 Reload Management',
   payroll: '🧑\u200d💼 Payroll',
   settings: '⚙️ Settings'
@@ -4510,6 +4583,7 @@ function showSection(name) {
   if (name === 'overview') renderOverview();
   if (name === 'activity') renderActivityLog();
   if (name === 'cash') { initCashSection(); if($('cl-date')&&!$('cl-date').value)$('cl-date').value=today(); renderCash(); }
+  if (name === 'dailySummary') initDailySummarySection();
   if (name === 'reports') { renderSalesHistory(); renderCashLog(); renderManagerCashLedger(); }
   if (name === 'reload') { if($('rl-date')&&!$('rl-date').value)$('rl-date').value=today(); renderReloadSection(); }
   if (name === 'analytics') initAnalytics();
@@ -4540,6 +4614,8 @@ function refreshActiveSection() {
     renderUsers();
   } else if (id === 'overview') {
     renderOverview();
+  } else if (id === 'dailySummary') {
+    renderDailySummary();
   } else if (id === 'settings') {
     initSettingsSection();
   }
@@ -5368,6 +5444,51 @@ function setSupplierTrendRange(months) {
   renderSupplierAnalytics();
 }
 
+// Shared by the Supplier Profile analytics modal and the Suppliers list table so
+// both show the exact same Monthly Average numbers. Counts "each purchase once"
+// (full Credit Bill amount + only NON-linked Cheques + all Cash Purchases) over a
+// fixed trailing-3-month window, then divides by the ACTUAL span of active days —
+// not a flat "3" — so a supplier who only just started buying (or whose current
+// month has barely begun) isn't shown a deflated average. The EARLIEST active
+// month is counted in FULL from its 1st, any months in between count in full, and
+// the CURRENT month only counts days actually completed so far (today - 1).
+function getSupplierMonthlyAvgStats(credits, cheques, cashPurchases) {
+  const d3mo = new Date();
+  d3mo.setMonth(d3mo.getMonth() - 3);
+  const d3moKey = `${d3mo.getFullYear()}-${String(d3mo.getMonth() + 1).padStart(2, '0')}-${String(d3mo.getDate()).padStart(2, '0')}`;
+  const txns = [
+    ...credits.map(c => ({ date: c.date, amount: Number(c.amount) || 0 })),
+    ...cheques.filter(c => !c.linkedCreditId).map(c => ({ date: c.date, amount: Number(c.amount) || 0 })),
+    ...cashPurchases.map(p => ({ date: p.date, amount: Number(p.amount) || 0 })),
+  ].filter(t => t.date && t.date >= d3moKey);
+  const value = txns.reduce((a, t) => a + t.amount, 0);
+  const count = txns.length;
+
+  const dates = txns.map(t => t.date).filter(Boolean).sort();
+  let avgMonths = 3;
+  if (dates.length) {
+    const firstTxnDate = new Date(dates[0]);
+    const today = new Date();
+    const startOfFirstMonth = new Date(firstTxnDate.getFullYear(), firstTxnDate.getMonth(), 1);
+    const startOfCurrentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const fullMonthsDays = Math.round((startOfCurrentMonth - startOfFirstMonth) / 86400000);
+    const partialCurrentDays = Math.max(0, today.getDate() - 1);
+    const activeDays = Math.max(1, fullMonthsDays + partialCurrentDays);
+    // Floor at 1 month's worth of days. Without this, a supplier with only a
+    // handful of days of history (e.g. their first-ever purchase was 4 days ago)
+    // gets that purchase divided by a tiny fraction-of-a-month and wildly
+    // extrapolated into a "monthly rate" (e.g. one LKR 108,808 purchase 4 days in
+    // becoming a projected LKR 828,000/mo, 7.6 invoices/mo). Below 1 month of
+    // real history there isn't enough to extrapolate a rate from, so the average
+    // simply shows the actual total/count as-is — never inflated above what
+    // actually happened. Suppliers with a real month+ of history (like ones
+    // bought from daily) are unaffected, since their activeDays already exceeds
+    // 30.44 and this floor never engages.
+    avgMonths = Math.max(activeDays / 30.44, 1);
+  }
+  return { value, count, avgValue: value / avgMonths, avgCount: count / avgMonths };
+}
+
 function renderSupplierAnalytics() {
   const cfg = DB.analyticsOpen;
   if (!cfg) return;
@@ -5383,6 +5504,16 @@ function renderSupplierAnalytics() {
   const overdue = cheques.filter(isOverdue);
   const totCashPurchase = cashPurchases.reduce((a, p) => a + (Number(p.amount) || 0), 0);
   const canManage = isAdmin() || owner.username === DB.currentUsername;
+
+  // Total Purchases (Last 3 Months) + Monthly Average — same "count each purchase
+  // once" partition as the Purchase History Trend below (full Credit Bill amount +
+  // only NON-linked Cheques, since a cheque settling an existing bill isn't a
+  // second purchase + all Cash Purchases), just on a fixed 3-month window rather
+  // than the user-selectable 1M/3M/6M trend range. See getSupplierMonthlyAvgStats
+  // for how the Monthly Average's day-based divisor is derived.
+  const supStats = getSupplierMonthlyAvgStats(credits, cheques, cashPurchases);
+  const purch3moValue = supStats.value;
+  const purch3moCount = supStats.count;
 
   $('sup-analytics-header').innerHTML = `
     <div style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;align-items:flex-start;">
@@ -5413,6 +5544,10 @@ function renderSupplierAnalytics() {
   $('sup-an-balance').textContent = fmt(bal);
   $('sup-an-cheques').textContent = String(cheques.length);
   $('sup-an-overdue').textContent = String(overdue.length);
+  if ($('sup-an-3m-value')) $('sup-an-3m-value').textContent = fmt(purch3moValue);
+  if ($('sup-an-3m-count')) $('sup-an-3m-count').textContent = String(purch3moCount);
+  if ($('sup-an-avg-value')) $('sup-an-avg-value').textContent = fmt(supStats.avgValue);
+  if ($('sup-an-avg-count')) $('sup-an-avg-count').textContent = supStats.avgCount.toFixed(1);
   const dueCheques = cheques.filter(c => c.status === 'pending');
   const totDueCheqAmt = dueCheques.reduce((a, c) => a + (Number(c.amount) || 0), 0);
   $('sup-an-due-cheq').textContent = fmt(totDueCheqAmt);
@@ -5548,12 +5683,18 @@ function renderSupplierRows() {
     const totC = creds.reduce((a, c) => a + (Number(c.amount) || 0), 0);
     const totPaid = creds.reduce((a, c) => a + getTotalPaid(c), 0);
     const activeCheqs = cheqs.filter(c => !isChequeSettled(c));
-    // Every cheque is a real Cheque purchase (whether or not it also settles a
-    // credit bill) — the credit's own contribution below is reduced by whatever
-    // a linked cheque already paid off, so the total isn't double counted.
-    const chequePurchaseAmt = cheqs.reduce((a, c) => a + (Number(c.amount) || 0), 0);
+    // A cheque linked to (and auto-settling) a credit bill is the SAME purchase as
+    // that credit bill, not a second one. So — exactly like computeTotalPurchases()
+    // used by P&L/Dashboard/Charts — it's excluded from the direct cheque sum here,
+    // and only the portion the credit bucket doesn't already claim for itself
+    // (getCreditSettledByChequeAmt, also used inside getCreditPurchaseAmt below) is
+    // added back under Cheque. This keeps the total correct even when a linked
+    // cheque's face value is larger than the bill balance it actually settled.
+    const chequePurchaseAmt = cheqs.filter(c => !c.linkedCreditId).reduce((a, c) => a + (Number(c.amount) || 0), 0)
+      + creds.reduce((a, c) => a + getCreditSettledByChequeAmt(c), 0);
     const creditPurchaseAmt = creds.reduce((a, c) => a + getCreditPurchaseAmt(c), 0);
     const cashPurchaseAmt = cashP.reduce((a, p) => a + (Number(p.amount) || 0), 0);
+    const avgStats = getSupplierMonthlyAvgStats(creds, cheqs, cashP);
     return {
       ...s,
       _totCredit: totC,
@@ -5563,10 +5704,17 @@ function renderSupplierRows() {
       _activeChequeAmt: activeCheqs.reduce((a, c) => a + (Number(c.amount) || 0), 0),
       _overdueCount: cheqs.filter(isOverdue).length,
       _cashPurchaseAmt: cashPurchaseAmt,
+      _creditPurchaseAmt: creditPurchaseAmt,
+      _chequePurchaseAmt: chequePurchaseAmt,
       // A cash purchase from a supplier is a purchase too, so it counts toward
-      // both the record count and the total purchase value.
-      _recordCount: creds.length + cheqs.length + cashP.length,
+      // both the invoice count and the total purchase value. A cheque that's
+      // linked to (and settling) a credit bill is the SAME purchase as that
+      // credit bill, not a second invoice — so linked cheques are excluded here,
+      // same "count each purchase once" rule used for _purchaseValue below.
+      _invoiceCount: creds.length + cheqs.filter(c => !c.linkedCreditId).length + cashP.length,
       _purchaseValue: creditPurchaseAmt + chequePurchaseAmt + cashPurchaseAmt,
+      _avgPurchaseValue: avgStats.avgValue,
+      _avgInvoiceCount: avgStats.avgCount,
       _recent: s.updatedAt || s.createdAt || ''
     };
   });
@@ -5583,8 +5731,10 @@ function renderSupplierRows() {
     cheques: s._chequeCount,
     activeCheque: s._activeChequeAmt,
     overdue: s._overdueCount,
-    records: s._recordCount,
+    invoices: s._invoiceCount,
     purchaseValue: s._purchaseValue,
+    avgPurchase: s._avgPurchaseValue,
+    avgInvoices: s._avgInvoiceCount,
     recent: s._recent
   }[key] ?? ''));
 
@@ -5597,7 +5747,7 @@ function renderSuppliers() {
   const tbody = $('supGrid');
   if (!tbody) return;
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="5" class="no-data"><span class="ico">🏪</span>No suppliers yet</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="no-data"><span class="ico">🏪</span>No suppliers yet</td></tr>`;
   } else {
     tbody.innerHTML = rows.map(s => `<tr>
       <td>
@@ -5606,7 +5756,9 @@ function renderSuppliers() {
       </td>
       <td class="fw700 ${s._balance > 0 ? 'text-red' : 'text-green'}">${fmt(s._balance)}</td>
       <td class="fw700">${fmt(s._activeChequeAmt)}</td>
-      <td style="text-align:center;">${s._recordCount}</td>
+      <td style="text-align:center;">${s._invoiceCount}</td>
+      <td class="fw700">${fmt(s._avgPurchaseValue)}</td>
+      <td style="text-align:center;">${s._avgInvoiceCount.toFixed(1)}</td>
       <td>
         <div class="sup-table-actions">
           <button class="btn btn-accent btn-sm" onclick="openSupplierAnalytics('${s.ownerUsername}','${s.id}')">👤 Profile</button>
@@ -5616,14 +5768,14 @@ function renderSuppliers() {
   }
   // Highlight whichever quick-sort pill (if any) matches the current sort selection
   const { col, dir } = DB.sortState.suppliers;
-  $('sup-quick-records')?.classList.toggle('active', col === 'records' && dir === 'desc');
+  $('sup-quick-invoices')?.classList.toggle('active', col === 'invoices' && dir === 'desc');
   $('sup-quick-value')?.classList.toggle('active', col === 'purchaseValue' && dir === 'desc');
 }
 
-// Quick-sort shortcuts: jump straight to "most records added" or "highest value
+// Quick-sort shortcuts: jump straight to "most invoices added" or "highest value
 // purchases", both high → low, without needing to click table headers.
 function supQuickSort(type) {
-  if (type === 'records') DB.sortState.suppliers = { col: 'records', dir: 'desc' };
+  if (type === 'invoices') DB.sortState.suppliers = { col: 'invoices', dir: 'desc' };
   else if (type === 'value') DB.sortState.suppliers = { col: 'purchaseValue', dir: 'desc' };
   renderSuppliers();
 }
@@ -6260,6 +6412,41 @@ function checkPendingHandovers() {
     return false;
   });
   if (pending.length > 0) setTimeout(() => showHandoverConfirmModal(pending), 900);
+}
+
+/* ===== DAILY ATTENDANCE REMINDER =====
+   If nobody has marked today's staff attendance by 1:30 PM local time, remind
+   the Admin/Manager with a popup the next time they log in / reopen the app.
+   There's no shop-holiday calendar here, so this can also pop up on a day the
+   shop is genuinely closed with no attendance to mark — that's an accepted
+   trade-off of keeping this simple, not something we try to detect. */
+const ATTENDANCE_REMINDER_HOUR = 13;
+const ATTENDANCE_REMINDER_MINUTE = 30;
+
+async function checkAttendanceReminder() {
+  if (!canAccessPayroll()) return;
+
+  const now = new Date();
+  const pastCutoff = now.getHours() > ATTENDANCE_REMINDER_HOUR ||
+    (now.getHours() === ATTENDANCE_REMINDER_HOUR && now.getMinutes() >= ATTENDANCE_REMINDER_MINUTE);
+  if (!pastCutoff) return;
+
+  // Payroll data is loaded once at app boot and kept live via onSnapshot, but
+  // a fresh doLogin() doesn't wait on it — re-pull here (cheap/idempotent,
+  // startPayrollLiveSync() no-ops if already running) so a same-day login
+  // isn't judged against stale/empty employee & attendance lists.
+  try { await loadPayrollDB(); } catch (e) { console.error('checkAttendanceReminder loadPayrollDB', e); }
+
+  const activeEmployees = PDB.employees.filter(e => e.active !== false);
+  if (!activeEmployees.length) return; // nobody to mark attendance for
+
+  const markedToday = PDB.attendance.some(a => a.date === today());
+  if (markedToday) return;
+
+  if ($('attReminderDate')) {
+    $('attReminderDate').textContent = new Date().toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+  }
+  openModal('attendanceReminderModal');
 }
 
 function showHandoverConfirmModal(notifications) {
@@ -11738,20 +11925,50 @@ function generateReport(type) {
     doc.save('cheque_report_'+today()+'.pdf');
   } else if (type === 'suppliers') {
     doc.setFontSize(12); doc.text('Suppliers Report', 14, 32);
-    const rows = getSupplierRows(); const allCr = getDataRows('credits');
-    doc.autoTable({ startY:37, styles:{fontSize:8}, headStyles:{fillColor:[15,23,42]},
-      head:[['Supplier','Phone','Email','Total Credit','Total Paid','Balance']],
-      body:rows.map(s=>{ const sc=allCr.filter(c=>c._ownerUsername===s.ownerUsername&&c.supplierId===s.id); const tc=sc.reduce((a,c)=>a+(Number(c.amount)||0),0); const tp=sc.reduce((a,c)=>a+getTotalPaid(c),0); return [s.name,s.phone||'—',s.email||'—',fmt(tc),fmt(tp),fmt(tc-tp)]; })
+    doc.setFontSize(7.5); doc.setTextColor(120);
+    doc.text('Cash/Credit/Cheque purchase columns mirror the Suppliers page — a cheque used to settle a credit bill is counted once, under whichever bucket the payment actually landed in.', 14, 37);
+    doc.setTextColor(0);
+    const rows = getSupplierRows();
+    doc.autoTable({ startY:41, styles:{fontSize:7.5}, headStyles:{fillColor:[15,23,42]},
+      head:[['Supplier','Phone','Cash','Credit','Cheque','Total Purchases','Credit Balance']],
+      body:rows.map(s=>[s.name,s.phone||'—',fmt(s._cashPurchaseAmt),fmt(s._creditPurchaseAmt),fmt(s._chequePurchaseAmt),fmt(s._purchaseValue),fmt(s._balance)]),
+      foot:[['Total ('+rows.length+')','',
+        fmt(rows.reduce((a,s)=>a+s._cashPurchaseAmt,0)),
+        fmt(rows.reduce((a,s)=>a+s._creditPurchaseAmt,0)),
+        fmt(rows.reduce((a,s)=>a+s._chequePurchaseAmt,0)),
+        fmt(rows.reduce((a,s)=>a+s._purchaseValue,0)),
+        fmt(rows.reduce((a,s)=>a+s._balance,0))]]
     });
     doc.save('supplier_report_'+today()+'.pdf');
   } else if (type === 'monthly') {
-    doc.setFontSize(12); doc.text('Monthly Summary Report', 14, 32);
-    const credits = getDataRows('credits'); const mmap = new Map();
-    credits.forEach(c=>{ if(!c.date)return; const k=c.date.slice(0,7); const m=mmap.get(k)||{credits:0,paid:0,count:0}; m.credits+=Number(c.amount)||0; m.paid+=getTotalPaid(c); m.count++; mmap.set(k,m); });
-    const ks=[...mmap.keys()].sort().reverse();
-    doc.autoTable({ startY:37, styles:{fontSize:9}, headStyles:{fillColor:[15,23,42]},
-      head:[['Month','Bills','Total Credit','Total Paid','Balance']],
-      body:ks.map(k=>{ const m=mmap.get(k); const [y,mo]=k.split('-'); return [new Date(y,mo-1).toLocaleDateString('en-US',{year:'numeric',month:'long'}),m.count,fmt(m.credits),fmt(m.paid),fmt(m.credits-m.paid)]; })
+    doc.setFontSize(12); doc.text('Monthly Purchases Summary Report', 14, 32);
+    doc.setFontSize(7.5); doc.setTextColor(120);
+    doc.text('Total Purchases = Cash + Credit + Cheque for the month, same calculation used in P&L and the Dashboard (a cheque that settles a credit bill is not counted twice).', 14, 37);
+    doc.setTextColor(0);
+    const credits = getDataRows('credits'), cheques = getDataRows('cheques'), cashPurch = getCashPurchaseRowsRaw();
+    const monthSet = new Set();
+    credits.forEach(c => { if (c.date) monthSet.add(c.date.slice(0, 7)); });
+    cheques.forEach(c => { if (c.date) monthSet.add(c.date.slice(0, 7)); });
+    cashPurch.forEach(p => { if (p.date) monthSet.add(p.date.slice(0, 7)); });
+    const ks = [...monthSet].sort().reverse();
+    const monthRows = ks.map(k => {
+      const [y, mo] = k.split('-');
+      const label = new Date(y, mo - 1).toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+      const t = computeTotalPurchases(k);
+      const monthCredits = credits.filter(c => (c.date || '').slice(0, 7) === k);
+      const billBal = monthCredits.reduce((a, c) => a + (Number(c.amount) || 0) - getTotalPaid(c), 0);
+      return { label, cash: t.cashAmt, credit: t.creditAmt, cheque: t.chequeAmt, total: t.total, bills: monthCredits.length, balance: billBal };
+    });
+    doc.autoTable({ startY:41, styles:{fontSize:8.5}, headStyles:{fillColor:[15,23,42]},
+      head:[['Month','Cash','Credit','Cheque','Total Purchases','Bills','Credit Balance']],
+      body: monthRows.map(m => [m.label, fmt(m.cash), fmt(m.credit), fmt(m.cheque), fmt(m.total), m.bills, fmt(m.balance)]),
+      foot:[['Total',
+        fmt(monthRows.reduce((a,m)=>a+m.cash,0)),
+        fmt(monthRows.reduce((a,m)=>a+m.credit,0)),
+        fmt(monthRows.reduce((a,m)=>a+m.cheque,0)),
+        fmt(monthRows.reduce((a,m)=>a+m.total,0)),
+        monthRows.reduce((a,m)=>a+m.bills,0),
+        fmt(monthRows.reduce((a,m)=>a+m.balance,0))]]
     });
     doc.save('monthly_summary_'+today()+'.pdf');
   } else if (type === 'cash') {
@@ -11783,6 +12000,359 @@ function generateReport(type) {
     doc.save('reload_report_'+today()+'.pdf');
   }
   logActivity('BACKUP', type+' PDF downloaded');
+  toast('✅ PDF downloaded!');
+}
+
+// ============= DAILY SUMMARY (Admin/Manager) =============
+// A single-date, all-in-one operational summary: every cashier's Sales /
+// Purchase / Credit Pay details for that day (pulled straight off their cash
+// entry), Cheques Written, Attendance, and a Manager Activity log — plus a
+// combined Total Sales figure. Viewable on-screen and downloadable as an A4
+// PDF. Gated to Admin/Manager via DASHBOARD_SECTIONS/ROLE_PERMS like every
+// other togglable sidebar section (see the comment above DEFAULT_MANAGER_PERMS).
+
+// Looks up a credit bill's friendly entryId (e.g. "CR0007") from a Credit Pay
+// row's {ownerUsername, creditId} — falls back to the raw id if not found.
+function getCreditEntryIdByOwner(ownerUsername, creditId) {
+  const owner = getTargetUser(ownerUsername);
+  const c = owner && (owner.credits || []).find(cr => cr.id === creditId);
+  return c ? (c.entryId || creditId || '—') : (creditId || '—');
+}
+
+// Plain (emoji-free) attendance status labels for the PDF, since jsPDF's
+// built-in fonts can't render emoji — attStatusBadge()/ATTENDANCE_STATUS's
+// labels (used on-screen) are emoji-prefixed.
+const DS_ATTENDANCE_PLAIN = { present: 'Present', absent: 'Absent', half: 'Half Day', leave: 'Leave' };
+
+// Gathers every piece of data relevant to the Daily Summary for one date.
+// Shared by both the on-screen renderer and the PDF export so they can never
+// drift apart.
+function getDailySummaryData(dateStr) {
+  const cashiers = getCashiers();
+  const cashEntries = getCashRowsRaw()
+    .filter(e => e.date === dateStr)
+    .sort((a, b) => (Number(a.cashierIdx) || 0) - (Number(b.cashierIdx) || 0));
+  const cheques = getDataRows('cheques').filter(c => c.date === dateStr);
+  const attendance = (PDB.attendance || []).filter(a => a.date === dateStr);
+
+  // Manager activity — every activity-log entry from a manager-role user on
+  // this date (ts is an ISO timestamp; comparing its first 10 chars matches
+  // how every other date field in this app is stored, i.e. UTC-sliced).
+  const managerActions = [];
+  DB.users.filter(u => u.role === 'manager' || u.role === 'user').forEach(u => {
+    (u.activityLog || []).forEach(e => {
+      if ((e.ts || '').slice(0, 10) === dateStr) managerActions.push({ ...e, _ownerName: u.name || u.username });
+    });
+  });
+  managerActions.sort((a, b) => (a.ts || '').localeCompare(b.ts || ''));
+
+  const totalSales = cashEntries.reduce((a, e) => a + (Number(e.totalSales) || 0), 0);
+  const totalNetCash = cashEntries.reduce((a, e) => a + (Number(e.netCash) || 0), 0);
+  return { dateStr, cashiers, cashEntries, cheques, attendance, managerActions, totalSales, totalNetCash };
+}
+
+// Combined (all-cashiers) breakdown by payment/entry type for one day — shown
+// as a top-of-page summary so every cashier's Cash/QR/Card/Advance/Purchase
+// figures for the day are visible at a glance, before drilling into each
+// cashier's individual card below.
+function getDailySummaryTotals(data) {
+  const t = { cash: 0, qr: 0, cardDFCC: 0, cardSDB: 0, cheque: 0, advances: 0, purchases: 0, creditPay: 0, expenses: 0, netCash: 0 };
+  data.cashEntries.forEach(e => {
+    t.cash += Number(e.totalCash) || 0;
+    t.qr += Number(e.qrPayments) || 0;
+    t.cardDFCC += Number(e.cardPayments) || 0;
+    t.cardSDB += Number(e.creditSales) || 0;
+    t.cheque += Number(e.chequeReceived) || 0;
+    t.advances += Number(e.totalAdvances) || 0;
+    t.purchases += (e.purchases || []).reduce((a, p) => a + (Number(p.amount) || 0), 0);
+    t.creditPay += (e.creditPayments || []).reduce((a, p) => a + (Number(p.amount) || 0), 0);
+    t.expenses += (e.expenses || []).reduce((a, ex) => a + (Number(ex.amount) || 0), 0);
+    t.netCash += Number(e.netCash) || 0;
+  });
+  return t;
+}
+
+// Opens the section: defaults the date picker to YESTERDAY (per spec) the
+// first time it's opened in this session, then renders.
+function initDailySummarySection() {
+  if ($('ds-date') && !$('ds-date').value) {
+    const y = new Date();
+    y.setDate(y.getDate() - 1);
+    $('ds-date').value = y.toISOString().slice(0, 10);
+  }
+  renderDailySummary();
+}
+
+function renderDailySummary() {
+  const el = $('ds-content');
+  if (!el) return;
+  const dateStr = $('ds-date')?.value || (() => { const y = new Date(); y.setDate(y.getDate() - 1); return y.toISOString().slice(0, 10); })();
+  const data = getDailySummaryData(dateStr);
+  const niceDate = new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+  let html = `<div class="ds-summary-bar">
+    <div class="ds-summary-item"><span>📅 Date</span><b style="font-size:.95rem;">${niceDate}</b></div>
+    <div class="ds-summary-item"><span>💰 Total Sales</span><b>${fmt(data.totalSales)}</b></div>
+    <div class="ds-summary-item"><span>✅ Net Cash</span><b>${fmt(data.totalNetCash)}</b></div>
+    <div class="ds-summary-item"><span>🧑‍💼 Cashiers Reported</span><b>${data.cashEntries.length}</b></div>
+  </div>`;
+
+  if (!data.cashEntries.length && !data.cheques.length && !data.attendance.length && !data.managerActions.length) {
+    html += `<div class="card" style="margin:1.2rem 1.5rem;"><div class="no-data"><span class="ico">📭</span>No data was recorded for ${niceDate}.</div></div>`;
+    el.innerHTML = html;
+    return;
+  }
+
+  // ----- All Cashiers Combined (top-of-page, at-a-glance totals) -----
+  if (data.cashEntries.length) {
+    const t = getDailySummaryTotals(data);
+    html += `<div class="card" style="margin:1.2rem 1.5rem;">
+      <div class="card-head"><div class="card-title">📊 All Cashiers Combined</div></div>
+      <div class="ds-mini-grid">
+        <div class="ds-mini-stat"><span>💵 Cash</span><b>${fmt(t.cash)}</b></div>
+        <div class="ds-mini-stat"><span>📱 QR</span><b>${fmt(t.qr)}</b></div>
+        <div class="ds-mini-stat"><span>💳 Card DFCC</span><b>${fmt(t.cardDFCC)}</b></div>
+        <div class="ds-mini-stat"><span>💳 Card SDB</span><b>${fmt(t.cardSDB)}</b></div>
+        <div class="ds-mini-stat"><span>✅ Cheque</span><b>${fmt(t.cheque)}</b></div>
+        <div class="ds-mini-stat"><span>💸 Advances</span><b>${fmt(t.advances)}</b></div>
+        <div class="ds-mini-stat"><span>🛒 Purchases</span><b>${fmt(t.purchases)}</b></div>
+        <div class="ds-mini-stat"><span>💳 Credit Bill Pay</span><b>${fmt(t.creditPay)}</b></div>
+        <div class="ds-mini-stat"><span>📤 Expenses</span><b>${fmt(t.expenses)}</b></div>
+        <div class="ds-mini-stat ds-highlight"><span>✅ Net Cash</span><b>${fmt(t.netCash)}</b></div>
+      </div>
+    </div>`;
+  }
+
+  // ----- Per-cashier: Sales / Purchase / Credit Pay Details -----
+  data.cashEntries.forEach(entry => {
+    const cashierName = data.cashiers[Number(entry.cashierIdx) || 0] || ('Cashier ' + ((Number(entry.cashierIdx) || 0) + 1));
+    const totalExp = (entry.expenses || []).reduce((a, ex) => a + (Number(ex.amount) || 0), 0);
+    html += `<div class="card" style="margin:1.2rem 1.5rem;">
+      <div class="ds-cashier-head">
+        <div class="ds-cashier-name">🧑‍💼 ${cashierName} <small>· Entered by ${entry._ownerName || entry._owner || '—'}</small></div>
+        <div class="ds-cashier-total">💰 Total Sales: ${fmt(entry.totalSales)}</div>
+      </div>
+      <div class="ds-subsection-title" style="margin-top:1.1rem;">🧾 Sales Details</div>
+      <div class="ds-mini-grid">
+        <div class="ds-mini-stat"><span>💵 Cash</span><b>${fmt(entry.totalCash)}</b></div>
+        <div class="ds-mini-stat"><span>📱 QR</span><b>${fmt(entry.qrPayments)}</b></div>
+        <div class="ds-mini-stat"><span>💳 Card DFCC</span><b>${fmt(entry.cardPayments)}</b></div>
+        <div class="ds-mini-stat"><span>💳 Card SDB</span><b>${fmt(entry.creditSales)}</b></div>
+        <div class="ds-mini-stat"><span>✅ Cheque</span><b>${fmt(entry.chequeReceived)}</b></div>
+        <div class="ds-mini-stat"><span>💸 Advances</span><b>${fmt(entry.totalAdvances)}</b></div>
+        <div class="ds-mini-stat"><span>📤 Expenses</span><b>${fmt(totalExp)}</b></div>
+        <div class="ds-mini-stat ds-highlight"><span>✅ Net Cash</span><b>${fmt(entry.netCash)}</b></div>
+      </div>`;
+
+    if ((entry.purchases || []).length) {
+      const totP = entry.purchases.reduce((a, p) => a + (Number(p.amount) || 0), 0);
+      html += `<div class="ds-subsection-title">🛒 Purchase Details</div>
+        <div class="table-wrap" style="padding:0 1.5rem;"><table>
+          <thead><tr><th>🏪 Supplier</th><th>💰 Amount</th></tr></thead>
+          <tbody>${entry.purchases.map(p => `<tr><td>${p.supplierName || '—'}</td><td>${fmt(p.amount)}</td></tr>`).join('')}</tbody>
+          <tfoot><tr><td style="font-weight:700;">Total</td><td style="font-weight:700;">${fmt(totP)}</td></tr></tfoot>
+        </table></div>`;
+    }
+    if ((entry.creditPayments || []).length) {
+      const totC = entry.creditPayments.reduce((a, p) => a + (Number(p.amount) || 0), 0);
+      html += `<div class="ds-subsection-title">💳 Credit Pay Details</div>
+        <div class="table-wrap" style="padding:0 1.5rem;"><table>
+          <thead><tr><th>🏪 Supplier</th><th>🧾 Bill</th><th>💰 Amount</th></tr></thead>
+          <tbody>${entry.creditPayments.map(p => `<tr><td>${p.supplierName || '—'}</td><td>${getCreditEntryIdByOwner(p.ownerUsername, p.creditId)}</td><td>${fmt(p.amount)}</td></tr>`).join('')}</tbody>
+          <tfoot><tr><td colspan="2" style="font-weight:700;">Total</td><td style="font-weight:700;">${fmt(totC)}</td></tr></tfoot>
+        </table></div>`;
+    }
+    html += `<div style="height:1.3rem;"></div></div>`;
+  });
+
+  // ----- Cheques Written -----
+  html += `<div class="card" style="margin:1.2rem 1.5rem;">
+    <div class="card-head"><div class="card-title">✅ Cheques Written</div></div>`;
+  if (data.cheques.length) {
+    const totCh = data.cheques.reduce((a, c) => a + (Number(c.amount) || 0), 0);
+    html += `<div class="table-wrap"><table>
+      <thead><tr><th>🏪 Supplier</th><th>🔢 Cheque #</th><th>🏦 Bank</th><th>💰 Amount</th><th>📅 Due Date</th><th>👤 By</th></tr></thead>
+      <tbody>${data.cheques.map(c => `<tr><td>${getSupplierName(c.supplierId, c._owner)}</td><td>${c.number || '—'}</td><td>${c.bank || '—'}</td><td>${fmt(c.amount)}</td><td>${c.dueDate || '—'}</td><td><span class="user-data-badge">${c._ownerUsername || '—'}</span></td></tr>`).join('')}</tbody>
+      <tfoot><tr><td colspan="3" style="font-weight:700;">Total (${data.cheques.length})</td><td style="font-weight:700;">${fmt(totCh)}</td><td colspan="2"></td></tr></tfoot>
+    </table></div>`;
+  } else {
+    html += `<div class="ds-empty-note">✅ No cheques were written today</div>`;
+  }
+  html += `</div>`;
+
+  // ----- Attendance -----
+  html += `<div class="card" style="margin:1.2rem 1.5rem;">
+    <div class="card-head"><div class="card-title">🗓️ Attendance</div></div>`;
+  if (data.attendance.length) {
+    html += `<div class="table-wrap"><table>
+      <thead><tr><th>👤 Employee</th><th>📋 Status</th><th>📝 Note</th><th>✍️ Marked By</th></tr></thead>
+      <tbody>${data.attendance.map(a => `<tr><td>${a.empName || a.empId}</td><td>${attStatusBadge(a.status)}</td><td style="font-size:.82rem;color:var(--muted);">${a.note || '—'}</td><td><span class="user-data-badge">${a.markedBy || '—'}</span> ${a.markedByName || ''}</td></tr>`).join('')}</tbody>
+    </table></div>`;
+  } else {
+    html += `<div class="ds-empty-note">🗓️ No attendance was recorded today</div>`;
+  }
+  html += `</div>`;
+
+  // ----- Manager Activity -----
+  html += `<div class="card" style="margin:1.2rem 1.5rem;">
+    <div class="card-head"><div class="card-title">🧑‍💼 Manager Activity</div></div>`;
+  if (data.managerActions.length) {
+    const icons = {ADD_CREDIT:'💳',EDIT_CREDIT:'✏️',DEL_CREDIT:'🗑️',ADD_CHEQUE:'✅',EDIT_CHEQUE:'✏️',DEL_CHEQUE:'🗑️',ADD_CHEQUE_BOOK:'🖐️',DEL_CHEQUE_BOOK:'🗑️',ADD_PAYMENT:'💰',DEL_PAYMENT:'💰',ADD_SUPPLIER:'🏪',EDIT_SUPPLIER:'✏️',DEL_SUPPLIER:'🗑️',ADD_USER:'👥',EDIT_USER:'✏️',DEL_USER:'🗑️',LOGIN:'🔓',LOGOUT:'🔒',REGISTER:'✨',BACKUP:'📥',CHEQUE_LINK:'🔗',ADD_EMPLOYEE:'🧑‍💼',EDIT_EMPLOYEE:'✏️',DEL_EMPLOYEE:'🗑️',ADD_ADVANCE:'💸',DEL_ADVANCE:'🗑️',PROCESS_PAYROLL:'🧮',DEL_PAYROLL:'🗑️',DEL_CASH_PURCHASE:'🛒',MARK_ATTENDANCE:'🗓️',EDIT_ATTENDANCE:'✏️',DEL_ATTENDANCE:'🗑️',CASH_LOG:'💵',EDIT_CASH_LOG:'✏️',DEL_CASH_LOG:'🗑️',ADD_CASH:'💵',EDIT_CASH:'✏️',DEL_CASH:'🗑️',ADD_RELOAD:'📶',EDIT_RELOAD:'✏️',DEL_RELOAD:'🗑️',CASH_TEMP_SAVE:'🕓',CASH_TEMP_DELETE:'🗑️'};
+    html += `<div class="table-wrap"><table>
+      <thead><tr><th>🕐 Time</th><th>👤 Manager</th><th>📝 Action</th><th>ℹ️ Details</th></tr></thead>
+      <tbody>${data.managerActions.map(e => `<tr><td style="white-space:nowrap;">${e.ts ? new Date(e.ts).toLocaleTimeString() : '—'}</td><td><span class="user-data-badge">${e.actor || '?'}</span> ${e._ownerName || ''}</td><td>${icons[e.action] || '📝'} ${(e.action || '—').replace(/_/g, ' ')}</td><td style="font-size:.82rem;color:var(--muted);">${e.details || ''}</td></tr>`).join('')}</tbody>
+    </table></div>`;
+  } else {
+    html += `<div class="ds-empty-note">🧑‍💼 No manager activity was recorded today</div>`;
+  }
+  html += `</div>`;
+
+  el.innerHTML = html;
+}
+
+// A4 PDF export mirroring the on-screen sections above, using the app's
+// existing jsPDF + autoTable setup (see generateReport()). jsPDF's built-in
+// fonts can't render emoji, so — same as every other PDF report in this
+// app — the PDF text itself stays plain, even though the on-screen view uses
+// emoji throughout.
+function downloadDailySummaryPDF() {
+  if (!window.jspdf) { toast('PDF library loading… try again in a moment', 'yellow'); return; }
+  const dateStr = $('ds-date')?.value || today();
+  const data = getDailySummaryData(dateStr);
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF('p', 'mm', 'a4');
+  const pageW = doc.internal.pageSize.getWidth();
+  const marginX = 14;
+  const contentW = pageW - marginX * 2;
+  const biz = 'IMP Super City';
+  const niceDate = new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+  let y = 16;
+  doc.setFontSize(15); doc.setFont(undefined, 'bold'); doc.setTextColor(15, 23, 42);
+  doc.text(biz, marginX, y);
+  doc.setFont(undefined, 'normal');
+  y += 7;
+  doc.setFontSize(12); doc.text('Daily Summary Report', marginX, y);
+  y += 6;
+  doc.setFontSize(8.5); doc.setTextColor(110);
+  doc.text(`Date: ${niceDate}  |  Generated: ${new Date().toLocaleString()}  |  By: ${DB.currentUsername}`, marginX, y);
+  doc.setTextColor(0);
+  y += 5;
+
+  // Grand total banner
+  doc.setFillColor(15, 23, 42);
+  doc.roundedRect(marginX, y, contentW, 12, 1.5, 1.5, 'F');
+  doc.setTextColor(255, 255, 255); doc.setFontSize(10.5); doc.setFont(undefined, 'bold');
+  doc.text(`Total Sales (All Cashiers): ${fmt(data.totalSales)}`, marginX + 4, y + 7.5);
+  doc.text(`Net Cash: ${fmt(data.totalNetCash)}`, marginX + contentW / 2 + 10, y + 7.5);
+  doc.setFont(undefined, 'normal'); doc.setTextColor(0);
+  y += 18;
+
+  function ensureSpace(needed) { if (y + needed > 283) { doc.addPage(); y = 16; } }
+  function sectionBanner(title) {
+    ensureSpace(12);
+    doc.setFillColor(226, 232, 240);
+    doc.rect(marginX, y, contentW, 8, 'F');
+    doc.setFontSize(10.5); doc.setFont(undefined, 'bold'); doc.setTextColor(15, 23, 42);
+    doc.text(title, marginX + 3, y + 5.6);
+    doc.setFont(undefined, 'normal'); doc.setTextColor(0);
+    y += 11;
+  }
+  function noDataLine(msg) {
+    doc.setFontSize(9); doc.setTextColor(130);
+    doc.text(msg, marginX, y + 4);
+    doc.setTextColor(0);
+    y += 12;
+  }
+
+  if (!data.cashEntries.length && !data.cheques.length && !data.attendance.length && !data.managerActions.length) {
+    doc.setFontSize(11); doc.setTextColor(120);
+    doc.text('No data was recorded for this date.', marginX, y + 6);
+    doc.save(`daily_summary_${dateStr}.pdf`);
+    logActivity('BACKUP', 'Daily Summary PDF downloaded (' + dateStr + ')');
+    toast('✅ PDF downloaded!');
+    return;
+  }
+
+  // All Cashiers Combined — at-a-glance totals up top, before the per-cashier breakdown
+  if (data.cashEntries.length) {
+    const t = getDailySummaryTotals(data);
+    sectionBanner('All Cashiers Combined');
+    doc.autoTable({
+      startY: y, margin: { left: marginX, right: marginX }, styles: { fontSize: 8 }, headStyles: { fillColor: [15, 23, 42] },
+      head: [['Cash', 'QR', 'Card DFCC', 'Card SDB', 'Cheque', 'Advances', 'Purchases', 'Credit Bill Pay', 'Expenses', 'Net Cash']],
+      body: [[fmt(t.cash), fmt(t.qr), fmt(t.cardDFCC), fmt(t.cardSDB), fmt(t.cheque), fmt(t.advances), fmt(t.purchases), fmt(t.creditPay), fmt(t.expenses), fmt(t.netCash)]]
+    });
+    y = doc.lastAutoTable.finalY + 8;
+  }
+
+  data.cashEntries.forEach(entry => {
+    const cashierName = data.cashiers[Number(entry.cashierIdx) || 0] || ('Cashier ' + ((Number(entry.cashierIdx) || 0) + 1));
+    const totalExp = (entry.expenses || []).reduce((a, ex) => a + (Number(ex.amount) || 0), 0);
+    sectionBanner(`${cashierName} (entered by ${entry._ownerName || entry._owner || '-'}) - Sales Details`);
+    doc.autoTable({
+      startY: y, margin: { left: marginX, right: marginX }, styles: { fontSize: 8 }, headStyles: { fillColor: [15, 23, 42] },
+      head: [['Cash', 'QR', 'Card DFCC', 'Card SDB', 'Cheque', 'Total Sales', 'Advances', 'Expenses', 'Net Cash']],
+      body: [[fmt(entry.totalCash), fmt(entry.qrPayments), fmt(entry.cardPayments), fmt(entry.creditSales), fmt(entry.chequeReceived), fmt(entry.totalSales), fmt(entry.totalAdvances), fmt(totalExp), fmt(entry.netCash)]]
+    });
+    y = doc.lastAutoTable.finalY + 4;
+
+    if ((entry.purchases || []).length) {
+      ensureSpace(16);
+      const totP = entry.purchases.reduce((a, p) => a + (Number(p.amount) || 0), 0);
+      doc.setFontSize(9); doc.setFont(undefined, 'bold'); doc.text('Purchase Details', marginX, y + 3); doc.setFont(undefined, 'normal');
+      doc.autoTable({
+        startY: y + 5, margin: { left: marginX, right: marginX }, styles: { fontSize: 8 }, headStyles: { fillColor: [124, 58, 237] },
+        head: [['Supplier', 'Amount']],
+        body: entry.purchases.map(p => [p.supplierName || '—', fmt(p.amount)]),
+        foot: [['Total', fmt(totP)]]
+      });
+      y = doc.lastAutoTable.finalY + 4;
+    }
+    if ((entry.creditPayments || []).length) {
+      ensureSpace(16);
+      const totC = entry.creditPayments.reduce((a, p) => a + (Number(p.amount) || 0), 0);
+      doc.setFontSize(9); doc.setFont(undefined, 'bold'); doc.text('Credit Pay Details', marginX, y + 3); doc.setFont(undefined, 'normal');
+      doc.autoTable({
+        startY: y + 5, margin: { left: marginX, right: marginX }, styles: { fontSize: 8 }, headStyles: { fillColor: [37, 99, 235] },
+        head: [['Supplier', 'Bill', 'Amount']],
+        body: entry.creditPayments.map(p => [p.supplierName || '—', getCreditEntryIdByOwner(p.ownerUsername, p.creditId), fmt(p.amount)]),
+        foot: [['Total', '', fmt(totC)]]
+      });
+      y = doc.lastAutoTable.finalY + 8;
+    } else {
+      y += 4;
+    }
+  });
+
+  sectionBanner('Cheques Written');
+  if (data.cheques.length) {
+    const totCh = data.cheques.reduce((a, c) => a + (Number(c.amount) || 0), 0);
+    doc.autoTable({
+      startY: y, margin: { left: marginX, right: marginX }, styles: { fontSize: 8 }, headStyles: { fillColor: [15, 23, 42] },
+      head: [['Supplier', 'Cheque #', 'Bank', 'Amount', 'Due Date', 'By']],
+      body: data.cheques.map(c => [getSupplierName(c.supplierId, c._owner), c.number || '—', c.bank || '—', fmt(c.amount), c.dueDate || '—', c._ownerUsername || '—']),
+      foot: [['Total (' + data.cheques.length + ')', '', '', fmt(totCh), '', '']]
+    });
+    y = doc.lastAutoTable.finalY + 8;
+  } else {
+    noDataLine('No cheques written on this date.');
+  }
+
+  sectionBanner('Attendance');
+  if (data.attendance.length) {
+    doc.autoTable({
+      startY: y, margin: { left: marginX, right: marginX }, styles: { fontSize: 8 }, headStyles: { fillColor: [15, 23, 42] },
+      head: [['Employee', 'Status', 'Note', 'Marked By']],
+      body: data.attendance.map(a => [a.empName || a.empId, DS_ATTENDANCE_PLAIN[a.status] || a.status || '—', a.note || '—', a.markedByName || a.markedBy || '—'])
+    });
+    y = doc.lastAutoTable.finalY + 8;
+  } else {
+    noDataLine('No attendance recorded on this date.');
+  }
+
+  doc.save(`daily_summary_${dateStr}.pdf`);
+  logActivity('BACKUP', 'Daily Summary PDF downloaded (' + dateStr + ')');
   toast('✅ PDF downloaded!');
 }
 
@@ -11845,7 +12415,7 @@ function renderPayrollTab() {
 
 function populateEmployeeSelects() {
   const activeSorted = PDB.employees.slice().sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  ['adv-emp', 'pv-emp', 'att-emp'].forEach(id => {
+  ['adv-emp', 'pv-emp'].forEach(id => {
     const el = $(id);
     if (!el) return;
     const val = el.value;
@@ -11853,6 +12423,17 @@ function populateEmployeeSelects() {
       `<option value="${e.empId}" ${val === e.empId ? 'selected' : ''}>${e.name} (${e.empId})${e.active === false ? ' — Inactive' : ''}</option>`
     ).join('');
   });
+  // Attendance can only be marked for currently active staff — inactive
+  // employees are dropped from this list entirely instead of just being
+  // labelled, so they can't accidentally get an attendance record added.
+  const attEl = $('att-emp');
+  if (attEl) {
+    const val = attEl.value;
+    const activeOnly = activeSorted.filter(e => e.active !== false);
+    attEl.innerHTML = '<option value="">Select employee...</option>' + activeOnly.map(e =>
+      `<option value="${e.empId}" ${val === e.empId ? 'selected' : ''}>${e.name} (${e.empId})</option>`
+    ).join('');
+  }
   caRows.forEach(i => fillEmployeeSelectOptions('cm-adv-emp' + i));
   const nameMap = new Map();
   PDB.employees.forEach(e => nameMap.set(e.empId, e.name));
@@ -12031,7 +12612,21 @@ function editAttendance(id) {
   const rec = PDB.attendance.find(a => a.id === id);
   if (!rec) return;
   if ($('att-edit-id')) $('att-edit-id').value = rec.id;
-  if ($('att-emp')) $('att-emp').value = rec.empId;
+  const attEl = $('att-emp');
+  if (attEl) {
+    // The employee may since have been made inactive, which drops them from
+    // this dropdown's normal option list — add them back just for this edit
+    // so an old record can still be reopened and saved.
+    const hasOption = Array.from(attEl.options).some(o => o.value === rec.empId);
+    if (!hasOption) {
+      const emp = getEmployee(rec.empId);
+      const opt = document.createElement('option');
+      opt.value = rec.empId;
+      opt.textContent = `${emp?.name || rec.empName || rec.empId} (${rec.empId}) — Inactive`;
+      attEl.appendChild(opt);
+    }
+    attEl.value = rec.empId;
+  }
   if ($('att-date')) $('att-date').value = rec.date;
   if ($('att-status')) $('att-status').value = rec.status;
   if ($('att-note')) $('att-note').value = rec.note || '';
