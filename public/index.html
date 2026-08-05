@@ -10934,8 +10934,11 @@ function renderTempCashQueue() {
   card.style.display = rows.length ? '' : 'none';
   if (!rows.length) { list.innerHTML = ''; return; }
 
+  const cashiers = getCashiers();
   list.innerHTML = rows.map(t => {
     const restored = t._owner === DB.currentUsername && restoredTempIds.includes(t.id);
+    const cashierName = cashiers[Number(t.cashierIdx) || 0] || ('Cashier ' + ((Number(t.cashierIdx) || 0) + 1));
+    const cashierTag = `<span style="font-size:.72rem;color:#0e7490;font-weight:700;background:#ecfeff;padding:.15rem .55rem;border-radius:20px;">🧾 ${cashierName}</span>`;
     const ownerTag = showAll ? `<span style="font-size:.72rem;color:#7c3aed;font-weight:700;background:#f5f3ff;padding:.15rem .55rem;border-radius:20px;">🏢 ${t._ownerName}${t._ownerBiz?' · '+t._ownerBiz:''}</span>` : '';
     const restoredTag = restored ? `<span style="font-size:.72rem;color:#166534;font-weight:700;background:#f0fdf4;padding:.15rem .55rem;border-radius:20px;">📥 Form එකේ දැනට තිබෙනවා</span>` : '';
     const canDelete = isAdmin() || t._owner === DB.currentUsername;
@@ -10944,6 +10947,7 @@ function renderTempCashQueue() {
       <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:.5rem;margin-bottom:.4rem;">
         <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
           <span style="font-weight:700;color:#92400e;">📅 ${t.date}</span>
+          ${cashierTag}
           ${ownerTag}
           ${restoredTag}
         </div>
