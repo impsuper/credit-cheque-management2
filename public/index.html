@@ -1258,6 +1258,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
         <div class="stat-card hidden" id="tile-netProfitMonth" style="border-top:3px solid var(--green,#15803d);">
           <div class="stat-label">💰 Net Profit This Month</div>
           <div class="stat-val" id="ov-net-profit-month">LKR 0</div>
+          <div class="stat-sub">🧾 Total Sale: <span id="ov-net-profit-month-sales">LKR 0</span></div>
         </div>
       </div>
       <!-- Rotating carousel 2: cycles Monthly Sales Growth / Daily Total Sales / Daily Sales
@@ -2162,7 +2163,9 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
         <div class="card-head">
           <div class="card-title">📅 Daily Summary</div>
           <div class="card-actions">
+            <button class="btn btn-ghost btn-sm" onclick="dsShiftDate(-1)" title="Previous day">◀</button>
             <input type="date" id="ds-date" onchange="renderDailySummary()" style="padding:.5rem .9rem;border:1.5px solid var(--border);border-radius:8px;font-size:.85rem;font-weight:600;">
+            <button class="btn btn-ghost btn-sm" onclick="dsShiftDate(1)" title="Next day">▶</button>
             <button class="btn btn-navy btn-sm" onclick="downloadDailySummaryPDF()">📄 Download PDF (A4)</button>
           </div>
         </div>
@@ -3196,6 +3199,29 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
     <div class="modal-foot">
       <button class="btn btn-ghost" onclick="closeModal('attendanceReminderModal')">⏭ පසුව</button>
       <button class="btn btn-navy" onclick="closeModal('attendanceReminderModal');showSection('payroll');switchPayrollTab('attendance');">🗓️ දැන් සටහන් කරන්න</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== FRIDAY 10:30 AM RELOAD DATA REMINDER MODAL (Manager only) ===== -->
+<div id="reloadReminderModal" class="overlay">
+  <div class="modal">
+    <div class="modal-head" style="background:linear-gradient(135deg,#0e7490,#0891b2);color:#fff;">
+      <h3 style="color:#fff;">📱 Reload Reminder</h3>
+      <button class="modal-close" style="color:rgba(255,255,255,.8);" onclick="closeModal('reloadReminderModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;gap:.8rem;align-items:flex-start;">
+        <div style="font-size:1.8rem;line-height:1;">📶</div>
+        <div>
+          <div style="font-weight:700;font-size:.95rem;color:var(--text);margin-bottom:.35rem;">රීලෝඩ් දත්ත ඇතුලත් කරන්න</div>
+          <div style="font-size:.83rem;color:var(--muted);line-height:1.6;">අද (<span id="reloadReminderDate"></span>) සිකුරාදා උදෑසන 10.30 වේලාව පසුවී ඇත. කරුණාකර මේ සතියේ Reload දත්ත Reload section එකට ගොස් ඇතුළත් කරන්න.</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('reloadReminderModal')">⏭ පසුව</button>
+      <button class="btn btn-navy" onclick="closeModal('reloadReminderModal');showSection('reload');">📱 දැන් ඇතුලත් කරන්න</button>
     </div>
   </div>
 </div>
@@ -4533,6 +4559,7 @@ function initDashboard() {
   showSection('overview');
   setTimeout(checkPendingHandovers, 1200);
   setTimeout(checkAttendanceReminder, 1900);
+  setTimeout(checkReloadDataReminder, 2200);
 }
 
 const sectionTitles = {
@@ -5819,6 +5846,7 @@ function renderOverview() {
   // Net Profit This Month tile — same calc as the P&L page.
   const plThisMonth = computePL(curYearKey, curMonthNum);
   if ($('ov-net-profit-month')) $('ov-net-profit-month').textContent = fmt(plThisMonth.netProfit);
+  if ($('ov-net-profit-month-sales')) $('ov-net-profit-month-sales').textContent = fmt(plThisMonth.totalIncome);
   const monthDays = new Set(), yearDays = new Set();
   let monthSalesTotal = 0, yearSalesTotal = 0;
   allCashForAvg.forEach(e => {
@@ -6447,6 +6475,38 @@ async function checkAttendanceReminder() {
     $('attReminderDate').textContent = new Date().toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
   }
   openModal('attendanceReminderModal');
+}
+
+/* ===== FRIDAY RELOAD DATA REMINDER =====
+   Every Friday, once local time reaches 10:30 AM, remind the Manager (only —
+   not Admin, not Cashier) with a popup to enter that week's Reload data.
+   Shown at most once per Friday per logged-in user (tracked in localStorage,
+   the same place cms_theme / cms_sidebar_open already live) so it doesn't
+   nag again every time the app is reopened later that same day. */
+const RELOAD_REMINDER_HOUR = 10;
+const RELOAD_REMINDER_MINUTE = 30;
+
+function reloadReminderStorageKey() {
+  return `cms_reload_reminder_shown_${DB.currentUsername || ''}_${today()}`;
+}
+
+function checkReloadDataReminder() {
+  if (!isManager()) return; // Manager only
+
+  const now = new Date();
+  if (now.getDay() !== 5) return; // 5 = Friday
+
+  const pastCutoff = now.getHours() > RELOAD_REMINDER_HOUR ||
+    (now.getHours() === RELOAD_REMINDER_HOUR && now.getMinutes() >= RELOAD_REMINDER_MINUTE);
+  if (!pastCutoff) return;
+
+  try { if (localStorage.getItem(reloadReminderStorageKey()) === '1') return; } catch (e) {}
+
+  if ($('reloadReminderDate')) {
+    $('reloadReminderDate').textContent = new Date().toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+  }
+  openModal('reloadReminderModal');
+  try { localStorage.setItem(reloadReminderStorageKey(), '1'); } catch (e) {}
 }
 
 function showHandoverConfirmModal(notifications) {
@@ -10845,7 +10905,12 @@ function summarizeTempRec(rec) {
   const cpTotal = (rec.creditPayments||[]).reduce((s,p)=>s+(Number(p.amount)||0),0);
   const expTotal = (rec.expenses||[]).reduce((s,e)=>s+(Number(e.amount)||0),0);
   if (advTotal) parts.push(`💸 Advance ${fmt(advTotal)}`);
-  if (purTotal) parts.push(`🛒 Purchase ${fmt(purTotal)}`);
+  if (purTotal) {
+    // Name *which* supplier(s) the cash purchase(s) were from — mirrors how
+    // Credit Pay below names the bill, e.g. "🛒 Purchase 3,600.00 — ABC Traders"
+    const supNames = (rec.purchases||[]).map(p => p.supplierName || '⚠️ Unknown Supplier');
+    parts.push(`🛒 Purchase ${fmt(purTotal)}${supNames.length ? ' — ' + supNames.join(', ') : ''}`);
+  }
   if (cpTotal) {
     // Name *which* bill(s) got reduced, not just the total paid — e.g.
     // "🧾 Credit Pay 500.00 — ABC Traders (CR0001), XYZ Co (CR0002)"
@@ -12078,6 +12143,23 @@ function getDailySummaryTotals(data) {
 
 // Opens the section: defaults the date picker to YESTERDAY (per spec) the
 // first time it's opened in this session, then renders.
+// Moves the Daily Summary date picker one day back (-1) or forward (+1) and
+// re-renders — used by the ◀ ▶ arrow buttons next to the date field.
+// Built from local getFullYear/getMonth/getDate — NOT toISOString(), which
+// converts to UTC and (in UTC+ timezones like Sri Lanka) silently rolls the
+// date back a day, making the arrows skip or get stuck.
+function dsShiftDate(delta) {
+  const el = $('ds-date');
+  if (!el) return;
+  const base = el.value ? new Date(el.value + 'T00:00:00') : new Date();
+  base.setDate(base.getDate() + delta);
+  const y = base.getFullYear();
+  const m = String(base.getMonth() + 1).padStart(2, '0');
+  const d = String(base.getDate()).padStart(2, '0');
+  el.value = `${y}-${m}-${d}`;
+  renderDailySummary();
+}
+
 function initDailySummarySection() {
   if ($('ds-date') && !$('ds-date').value) {
     const y = new Date();
