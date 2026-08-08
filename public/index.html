@@ -1851,6 +1851,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
           <div class="network-name">Cash in Hand</div>
           <div class="network-bal" id="rl-bal-cash">LKR 0</div>
           <div style="font-size:.76rem;color:var(--muted);margin-top:.2rem;">Collected from Reloads</div>
+          <button class="btn btn-ghost btn-sm hidden" id="rlHandoverBtn" style="margin-top:.6rem;width:100%;" onclick="openReloadHandoverModal()">🤝 Hand Over to Owner</button>
         </div>
       </div>
       <div class="card" style="margin-bottom:1.2rem;">
@@ -1904,10 +1905,10 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
         <div class="card-head">
           <div class="card-title">📋 Daily Reload History</div>
           <div class="card-actions">
-            <select id="rl-filter-month" onchange="renderReloadHistory()" style="padding:.4rem .7rem;border:1.5px solid var(--border);border-radius:7px;font-size:.84rem;background:var(--surface);color:var(--text);">
+            <select id="rl-filter-month" onchange="reloadHistPage=1;renderReloadHistory()" style="padding:.4rem .7rem;border:1.5px solid var(--border);border-radius:7px;font-size:.84rem;background:var(--surface);color:var(--text);">
               <option value="">All Months</option>
             </select>
-            <input type="text" id="rl-search" placeholder="🔍 Search..." oninput="renderReloadHistory()" style="padding:.4rem .8rem;border:1.5px solid var(--border);border-radius:7px;font-size:.85rem;">
+            <input type="text" id="rl-search" placeholder="🔍 Search..." oninput="reloadHistPage=1;renderReloadHistory()" style="padding:.4rem .8rem;border:1.5px solid var(--border);border-radius:7px;font-size:.85rem;">
             <button class="btn btn-ghost btn-sm" onclick="generateReport('reload')">📄 PDF</button>
           </div>
         </div>
@@ -1922,6 +1923,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
             <tbody id="reloadHistoryBody"></tbody>
           </table>
         </div>
+        <div id="reloadHistPagination" class="pg-bar-wrap"></div>
       </div>
     </div>
 
@@ -2098,6 +2100,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
               <select id="cl-type" onchange="onCashLogTypeChange()">
                 <option value="banked">🏦 Banked</option>
                 <option value="handed_owner">👑 Handed to Owner</option>
+                <option value="owner_topup" id="cl-owner-topup-opt">➕👑 Cash from Owner (Add to Manager's Hand)</option>
                 <option value="cash_purchase">🛒 Cash Purchase (Supplier)</option>
                 <option value="credit_payment">🧾 Pay Credit Bill (Cash)</option>
                 <option value="salary">💼 Salary</option>
@@ -3226,6 +3229,33 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
   </div>
 </div>
 
+<!-- ===== RELOAD CASH-IN-HAND → HAND OVER TO OWNER MODAL (Manager only) ===== -->
+<div id="reloadHandoverModal" class="overlay">
+  <div class="modal">
+    <div class="modal-head" style="background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;">
+      <h3 style="color:#fff;">🤝 Hand Over Reload Cash</h3>
+      <button class="modal-close" style="color:rgba(255,255,255,.8);" onclick="closeModal('reloadHandoverModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:.83rem;color:var(--muted);margin-bottom:1rem;">
+        📱 Reload Cash in Hand (<span id="rlho-avail-date"></span>): <strong id="rlho-available" style="color:var(--navy);">LKR 0.00</strong>
+      </div>
+      <div class="form-group">
+        <label>💰 Amount to Hand Over (LKR)</label>
+        <input type="number" id="rlho-amount" placeholder="0.00" step="0.01" min="0">
+      </div>
+      <div class="form-group">
+        <label>📝 Note (optional)</label>
+        <input type="text" id="rlho-note" placeholder="Optional note...">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('reloadHandoverModal')">Cancel</button>
+      <button class="btn btn-navy" onclick="saveReloadHandover()">🤝 Hand Over</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== SUPPLIER ANALYTICS MODAL ===== -->
 <div id="supplierAnalyticsModal" class="overlay">
   <div class="modal modal-xl">
@@ -3273,6 +3303,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
             <tbody id="sup-credit-list"></tbody>
           </table>
         </div>
+        <div id="supCreditPagination" class="pg-bar-wrap"></div>
       </div>
       <div class="card analytics-card" style="margin-top:1rem;">
         <div class="card-head">
@@ -3287,6 +3318,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
             <tbody id="sup-cheque-list"></tbody>
           </table>
         </div>
+        <div id="supChequePagination" class="pg-bar-wrap"></div>
       </div>
       <div class="card analytics-card" style="margin-top:1rem;">
         <div class="card-head">
@@ -3300,6 +3332,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
             <tbody id="sup-cashpurchase-list"></tbody>
           </table>
         </div>
+        <div id="supCashPurchasePagination" class="pg-bar-wrap"></div>
       </div>
     </div>
     <div class="modal-foot">
@@ -5462,6 +5495,9 @@ function ovRefreshChartVisibility(idx) {
 function openSupplierAnalytics(ownerUsername, supplierId) {
   DB.analyticsOpen = { ownerUsername, supplierId };
   DB.analyticsTrendMonths = 3;
+  supCreditPage = 1;
+  supChequePage = 1;
+  supCashPurchasePage = 1;
   $('supplierAnalyticsModal').classList.add('show');
   renderSupplierAnalytics();
 }
@@ -5609,8 +5645,15 @@ function renderSupplierAnalytics() {
   renderLineChart('sup-purchase-trend-chart', trendItems, v => fmt(v));
 
   // Credit Bills list — amount / paid (incl. partial payments) / balance, with view & manage actions
+  // Paginated 50 rows/page ("1-50 · 51-100 · ...") since a long-standing supplier can build up
+  // hundreds of bills — rendering them all at once would slow the modal down.
   const creditRows = credits.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-  $('sup-credit-list').innerHTML = creditRows.length ? creditRows.map(c => {
+  const creditTotalPages = Math.max(1, Math.ceil(creditRows.length / PROFILE_LIST_PAGE_SIZE));
+  if (supCreditPage > creditTotalPages) supCreditPage = creditTotalPages;
+  if (supCreditPage < 1) supCreditPage = 1;
+  const creditPageRows = creditRows.slice((supCreditPage - 1) * PROFILE_LIST_PAGE_SIZE, supCreditPage * PROFILE_LIST_PAGE_SIZE);
+  renderPagination('supCreditPagination', creditRows.length, supCreditPage, 'goSupCreditPage', PROFILE_LIST_PAGE_SIZE);
+  $('sup-credit-list').innerHTML = creditPageRows.length ? creditPageRows.map(c => {
     const paid = getTotalPaid(c);
     const cbal = getCreditBalance(c);
     const balClass = cbal > 0.001 ? 'text-red' : 'text-green';
@@ -5640,7 +5683,12 @@ function renderSupplierAnalytics() {
     bounced: `<span class="badge badge-red">❌ Bounced</span>`
   };
   const chequeRows = cheques.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-  $('sup-cheque-list').innerHTML = chequeRows.length ? chequeRows.map(c => `
+  const chequeTotalPages = Math.max(1, Math.ceil(chequeRows.length / PROFILE_LIST_PAGE_SIZE));
+  if (supChequePage > chequeTotalPages) supChequePage = chequeTotalPages;
+  if (supChequePage < 1) supChequePage = 1;
+  const chequePageRows = chequeRows.slice((supChequePage - 1) * PROFILE_LIST_PAGE_SIZE, supChequePage * PROFILE_LIST_PAGE_SIZE);
+  renderPagination('supChequePagination', chequeRows.length, supChequePage, 'goSupChequePage', PROFILE_LIST_PAGE_SIZE);
+  $('sup-cheque-list').innerHTML = chequePageRows.length ? chequePageRows.map(c => `
     <tr>
       <td><span class="entry-id">${c.entryId || '—'}</span></td>
       <td>${c.date || '—'}</td>
@@ -5661,8 +5709,13 @@ function renderSupplierAnalytics() {
   // Cash Purchases list
   const cashiers = getCashiers();
   const purchaseRows = cashPurchases.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const purchaseTotalPages = Math.max(1, Math.ceil(purchaseRows.length / PROFILE_LIST_PAGE_SIZE));
+  if (supCashPurchasePage > purchaseTotalPages) supCashPurchasePage = purchaseTotalPages;
+  if (supCashPurchasePage < 1) supCashPurchasePage = 1;
+  const purchasePageRows = purchaseRows.slice((supCashPurchasePage - 1) * PROFILE_LIST_PAGE_SIZE, supCashPurchasePage * PROFILE_LIST_PAGE_SIZE);
+  renderPagination('supCashPurchasePagination', purchaseRows.length, supCashPurchasePage, 'goSupCashPurchasePage', PROFILE_LIST_PAGE_SIZE);
   if ($('sup-cashpurchase-list')) {
-    $('sup-cashpurchase-list').innerHTML = purchaseRows.length ? purchaseRows.map(p => {
+    $('sup-cashpurchase-list').innerHTML = purchasePageRows.length ? purchasePageRows.map(p => {
       const cashierName = p.source === 'cashLog' ? '🏦 Cash in Hand' : (cashiers[Number(p.cashierIdx)||0] || 'Cashier '+(Number(p.cashierIdx||0)+1));
       return `<tr>
         <td>${p.date || '—'}</td>
@@ -6407,7 +6460,7 @@ function getHandoverStore() {
   return admin;
 }
 
-function createHandoverNotification(target, amount, date) {
+function createHandoverNotification(target, amount, date, context) {
   const store = getHandoverStore();
   if (!store) return;
   const cashiers = getCashiers();
@@ -6421,6 +6474,7 @@ function createHandoverNotification(target, amount, date) {
     toRole: target === 'owner' ? 'admin' : 'manager',
     amount: Number(amount) || 0,
     date,
+    context: context || 'cash', // 'cash' (default, Cash Disposal Log) or 'reload' (Reload Cash-in-Hand)
     status: 'pending',
     confirmedAt: null,
     confirmedBy: null,
@@ -6509,6 +6563,15 @@ function checkReloadDataReminder() {
   try { localStorage.setItem(reloadReminderStorageKey(), '1'); } catch (e) {}
 }
 
+// Small "📱 Reload" tag shown on a handover card when it's a Reload Cash-in-Hand
+// handover rather than the regular Cash Disposal Log one — keeps the two pots
+// of money visually distinct in the shared confirm modal / inline card.
+function handoverContextBadge(n) {
+  return n.context === 'reload'
+    ? `<span class="handover-badge" style="background:#e0e7ff;color:#4338ca;">📱 Reload</span>`
+    : '';
+}
+
 function showHandoverConfirmModal(notifications) {
   const body = $('handoverConfirmBody');
   if (!body) return;
@@ -6530,6 +6593,7 @@ function showHandoverConfirmModal(notifications) {
               ${fromBadge}
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:var(--muted)"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
               ${toBadge}
+              ${handoverContextBadge(n)}
             </div>
             <span style="font-size:.75rem;color:var(--muted);">📅 ${n.date}</span>
           </div>
@@ -6541,7 +6605,7 @@ function showHandoverConfirmModal(notifications) {
             <span>🕐 ${new Date(n.createdAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
           </div>
           <div style="font-size:.85rem;color:var(--text);margin-bottom:.85rem;line-height:1.5;background:var(--surface-2);padding:.65rem .85rem;border-radius:9px;">
-            <strong>${n.fromName}</strong> handed over
+            <strong>${n.fromName}</strong> handed over${n.context === 'reload' ? ' 📱 Reload' : ''}
             <strong style="color:#166534;">LKR ${(n.amount||0).toLocaleString('en-US',{minimumFractionDigits:2})}</strong>
             to you on <strong>${n.date}</strong>. Is that correct?
           </div>
@@ -6630,6 +6694,7 @@ function renderPendingHandoversCard() {
             ${fromBadge}
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:var(--muted)"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
             ${toBadge}
+            ${handoverContextBadge(n)}
           </div>
           <span style="font-size:.75rem;color:var(--muted);">📅 ${n.date}</span>
         </div>
@@ -6642,7 +6707,7 @@ function renderPendingHandoversCard() {
           <span style="color:#854d0e;font-weight:600;">⏳ Awaiting your confirmation</span>
         </div>
         <div style="font-size:.85rem;color:var(--text);margin-bottom:.85rem;line-height:1.5;background:var(--surface-2);padding:.65rem .85rem;border-radius:9px;">
-          <strong>${n.fromName}</strong> handed over
+          <strong>${n.fromName}</strong> handed over${n.context === 'reload' ? ' 📱 Reload' : ''}
           <strong style="color:#166534;">LKR ${(n.amount||0).toLocaleString('en-US',{minimumFractionDigits:2})}</strong>
           to you on <strong>${n.date}</strong>. Is that correct?
         </div>
@@ -8302,7 +8367,7 @@ function aiqForecastNextMonth() {
   return `<div class="ai-stat">${fmt(v)}</div><div style="color:var(--muted);font-size:.76rem;margin-top:.5rem;">🔮 ${aiMonthLabel(1)} සඳහා Predicted Net Cash — පසුගිය ${Math.min(series.length, 6)} මාස trend එක අනුව</div>`;
 }
 function aiqDisposalToday() {
-  const labels = { banked: '🏦 Banked', handed_owner: '🤝 Handed to Owner', cash_purchase: '🛒 Cash Purchase', credit_payment: '🧾 Credit Bill Payment', salary: '💼 Salary', other1: '📝 Other 1', other2: '📝 Other 2', other3: '📝 Other 3' };
+  const labels = { banked: '🏦 Banked', handed_owner: '🤝 Handed to Owner', owner_topup: '➕👑 Cash from Owner', cash_purchase: '🛒 Cash Purchase', credit_payment: '🧾 Credit Bill Payment', salary: '💼 Salary', other1: '📝 Other 1', other2: '📝 Other 2', other3: '📝 Other 3' };
   const rows = getCashLog().filter(e => e.date === today());
   if (!rows.length) return `<div class="ai-stat">0</div><div style="color:var(--muted);font-size:.8rem;margin-top:.4rem;">අද තවම Cash Disposal Log entry එකක් නෑ.</div>`;
   const total = rows.reduce((s, e) => s + (Number(e.amount) || 0), 0);
@@ -9220,6 +9285,7 @@ function initCashSection() {
   if ($('cashHistCard')) $('cashHistCard').style.display = isCashier() ? 'none' : '';
   if ($('cashSaleHistCard')) $('cashSaleHistCard').style.display = isCashier() ? 'none' : '';
   if ($('cashLogCard')) $('cashLogCard').style.display = isCashier() ? 'none' : '';
+  if ($('cl-owner-topup-opt')) $('cl-owner-topup-opt').style.display = isAdmin() ? '' : 'none';
   if ($('cashLogHistCard')) $('cashLogHistCard').style.display = isCashier() ? 'none' : '';
   if ($('mgrCashLedgerCard')) $('mgrCashLedgerCard').style.display = isCashier() ? 'none' : '';
   if ($('cashSaveBtnsRow')) $('cashSaveBtnsRow').style.display = isCashier() ? 'none' : '';
@@ -9300,6 +9366,7 @@ function saveCashLogEntry() {
   const date=$('cl-date')?.value, amount=Number($('cl-amount')?.value)||0;
   const type=$('cl-type')?.value||'banked', desc=$('cl-desc')?.value||'';
   if (!date||!amount){toast('Date and Amount required','red');return;}
+  if (type === 'owner_topup' && !isAdmin()) { toast('⚠️ Owner (Admin) විසින් පමණක් Cash-in-Hand එකට මුදල් එකතු කළ හැක', 'red'); return; }
 
   const admin=getUserByUsername('admin');
   if (!admin) { toast('⚠️ Admin data not loaded yet — please wait a moment and try again, or refresh', 'red'); return; }
@@ -9311,10 +9378,13 @@ function saveCashLogEntry() {
   // calcCashInHand() already subtracts every existing cashLog entry (including this one, if we're
   // editing it), so when editing we add the entry's OLD amount back first to get the true balance
   // available before this (possibly changed) new amount is applied.
-  const availableCash = calcCashInHand() + (existingEntry ? (Number(existingEntry.amount)||0) : 0);
-  if (amount > availableCash + 0.001) {
-    toast('⚠️ මුදල ලබාගත හැකි Cash-in-Hand ප්‍රමාණයට වඩා වැඩියි! තිබෙන මුදල: '+fmt(availableCash), 'red');
-    return;
+  // 'owner_topup' is skipped here entirely — it ADDS cash, so there's no ceiling to violate.
+  if (type !== 'owner_topup') {
+    const availableCash = calcCashInHand() + (existingEntry ? (Number(existingEntry.amount)||0) : 0);
+    if (amount > availableCash + 0.001) {
+      toast('⚠️ මුදල ලබාගත හැකි Cash-in-Hand ප්‍රමාණයට වඩා වැඩියි! තිබෙන මුදල: '+fmt(availableCash), 'red');
+      return;
+    }
   }
 
   // If editing, strip out whatever this entry previously mirrored elsewhere (a cash purchase
@@ -9415,6 +9485,9 @@ function saveCashLogEntry() {
   if (!editId && type === 'handed_owner' && isManager()) {
     createHandoverNotification('owner', amount, date);
     toast('✅ Log entry added + Owner notified 👑', 'green');
+  } else if (!editId && type === 'owner_topup') {
+    queuePushEvent('cash', '👑 Cash Added by Owner', `${DB.currentUser?.name||DB.currentUsername} · ${date} · ${fmt(amount)} added to Cash-in-Hand${desc ? ' · '+desc : ''}`);
+    toast('✅ Cash-in-Hand එකට එකතු කළා — Manager ට notify කළා 💼', 'green');
   } else if (!editId && type === 'cash_purchase') {
     toast('✅ Cash purchase recorded from Cash-in-Hand!', 'green');
   } else if (!editId && type === 'credit_payment') {
@@ -9467,11 +9540,21 @@ function deleteCashLogEntry(id) {
   toast('🗑️ Log entry deleted','red');
 }
 
+// Every Cash Disposal Log type REDUCES Cash-in-Hand (banked, handed to owner, cash
+// purchase, etc) — except 'owner_topup', which is the Owner injecting cash INTO the
+// Manager's hand, so it must ADD instead. This is the one place that distinction is
+// made; calcCashInHand(), calcCashInHandBefore() and the Manager Cash Ledger all sum
+// through this helper so a topup is never accidentally treated as a disposal.
+function cashLogSignedAmount(e) {
+  const amt = Number(e.amount) || 0;
+  return e.type === 'owner_topup' ? -amt : amt;
+}
+
 function calcCashInHand() {
   const allEntries=[];
   DB.users.forEach(u=>(u.cashEntries||[]).forEach(e=>allEntries.push(e)));
   const totalNet=allEntries.reduce((a,e)=>a+(Number(e.netCash)||0),0);
-  const totalDisposed=getCashLog().reduce((a,e)=>a+(Number(e.amount)||0),0);
+  const totalDisposed=getCashLog().reduce((a,e)=>a+cashLogSignedAmount(e),0);
   return totalNet-totalDisposed;
 }
 
@@ -9496,7 +9579,7 @@ function calcCashInHandBefore(cutoffDate) {
   const allEntries=[];
   DB.users.forEach(u=>(u.cashEntries||[]).forEach(e=>allEntries.push(e)));
   const totalNet=allEntries.filter(e=>(e.date||'')<cutoffDate).reduce((a,e)=>a+(Number(e.netCash)||0),0);
-  const totalDisposed=getCashLog().filter(e=>(e.date||'')<cutoffDate).reduce((a,e)=>a+(Number(e.amount)||0),0);
+  const totalDisposed=getCashLog().filter(e=>(e.date||'')<cutoffDate).reduce((a,e)=>a+cashLogSignedAmount(e),0);
   return totalNet-totalDisposed;
 }
 
@@ -10403,9 +10486,20 @@ let cashPurchaseHistPage = 1;
 let activityLogPage = 1;
 let creditSettledPage = 1;
 let chequeSettledPage = 1;
+// Supplier Profile (Credit Bills / Cheques / Cash Purchases) + Daily Reload History —
+// same "1-50 · 51-100 · ..." range pagination as the lists above, 50 rows/page.
+const PROFILE_LIST_PAGE_SIZE = 50;
+let supCreditPage = 1;
+let supChequePage = 1;
+let supCashPurchasePage = 1;
+let reloadHistPage = 1;
 
 function goCreditSettledPage(p) { creditSettledPage = p; renderCredits(); }
 function goChequeSettledPage(p) { chequeSettledPage = p; renderCheques(); }
+function goSupCreditPage(p) { supCreditPage = p; renderSupplierAnalytics(); }
+function goSupChequePage(p) { supChequePage = p; renderSupplierAnalytics(); }
+function goSupCashPurchasePage(p) { supCashPurchasePage = p; renderSupplierAnalytics(); }
+function goReloadHistPage(p) { reloadHistPage = p; renderReloadHistory(); }
 
 // Renders a "1-10 · 11-20 · 21-30 ..." page-picker into containerId, calling window[fnName](page) on click
 function renderPagination(containerId, totalRows, currentPage, fnName, pageSize) {
@@ -10439,6 +10533,7 @@ function buildCashLogRowHtml(e, labels) {
     descText = e.description||'—';
   }
   const isLinkedSalary = e.type === 'salary' && e.payrollId;
+  const isTopup = e.type === 'owner_topup';
   const actionsHtml = isAdmin()
     ? (isLinkedSalary
         ? `<span style="font-size:.72rem;color:var(--muted);" title="Payroll processing එකෙන් auto-create වුණු entry — Payslip History එකෙන් manage කරන්න">🔒 Auto</span>`
@@ -10446,7 +10541,7 @@ function buildCashLogRowHtml(e, labels) {
     : '';
   return `<tr>
     <td>${e.date||'—'}</td><td>${labels[e.type]||e.type}</td>
-    <td class="fw700">${fmt(e.amount)}</td>
+    <td class="fw700"${isTopup ? ' style="color:#15803d;"' : ''}>${isTopup ? '+' : ''}${fmt(e.amount)}</td>
     <td style="font-size:.82rem;">${descText}</td>
     <td><span class="user-data-badge">${e.actor||'—'}</span> ${e.actorName||''}</td>
     <td>${actionsHtml}</td>
@@ -10459,7 +10554,7 @@ function renderCashLog() {
   if($('cashInHandDisplay'))$('cashInHandDisplay').textContent=cihText;
   if($('ov-cash-inhand'))$('ov-cash-inhand').textContent=cihText;
   const logs=getCashLog();
-  const labels={banked:'🏦 Banked',handed_owner:'🤝 Handed to Owner',cash_purchase:'🛒 Cash Purchase',credit_payment:'🧾 Credit Bill Payment',salary:'💼 Salary',other1:'📝 Other 1',other2:'📝 Other 2',other3:'📝 Other 3'};
+  const labels={banked:'🏦 Banked',handed_owner:'🤝 Handed to Owner',owner_topup:'➕👑 Cash from Owner',cash_purchase:'🛒 Cash Purchase',credit_payment:'🧾 Credit Bill Payment',salary:'💼 Salary',other1:'📝 Other 1',other2:'📝 Other 2',other3:'📝 Other 3'};
 
   // Cash page — quick glance: 3 most recent disposal log entries
   const recentBody = $('cashLogRecentBody');
@@ -10512,7 +10607,7 @@ function getMgrLedgerCutoffDate() {
 function getManagerCashLedger() {
   const cutoff = getMgrLedgerCutoffDate();
   const cashiers = getCashiers();
-  const disposalLabels = {banked:'🏦 Banked',handed_owner:'🤝 Handed to Owner',cash_purchase:'🛒 Cash Purchase',credit_payment:'🧾 Credit Bill Payment',salary:'💼 Salary',other1:'📝 Other 1',other2:'📝 Other 2',other3:'📝 Other 3'};
+  const disposalLabels = {banked:'🏦 Banked',handed_owner:'🤝 Handed to Owner',owner_topup:'➕👑 Cash from Owner',cash_purchase:'🛒 Cash Purchase',credit_payment:'🧾 Credit Bill Payment',salary:'💼 Salary',other1:'📝 Other 1',other2:'📝 Other 2',other3:'📝 Other 3'};
   const items = [];
 
   // Additions — Net Cash kept in hand from every Day Sale entry
@@ -10525,11 +10620,12 @@ function getManagerCashLedger() {
     });
   });
 
-  // Reductions — Cash Disposal Log entries
+  // Reductions — Cash Disposal Log entries (owner_topup is the one exception: it's an
+  // ADDITION — the Owner injecting cash into the Manager's hand, not a disposal)
   (getUserByUsername('admin')?.cashLog||[]).forEach(e => {
     if (!e.date || e.date < cutoff) return;
     items.push({
-      date: e.date, id: e.id||'', kind:'out', amount: Number(e.amount)||0,
+      date: e.date, id: e.id||'', kind: e.type==='owner_topup' ? 'in' : 'out', amount: Number(e.amount)||0,
       label: disposalLabels[e.type]||e.type,
       detail: (e.type==='cash_purchase' || e.type==='credit_payment') ? `🏪 ${e.supplierName||'—'}${e.description?' — '+e.description:''}` : (e.type==='salary' ? `👤 ${e.empName||'—'}${e.description?' — '+e.description:''}` : (e.description||'—')),
       by: e.actor||'—', byName: e.actorName||''
@@ -11653,11 +11749,74 @@ function renderReloadNetworkCards() {
   if (!entries.length) {
     NETWORKS.forEach(n=>{const el=$('rl-bal-'+n);if(el)el.textContent='LKR 0';});
     if($('rl-bal-cash'))$('rl-bal-cash').textContent='LKR 0';
+    $('rlHandoverBtn')?.classList.add('hidden');
     return;
   }
   const latest=entries[0];
   NETWORKS.forEach(n=>{const el=$('rl-bal-'+n);if(el)el.textContent=fmt(latest[n]||0);});
   if($('rl-bal-cash'))$('rl-bal-cash').textContent=fmt(latest.cash||0);
+  $('rlHandoverBtn')?.classList.toggle('hidden', !isManager() || !((Number(latest.cash)||0) > 0));
+}
+
+/* ===== RELOAD CASH-IN-HAND → HAND OVER TO OWNER =====
+   Reload's "Cash in Hand" isn't a running ledger — it's the 'cash' field of the most
+   recent Daily Balance Entry (a manually-typed end-of-day snapshot). "Handing over"
+   part of it to the Owner therefore means: reduce that latest entry's cash figure by
+   the handed-over amount (and its total along with it), record an audit trail entry,
+   and raise the same confirm/dispute notification the Owner already gets for regular
+   Cash Disposal Log handovers — tagged context:'reload' so the two are never confused. */
+function openReloadHandoverModal() {
+  if (!isManager()) { toast('Manager only', 'red'); return; }
+  const entries = getReloadEntries();
+  if (!entries.length) { toast('⚠️ තවම Reload entry එකක් නෑ — මුලින්ම අද දවසේ Reload Balance එක save කරන්න', 'red'); return; }
+  const latest = entries[0];
+  if (!((Number(latest.cash)||0) > 0)) { toast('⚠️ Reload Cash-in-Hand එකේ දැනට මුදලක් නෑ', 'red'); return; }
+  if ($('rlho-avail-date')) $('rlho-avail-date').textContent = latest.date;
+  if ($('rlho-available')) $('rlho-available').textContent = fmt(latest.cash||0);
+  if ($('rlho-amount')) $('rlho-amount').value = '';
+  if ($('rlho-note')) $('rlho-note').value = '';
+  openModal('reloadHandoverModal');
+}
+
+async function saveReloadHandover() {
+  if (!isManager()) { toast('Manager only', 'red'); return; }
+  const entries = getReloadEntries();
+  if (!entries.length) { toast('⚠️ Reload entry not found', 'red'); return; }
+  const latest = entries[0];
+  const amount = Number($('rlho-amount')?.value) || 0;
+  const note = $('rlho-note')?.value || '';
+  if (amount <= 0) { toast('⚠️ Valid amount එකක් දෙන්න', 'red'); return; }
+  const availableCash = Number(latest.cash) || 0;
+  if (amount > availableCash + 0.001) {
+    toast('⚠️ මුදල Reload Cash-in-Hand ප්‍රමාණයට වඩා වැඩියි! තිබෙන මුදල: '+fmt(availableCash), 'red');
+    return;
+  }
+
+  const owner = DB.currentUser;
+  if (!owner) return;
+  const rec = (owner.reloadEntries||[]).find(e => e.id === latest.id);
+  if (!rec) { toast('⚠️ Reload entry not found', 'red'); return; }
+
+  // Reduce today's cash-in-hand snapshot by the handed-over amount and recompute its total
+  rec.cash = Math.max(0, (Number(rec.cash)||0) - amount);
+  rec.total = (Number(rec.dialog)||0)+(Number(rec.mobitel)||0)+(Number(rec.hutch)||0)+(Number(rec.airtel)||0)+(Number(rec.cash)||0);
+
+  // Audit trail, separate from reloadEntries so the daily balance history stays clean
+  if (!owner.reloadHandovers) owner.reloadHandovers = [];
+  owner.reloadHandovers.push({
+    id: uid(), date: latest.date, amount, note, reloadEntryId: latest.id,
+    handedBy: DB.currentUsername, handedByName: DB.currentUser?.name || '',
+    createdAt: new Date().toISOString()
+  });
+
+  syncUser(owner);
+  logActivity('RELOAD_HANDOVER', `${latest.date} · ${fmt(amount)} → Owner`);
+  createHandoverNotification('owner', amount, latest.date, 'reload');
+
+  closeModal('reloadHandoverModal');
+  renderReloadSection();
+  renderOverview();
+  toast('✅ Reload cash handed over + Owner notified 👑', 'green');
 }
 
 function populateReloadMonthFilter() {
@@ -11682,8 +11841,13 @@ function renderReloadHistory() {
   let entries=getReloadEntries();
   if (fMonth) entries=entries.filter(e=>(e.date||'').startsWith(fMonth));
   if (q) entries=entries.filter(e=>(e.date||'').includes(q)||(e.notes||'').toLowerCase().includes(q));
-  if (!entries.length){tbody.innerHTML='<tr><td colspan="9" class="no-data"><span class="ico">📱</span>No reload entries yet</td></tr>';return;}
-  tbody.innerHTML=entries.map(e=>{
+  const reloadTotalPages = Math.max(1, Math.ceil(entries.length / PROFILE_LIST_PAGE_SIZE));
+  if (reloadHistPage > reloadTotalPages) reloadHistPage = reloadTotalPages;
+  if (reloadHistPage < 1) reloadHistPage = 1;
+  if (!entries.length){tbody.innerHTML='<tr><td colspan="9" class="no-data"><span class="ico">📱</span>No reload entries yet</td></tr>';renderPagination('reloadHistPagination',0,reloadHistPage,'goReloadHistPage',PROFILE_LIST_PAGE_SIZE);return;}
+  const pageEntries = entries.slice((reloadHistPage-1)*PROFILE_LIST_PAGE_SIZE, reloadHistPage*PROFILE_LIST_PAGE_SIZE);
+  renderPagination('reloadHistPagination', entries.length, reloadHistPage, 'goReloadHistPage', PROFILE_LIST_PAGE_SIZE);
+  tbody.innerHTML=pageEntries.map(e=>{
     const total=(Number(e.dialog)||0)+(Number(e.mobitel)||0)+(Number(e.hutch)||0)+(Number(e.airtel)||0)+(Number(e.cash)||0);
     const actions=isAdmin()?`<button class="btn btn-yellow btn-sm" onclick="editReloadEntry('${e.id}','${e._owner||''}')">✏️</button> <button class="btn btn-red btn-sm" onclick="deleteReloadEntry('${e.id}','${e._owner||''}')">🗑️</button>`:`<span class="badge badge-grey" style="font-size:.72rem;">🔒 Locked</span>`;
     return `<tr>
@@ -12283,7 +12447,7 @@ function renderDailySummary() {
   html += `<div class="card" style="margin:1.2rem 1.5rem;">
     <div class="card-head"><div class="card-title">🧑‍💼 Manager Activity</div></div>`;
   if (data.managerActions.length) {
-    const icons = {ADD_CREDIT:'💳',EDIT_CREDIT:'✏️',DEL_CREDIT:'🗑️',ADD_CHEQUE:'✅',EDIT_CHEQUE:'✏️',DEL_CHEQUE:'🗑️',ADD_CHEQUE_BOOK:'🖐️',DEL_CHEQUE_BOOK:'🗑️',ADD_PAYMENT:'💰',DEL_PAYMENT:'💰',ADD_SUPPLIER:'🏪',EDIT_SUPPLIER:'✏️',DEL_SUPPLIER:'🗑️',ADD_USER:'👥',EDIT_USER:'✏️',DEL_USER:'🗑️',LOGIN:'🔓',LOGOUT:'🔒',REGISTER:'✨',BACKUP:'📥',CHEQUE_LINK:'🔗',ADD_EMPLOYEE:'🧑‍💼',EDIT_EMPLOYEE:'✏️',DEL_EMPLOYEE:'🗑️',ADD_ADVANCE:'💸',DEL_ADVANCE:'🗑️',PROCESS_PAYROLL:'🧮',DEL_PAYROLL:'🗑️',DEL_CASH_PURCHASE:'🛒',MARK_ATTENDANCE:'🗓️',EDIT_ATTENDANCE:'✏️',DEL_ATTENDANCE:'🗑️',CASH_LOG:'💵',EDIT_CASH_LOG:'✏️',DEL_CASH_LOG:'🗑️',ADD_CASH:'💵',EDIT_CASH:'✏️',DEL_CASH:'🗑️',ADD_RELOAD:'📶',EDIT_RELOAD:'✏️',DEL_RELOAD:'🗑️',CASH_TEMP_SAVE:'🕓',CASH_TEMP_DELETE:'🗑️'};
+    const icons = {ADD_CREDIT:'💳',EDIT_CREDIT:'✏️',DEL_CREDIT:'🗑️',ADD_CHEQUE:'✅',EDIT_CHEQUE:'✏️',DEL_CHEQUE:'🗑️',ADD_CHEQUE_BOOK:'🖐️',DEL_CHEQUE_BOOK:'🗑️',ADD_PAYMENT:'💰',DEL_PAYMENT:'💰',ADD_SUPPLIER:'🏪',EDIT_SUPPLIER:'✏️',DEL_SUPPLIER:'🗑️',ADD_USER:'👥',EDIT_USER:'✏️',DEL_USER:'🗑️',LOGIN:'🔓',LOGOUT:'🔒',REGISTER:'✨',BACKUP:'📥',CHEQUE_LINK:'🔗',ADD_EMPLOYEE:'🧑‍💼',EDIT_EMPLOYEE:'✏️',DEL_EMPLOYEE:'🗑️',ADD_ADVANCE:'💸',DEL_ADVANCE:'🗑️',PROCESS_PAYROLL:'🧮',DEL_PAYROLL:'🗑️',DEL_CASH_PURCHASE:'🛒',MARK_ATTENDANCE:'🗓️',EDIT_ATTENDANCE:'✏️',DEL_ATTENDANCE:'🗑️',CASH_LOG:'💵',EDIT_CASH_LOG:'✏️',DEL_CASH_LOG:'🗑️',ADD_CASH:'💵',EDIT_CASH:'✏️',DEL_CASH:'🗑️',ADD_RELOAD:'📶',EDIT_RELOAD:'✏️',DEL_RELOAD:'🗑️',RELOAD_HANDOVER:'🤝',CASH_TEMP_SAVE:'🕓',CASH_TEMP_DELETE:'🗑️'};
     html += `<div class="table-wrap"><table>
       <thead><tr><th>🕐 Time</th><th>👤 Manager</th><th>📝 Action</th><th>ℹ️ Details</th></tr></thead>
       <tbody>${data.managerActions.map(e => `<tr><td style="white-space:nowrap;">${e.ts ? new Date(e.ts).toLocaleTimeString() : '—'}</td><td><span class="user-data-badge">${e.actor || '?'}</span> ${e._ownerName || ''}</td><td>${icons[e.action] || '📝'} ${(e.action || '—').replace(/_/g, ' ')}</td><td style="font-size:.82rem;color:var(--muted);">${e.details || ''}</td></tr>`).join('')}</tbody>
@@ -13327,7 +13491,7 @@ function renderActivityLog() {
     renderPagination('activityPagination', 0, activityLogPage, 'goActivityLogPage', ACTIVITY_PAGE_SIZE);
     return;
   }
-  const icons={ADD_CREDIT:'💳',EDIT_CREDIT:'✏️',DEL_CREDIT:'🗑️',ADD_CHEQUE:'✅',EDIT_CHEQUE:'✏️',DEL_CHEQUE:'🗑️',ADD_CHEQUE_BOOK:'🖐️',DEL_CHEQUE_BOOK:'🗑️',ADD_PAYMENT:'💰',DEL_PAYMENT:'💰',ADD_SUPPLIER:'🏪',EDIT_SUPPLIER:'✏️',DEL_SUPPLIER:'🗑️',ADD_USER:'👥',EDIT_USER:'✏️',DEL_USER:'🗑️',LOGIN:'🔓',LOGOUT:'🔒',REGISTER:'✨',BACKUP:'📥',CHEQUE_LINK:'🔗',ADD_EMPLOYEE:'🧑‍💼',EDIT_EMPLOYEE:'✏️',DEL_EMPLOYEE:'🗑️',ADD_ADVANCE:'💸',DEL_ADVANCE:'🗑️',PROCESS_PAYROLL:'🧮',DEL_PAYROLL:'🗑️',DEL_CASH_PURCHASE:'🛒',MARK_ATTENDANCE:'🗓️',EDIT_ATTENDANCE:'✏️',DEL_ATTENDANCE:'🗑️',CASH_LOG:'💵',EDIT_CASH_LOG:'✏️',DEL_CASH_LOG:'🗑️',ADD_CASH:'💵',EDIT_CASH:'✏️',DEL_CASH:'🗑️',ADD_RELOAD:'📶',EDIT_RELOAD:'✏️',DEL_RELOAD:'🗑️',CASH_TEMP_SAVE:'🕓',CASH_TEMP_DELETE:'🗑️'};
+  const icons={ADD_CREDIT:'💳',EDIT_CREDIT:'✏️',DEL_CREDIT:'🗑️',ADD_CHEQUE:'✅',EDIT_CHEQUE:'✏️',DEL_CHEQUE:'🗑️',ADD_CHEQUE_BOOK:'🖐️',DEL_CHEQUE_BOOK:'🗑️',ADD_PAYMENT:'💰',DEL_PAYMENT:'💰',ADD_SUPPLIER:'🏪',EDIT_SUPPLIER:'✏️',DEL_SUPPLIER:'🗑️',ADD_USER:'👥',EDIT_USER:'✏️',DEL_USER:'🗑️',LOGIN:'🔓',LOGOUT:'🔒',REGISTER:'✨',BACKUP:'📥',CHEQUE_LINK:'🔗',ADD_EMPLOYEE:'🧑‍💼',EDIT_EMPLOYEE:'✏️',DEL_EMPLOYEE:'🗑️',ADD_ADVANCE:'💸',DEL_ADVANCE:'🗑️',PROCESS_PAYROLL:'🧮',DEL_PAYROLL:'🗑️',DEL_CASH_PURCHASE:'🛒',MARK_ATTENDANCE:'🗓️',EDIT_ATTENDANCE:'✏️',DEL_ATTENDANCE:'🗑️',CASH_LOG:'💵',EDIT_CASH_LOG:'✏️',DEL_CASH_LOG:'🗑️',ADD_CASH:'💵',EDIT_CASH:'✏️',DEL_CASH:'🗑️',ADD_RELOAD:'📶',EDIT_RELOAD:'✏️',DEL_RELOAD:'🗑️',RELOAD_HANDOVER:'🤝',CASH_TEMP_SAVE:'🕓',CASH_TEMP_DELETE:'🗑️'};
   const pageLogs = filtered.slice((activityLogPage-1)*ACTIVITY_PAGE_SIZE, activityLogPage*ACTIVITY_PAGE_SIZE);
   tbody.innerHTML = pageLogs.map(e=>`<tr>
     <td style="font-size:.78rem;white-space:nowrap;">${e.ts?new Date(e.ts).toLocaleString():'—'}</td>
