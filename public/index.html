@@ -5959,10 +5959,25 @@ function renderOverview() {
   ovSetSlideAvailable('ov-payment-row', !!allCash.length && chartAllowed('chart_paymentBreakdown'), 'ov-carousel-dots');
   if ($('ov-carousel2-card')) $('ov-carousel2-card').classList.toggle('hidden', !allCash.length);
   if (allCash.length) {
-    try { renderDailySalesChart(); } catch (e) { console.error('renderDailySalesChart failed:', e); }
-    try { renderDailySalesMonthlyTrendChart(); } catch (e) { console.error('renderDailySalesMonthlyTrendChart failed:', e); }
-    try { renderMonthlySalesGrowthChart(); } catch (e) { console.error('renderMonthlySalesGrowthChart failed:', e); }
-    try { renderDailySalesComparisonChart(); } catch (e) { console.error('renderDailySalesComparisonChart failed:', e); }
+    // Only eagerly render whichever carousel-2 slide is CURRENTLY visible.
+    // Creating an ApexCharts instance inside a hidden (non-.active) slide
+    // gives it a 0-width container to measure — ApexCharts can't compute a
+    // scale for that, so it throws "Expected number, NaN" / "Expected
+    // length, NaN" SVG-attribute errors and leaves a permanently blank
+    // chart behind (this is what produced the NaN console errors + the
+    // blank "Daily Sales Comparison" chart). The other 3 charts are
+    // created lazily by ovShowSlide2()/ovRefreshChartVisibility2() the
+    // moment their slide actually becomes visible, so they always get a
+    // real width to measure — same as slide 0 already does today.
+    const activeSlide2 = document.querySelector('#ov-carousel2-slides .ov-carousel-slide.active')?.id;
+    const renderers2 = {
+      'ov-slide-salesGrowth': renderMonthlySalesGrowthChart,
+      'ov-slide-dailySales': renderDailySalesChart,
+      'ov-slide-salesComparison': renderDailySalesComparisonChart,
+      'ov-slide-monthlyTrend': renderDailySalesMonthlyTrendChart
+    };
+    const activeRenderer2 = renderers2[activeSlide2] || renderMonthlySalesGrowthChart;
+    try { activeRenderer2(); } catch (e) { console.error('active carousel2 chart render failed:', e); }
     ovSetSlideAvailable('ov-slide-salesGrowth', chartAllowed('chart_monthlySalesGrowth'), 'ov-carousel2-dots');
     ovSetSlideAvailable('ov-slide-dailySales', chartAllowed('chart_dailyTotalSales'), 'ov-carousel2-dots');
     ovSetSlideAvailable('ov-slide-salesComparison', chartAllowed('chart_dailySalesComparison'), 'ov-carousel2-dots');
@@ -13530,6 +13545,17 @@ restoreSidebarState();
     await new Promise(resolve => {
       const unsub = fauth.onAuthStateChanged(() => { unsub(); resolve(); });
     });
+    // A session restored from persisted storage can carry a cached ID token
+    // whose custom claims (role) are stale relative to what's currently set
+    // on the Auth user record. Forcing one fresh token fetch here — before
+    // loadDB()/loadPayrollDB()/loadRolePermissions() open their first
+    // onSnapshot listeners below — closes that race so the listeners start
+    // with a token that's guaranteed current, instead of occasionally
+    // hitting a permission-denied on the first connection and relying on
+    // each listener's own error-handler to self-heal a moment later.
+    if (fauth.currentUser) {
+      try { await fauth.currentUser.getIdToken(true); } catch (e) { console.error('initial token refresh', e); }
+    }
   }
   registerServiceWorker();
   initMessaging();
