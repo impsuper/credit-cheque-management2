@@ -4197,6 +4197,41 @@ async function loadDB() {
 let _liveSyncRetried = false;
 function startLiveSync() {
   if (liveUnsub || !usersCol) return;
+  // Cashiers only ever have isOwner() access per the Firestore rules (see
+  // the matching comment in loadDB() above) — a full-collection listener
+  // is denied outright for them by design, not a transient/stale-token
+  // issue, so the self-heal retry below can never fix it: it just floods
+  // the console with permission-denied on every cashier login and leaves
+  // DB.dataIncomplete stuck true (blanking the company-wide dashboard
+  // cards). Give cashiers a doc-level listener on just their own record
+  // instead — the same thing loadDB()'s one-time read already does.
+  if (DB.currentUser && DB.currentUser.role === 'cashier' && DB.currentUsername) {
+    liveUnsub = usersCol.doc(DB.currentUsername).onSnapshot(snap => {
+      _liveSyncRetried = false;
+      if (!snap.exists) return;
+      const me = snap.data();
+      DB.currentUser = me;
+      DB.users = [me];
+      DB.dataIncomplete = false;
+      markSynced('cloud');
+      try { saveDBLocal(); } catch (e) { console.error('live sync local mirror', e); }
+      refreshActiveSection();
+    }, async err => {
+      console.error('live sync (own doc)', err);
+      setSyncStatus('offline');
+      DB.dataIncomplete = true;
+      refreshActiveSection();
+      if (err.code === 'permission-denied' && !_liveSyncRetried && fauth && fauth.currentUser) {
+        _liveSyncRetried = true;
+        liveUnsub = null;
+        try {
+          await fauth.currentUser.getIdToken(true);
+          startLiveSync();
+        } catch (e) { console.error('live sync token refresh', e); }
+      }
+    });
+    return;
+  }
   liveUnsub = usersCol.onSnapshot(snap => {
     _liveSyncRetried = false; // a good snapshot means the token is fine again
     DB.users = snap.docs.map(d => d.data());
