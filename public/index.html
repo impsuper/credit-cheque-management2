@@ -4235,6 +4235,14 @@ function startLiveSync() {
 
 async function loadPayrollDB() {
   if (!firebaseReady() || !payrollDocRef) return loadPayrollDBLocal();
+  // The Firestore rules only allow admin/manager to read cms_payroll —
+  // cashiers are denied by design. Without this check, every cashier
+  // login would hit a genuine (not transient) permission-denied here and
+  // on the live listener below — since the role really is 'cashier', no
+  // amount of token-refresh retry fixes that, so it just logs an error
+  // on every single login for no functional benefit (cashiers don't use
+  // payroll data anyway).
+  if (!canAccessPayroll()) return loadPayrollDBLocal();
   try {
     // IMPORTANT: force a server read here, not a cache-permissive default
     // read. On a brand-new device/browser (empty local IndexedDB cache),
@@ -5277,6 +5285,14 @@ function renderBarChart(elId, items, valueLabel) {
 // hidden instances every time renderOverview() runs.
 const __ovChartJS = {};
 const __ovApex = {};
+// Last-computed data for the two carousel-1 Apex donut charts (cheque status,
+// payment breakdown). Cached so ovRefreshChartVisibility() can do a full
+// create (destroy+render) the moment their slide actually becomes visible,
+// instead of eagerly creating them while hidden (0-width container →
+// ApexCharts "Expected number, NaN" errors — same root cause fixed for the
+// carousel-2 charts).
+let __ovLastChequeItems = [];
+let __ovLastPaymentItems = [];
 
 // Reads the live theme CSS variables so every chart's axis/legend/label text
 // (and Chart.js grid lines) stay legible no matter which of the 4 app themes
@@ -5486,8 +5502,8 @@ function ovRefreshChartVisibility(idx) {
   try {
     if (idx === 0 && __ovChartJS['ov-credit-chart']) __ovChartJS['ov-credit-chart'].resize();
     if (idx === 2 && __ovChartJS['ov-sales-chart']) __ovChartJS['ov-sales-chart'].resize();
-    if (idx === 1 && __ovApex['ov-cheque-chart']) __ovApex['ov-cheque-chart'].updateOptions({}, false, true);
-    if (idx === 3 && __ovApex['ov-payment-chart']) __ovApex['ov-payment-chart'].updateOptions({}, false, true);
+    if (idx === 1) renderDonutApex('ov-cheque-chart', __ovLastChequeItems);
+    if (idx === 3) renderDonutApex('ov-payment-chart', __ovLastPaymentItems);
     if (idx === 4 && __ovApex['ov-purchases-donut']) __ovApex['ov-purchases-donut'].updateOptions({}, false, true);
   } catch (e) {}
 }
@@ -5950,7 +5966,10 @@ function renderOverview() {
     { label: '❌ Bounced', value: bounced, color: '#b91c1c' },
     { label: '⚠️ Overdue', value: overdue.length, color: '#ea580c' }
   ].filter(i => i.value > 0);
-  renderDonutApex('ov-cheque-chart', chequeItems);
+  __ovLastChequeItems = chequeItems;
+  if (document.getElementById('ov-slide-chequeStatus')?.classList.contains('active')) {
+    renderDonutApex('ov-cheque-chart', chequeItems);
+  }
   ovSetSlideAvailable('ov-slide-chequeStatus', chartAllowed('chart_chequeStatusOverview'), 'ov-carousel-dots');
 
   // Mini Sales Charts on Dashboard
@@ -6019,7 +6038,10 @@ function renderOverview() {
     const totChq2   = payCash.reduce((a,e)=>a+(Number(e.chequeReceived)||0),0);
     const totCr2    = payCash.reduce((a,e)=>a+(Number(e.creditSales)||0),0);
     const ptypes2 = [{label:'💵 Cash',value:totCash2,color:'#2563eb'},{label:'💳 Card DFCC',value:totCard2,color:'#0e7490'},{label:'📱 QR',value:totQR2,color:'#f59e0b'},{label:'🏦 Cheque',value:totChq2,color:'#8b5cf6'},{label:'💳 Card SDB',value:totCr2,color:'#e63946'}].filter(p=>p.value>0);
-    try { renderDonutApex('ov-payment-chart', ptypes2); } catch (e) { console.error('ov-payment-chart failed:', e); }
+    __ovLastPaymentItems = ptypes2;
+    if (document.getElementById('ov-payment-row')?.classList.contains('active')) {
+      try { renderDonutApex('ov-payment-chart', ptypes2); } catch (e) { console.error('ov-payment-chart failed:', e); }
+    }
   }
   try { renderPurchasesBreakdown(); } catch (e) { console.error('renderPurchasesBreakdown failed:', e); }
   ovSetSlideAvailable('ov-slide-purchasesBreakdown', chartAllowed('chart_purchasesBreakdown'), 'ov-carousel-dots');
