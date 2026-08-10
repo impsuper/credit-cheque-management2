@@ -4659,7 +4659,13 @@ const sectionTitles = {
 
 function showSection(name) {
   if (isCashier() && name !== 'cash') return; // Cashier locked to cash only
-  if (DASHBOARD_SECTIONS.some(s => s.key === name) && !sectionAllowed(name)) {
+  // Cashier is intentionally exempt from the DASHBOARD_SECTIONS/ROLE_PERMS
+  // gate below (see the matching comment on isDashPermAllowed()) — that
+  // system only ever evaluates Admin/Manager permissions, so isManager()
+  // being false for a cashier made sectionAllowed('cash') always return
+  // false and bounce them to 'overview', which the line above then blocked
+  // too, leaving no section visible at all (blank dashboard after login).
+  if (!isCashier() && DASHBOARD_SECTIONS.some(s => s.key === name) && !sectionAllowed(name)) {
     toast('⚠️ ඔබට මෙම කොටසට ප්‍රවේශය නැත', 'red');
     showSection('overview');
     return;
@@ -13616,6 +13622,14 @@ restoreSidebarState();
   }
   registerServiceWorker();
   initMessaging();
+  // Always require username + password on every fresh load — don't
+  // auto-restore a previous session, whether from localStorage or a
+  // persisted Firebase Auth token.
+  clearSession();
+  DB.currentUser = null;
+  if (fauth && fauth.currentUser) {
+    try { await fauth.signOut(); } catch (e) { console.error('force logout on load', e); }
+  }
   const loggedIn = await loadDB();
   await loadPayrollDB();
   await loadRolePermissions();
