@@ -1439,7 +1439,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
           <button class="sort-pill" data-col="date" onclick="setSortPill('credits','date')">📅 Date</button>
           <button class="sort-pill" data-col="supplier" onclick="setSortPill('credits','supplier')">🏪 Supplier</button>
           <button class="sort-pill" data-col="amount" onclick="setSortPill('credits','amount')">💵 Amount</button>
-          <button class="sort-pill" data-col="balance" onclick="setSortPill('credits','balance')">⚖️ Balance</button>
+          <button class="sort-pill" data-col="settledDate" onclick="setSortPill('credits','settledDate')">🗓️ Settled Date</button>
           <button class="sort-pill" data-col="totalPaid" onclick="setSortPill('credits','totalPaid')">✅ Paid</button>
           <button class="sort-pill" data-col="age" onclick="setSortPill('credits','age')">⏳ Age</button>
         </div>
@@ -1453,7 +1453,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
                   <th onclick="sortTable('credits','supplier')" data-col="supplier">🏪 Supplier<span class="sort-ico"></span></th>
                   <th onclick="sortTable('credits','amount')" data-col="amount">💵 Amount<span class="sort-ico"></span></th>
                   <th onclick="sortTable('credits','totalPaid')" data-col="totalPaid">✅ Paid<span class="sort-ico"></span></th>
-                  <th onclick="sortTable('credits','balance')" data-col="balance">⚖️ Balance<span class="sort-ico"></span></th>
+                  <th onclick="sortTable('credits','settledDate')" data-col="settledDate">🗓️ Settled Date<span class="sort-ico"></span></th>
                   <th onclick="sortTable('credits','age')" data-col="age">⏳ Age<span class="sort-ico"></span></th>
                   <th>⚙️ Actions</th>
                 </tr>
@@ -1473,7 +1473,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
                   <th onclick="sortTable('credits','supplier')" data-col="supplier">🏪 Supplier<span class="sort-ico"></span></th>
                   <th onclick="sortTable('credits','amount')" data-col="amount">💵 Amount<span class="sort-ico"></span></th>
                   <th onclick="sortTable('credits','totalPaid')" data-col="totalPaid">✅ Paid<span class="sort-ico"></span></th>
-                  <th onclick="sortTable('credits','balance')" data-col="balance">⚖️ Balance<span class="sort-ico"></span></th>
+                  <th onclick="sortTable('credits','settledDate')" data-col="settledDate">🗓️ Settled Date<span class="sort-ico"></span></th>
                   <th onclick="sortTable('credits','age')" data-col="age">⏳ Age<span class="sort-ico"></span></th>
                   <th>⚙️ Actions</th>
                 </tr>
@@ -3704,6 +3704,17 @@ function getCreditAgeDays(c) {
 // always matches whether that bill would show up as a watch/high-risk alert.
 // Settled bills show a frozen "✅ Settled in Xd" style label instead, since
 // their age no longer counts up.
+// The date this credit bill was actually settled — the most recent payment
+// date on record (across legacy pay1-3 and the payments[] array). Returns
+// null for bills that aren't settled yet. Used by the Credits tab's Settled
+// Date column, which replaces Balance there (balance is always 0 once
+// settled, so the date it happened is the more useful thing to show).
+function getCreditSettledDate(c) {
+  if (!isCreditSettled(c)) return null;
+  const payDates = [c.pay1date, c.pay2date, c.pay3date, ...(c.payments || []).map(p => p.date)].filter(Boolean).sort();
+  return payDates[payDates.length - 1] || null;
+}
+
 function formatCreditAge(c) {
   const days = getCreditAgeDays(c);
   if (days === null) return '—';
@@ -3864,6 +3875,84 @@ async function deleteUserDoc(username) {
   } catch (e) {
     console.error('deleteUserDoc', e);
     setSyncStatus('offline');
+  }
+}
+
+// Safely rewrites ONE credit bill's `payments` array without the same-document
+// race condition that used to bite addPayment()/deletePayment(): mutating the
+// local copy of `owner` and then calling syncUser(owner) does a full-document
+// .set(clean(user)) overwrite, so if this admin's local copy of the credit
+// owner's doc was even slightly behind the server (e.g. a manager saved
+// something from their own device a moment earlier, or a moment later before
+// this write had propagated), whichever side wrote last would silently wipe
+// out the other's change — including, on unlucky timing, the very payment
+// being recorded here. A transaction fixes that at the root: it reads the
+// credit fresh from the server, rewrites only its `payments` field, and
+// writes back just the `credits` (+ `suppliers`, if touching one) field;
+// Firestore automatically re-runs it if another write lands on this doc in
+// between, so a payment can no longer be silently lost that way.
+//
+// This is the SAME fix addPayment()/deletePayment() already use below, just
+// generalized so every other place that touches credit.payments — Cheque
+// auto-clear/auto-unclear, Cash Disposal Log credit-bill payments, Cash
+// Management (Daily Cash) credit-bill payments — gets it too, instead of
+// each one re-doing (or forgetting to do) the same fix separately.
+//
+// `mutateFn(paymentsArray)` receives a fresh copy of the credit's current
+// payments and must return the new array to save. It may run twice (once
+// against the server's latest data inside the transaction, once against the
+// local copy to keep the UI in sync immediately) so it must be a pure
+// function of its input — e.g. `payments => [...payments, newPayment]` or
+// `payments => payments.filter(p => p.id !== pid)`.
+async function applyCreditPaymentsChange(owner, creditId, mutateFn, supplierId) {
+  if (!owner) return false;
+  const c = (owner.credits || []).find(x => x.id === creditId);
+  if (!c) return false;
+
+  if (!firebaseReady() || !usersCol) {
+    // Local-only mode: nothing to race against.
+    c.payments = mutateFn(Array.isArray(c.payments) ? c.payments.slice() : []);
+    if (supplierId) touchSupplier(owner, supplierId);
+    syncUser(owner);
+    return true;
+  }
+
+  setSyncStatus('syncing');
+  try {
+    await fdb.runTransaction(async tx => {
+      const ref = usersCol.doc(owner.username);
+      const snap = await tx.get(ref);
+      if (!snap.exists) throw new Error('USER_NOT_FOUND');
+      const freshData = snap.data();
+      const freshCredits = Array.isArray(freshData.credits) ? freshData.credits.slice() : [];
+      const idx = freshCredits.findIndex(x => x.id === creditId);
+      if (idx === -1) throw new Error('CREDIT_NOT_FOUND');
+      const freshCredit = { ...freshCredits[idx] };
+      freshCredit.payments = mutateFn(Array.isArray(freshCredit.payments) ? freshCredit.payments.slice() : []);
+      freshCredits[idx] = freshCredit;
+      const update = { credits: freshCredits };
+      if (supplierId) {
+        const freshSuppliers = Array.isArray(freshData.suppliers) ? freshData.suppliers.slice() : [];
+        const sIdx = freshSuppliers.findIndex(s => s.id === supplierId);
+        if (sIdx !== -1) {
+          freshSuppliers[sIdx] = { ...freshSuppliers[sIdx], updatedAt: new Date().toISOString() };
+          update.suppliers = freshSuppliers;
+        }
+      }
+      tx.update(ref, update);
+    });
+    // Server write confirmed — mirror it into local memory so the UI (and
+    // anything else reading DB.users, like Cash-in-Hand) matches.
+    c.payments = mutateFn(Array.isArray(c.payments) ? c.payments.slice() : []);
+    if (supplierId) touchSupplier(owner, supplierId);
+    try { saveDBLocal(); } catch (e) { console.error('applyCreditPaymentsChange local mirror', e); }
+    markSynced('cloud');
+    return true;
+  } catch (e) {
+    console.error('applyCreditPaymentsChange transaction', e);
+    setSyncStatus('offline');
+    toast('⚠️ Payment save failed — try again', 'red');
+    return false;
   }
 }
 
@@ -5031,7 +5120,6 @@ function renderCredits() {
   const { col, dir } = DB.sortState.credits;
   const sortFn = arr => sortData(arr, col, dir, (c, key) => {
     const paid = getTotalPaid(c);
-    const bal = getCreditBalance(c);
     const map = {
       entryId: c.entryId || '',
       date: c.date || '',
@@ -5039,7 +5127,7 @@ function renderCredits() {
       owner: `${c._ownerName || ''} (${c._ownerUsername || ''})`,
       amount: c.amount || 0,
       totalPaid: paid,
-      balance: bal,
+      settledDate: getCreditSettledDate(c) || '',
       age: getCreditAgeDays(c) ?? -1
     };
     return map[key] ?? '';
@@ -5048,7 +5136,7 @@ function renderCredits() {
   const renderRow = c => {
     const paid = getTotalPaid(c);
     const bal = getCreditBalance(c);
-    const balClass = bal > 0 ? 'text-red' : 'text-green';
+    const settledDate = getCreditSettledDate(c);
     const canPayCheque = bal > 0.001 && (isAdmin() || c._ownerUsername === DB.currentUsername);
     const actions = `
       <div class="flex gap1" style="justify-content:flex-end;flex-wrap:wrap;">
@@ -5063,15 +5151,14 @@ function renderCredits() {
       <td>${getSupplierName(c.supplierId, c._owner)}${isAdmin() ? ` <span class="user-data-badge">${c._ownerUsername || '—'}</span>` : ''}</td>
       <td class="fw700">${fmt(c.amount)}</td>
       <td class="text-green fw700">${fmt(paid)}</td>
-      <td class="${balClass} fw700">${fmt(bal)}</td>
+      <td class="${settledDate ? 'text-green' : ''} fw700">${settledDate || '—'}</td>
       <td class="fw700">${formatCreditAge(c)}</td>
       <td>${actions}</td>
     </tr>`;
   };
 
   const renderMobileCredit = c => {
-    const bal = getCreditBalance(c);
-    const balClass = bal > 0 ? 'text-red' : 'text-green';
+    const settledDate = getCreditSettledDate(c);
     return `<div class="mob-card">
       <div class="mob-card-row">
         <span class="mob-card-label">📅 Date</span>
@@ -5082,8 +5169,8 @@ function renderCredits() {
         <span class="mob-card-val">${getSupplierName(c.supplierId, c._owner)}${isAdmin() ? ` <span class="user-data-badge">${c._ownerUsername || '—'}</span>` : ''}</span>
       </div>
       <div class="mob-card-row">
-        <span class="mob-card-label">⚖️ Balance</span>
-        <span class="mob-card-val ${balClass} fw700">${fmt(bal)}</span>
+        <span class="mob-card-label">🗓️ Settled Date</span>
+        <span class="mob-card-val ${settledDate ? 'text-green' : ''} fw700">${settledDate || '—'}</span>
       </div>
       <div class="mob-card-row">
         <span class="mob-card-label">⏳ Age</span>
@@ -5091,7 +5178,7 @@ function renderCredits() {
       </div>
       <div class="mob-card-actions">
         <button class="btn btn-ghost btn-sm" onclick="openPayHist('${c.id}','${c._ownerUsername}')">📜 View</button>
-        ${bal > 0.001 && (isAdmin() || c._ownerUsername === DB.currentUsername) ? `<button class="btn btn-accent btn-sm" onclick="openPayCheque('${c.id}','${c._ownerUsername}')">🖐️ Pay via Cheque</button>` : ''}
+        ${getCreditBalance(c) > 0.001 && (isAdmin() || c._ownerUsername === DB.currentUsername) ? `<button class="btn btn-accent btn-sm" onclick="openPayCheque('${c.id}','${c._ownerUsername}')">🖐️ Pay via Cheque</button>` : ''}
         ${isAdmin() ? `<button class="btn btn-yellow btn-sm" onclick="editCredit('${c.id}','${c._ownerUsername}')">✏️</button>
         <button class="btn btn-red btn-sm" onclick="delCredit('${c.id}','${c._ownerUsername}')">🗑️</button>` : ''}
       </div>
@@ -5108,13 +5195,12 @@ function renderCredits() {
       if (pageOpts) renderPagination(pageOpts.containerId, 0, pageOpts.page, pageOpts.fnName, pageOpts.pageSize);
       return;
     }
-    let totAmt = 0, totPaid = 0, totBal = 0;
+    let totAmt = 0, totPaid = 0;
     const sorted = sortFn(arr);
     // Totals always reflect every record in this tab, even when only one page is shown below
     sorted.forEach(c => {
       totAmt += Number(c.amount) || 0;
       totPaid += getTotalPaid(c);
-      totBal += getCreditBalance(c);
     });
     const displayArr = pageOpts ? sorted.slice((pageOpts.page - 1) * pageOpts.pageSize, pageOpts.page * pageOpts.pageSize) : sorted;
     const html = displayArr.map(renderRow).join('');
@@ -5122,7 +5208,7 @@ function renderCredits() {
       <td colspan="3">📊 Total (${arr.length} records)</td>
       <td>${fmt(totAmt)}</td>
       <td>${fmt(totPaid)}</td>
-      <td class="${totBal > 0 ? 'text-red' : 'text-green'}">${fmt(totBal)}</td>
+      <td></td>
       <td></td>
       <td></td>
     </tr>`;
@@ -7320,7 +7406,7 @@ function renderPayHist() {
     </div>`).join('') : '<div class="no-data" style="padding:1rem;">No payments yet</div>';
 }
 
-function addPayment() {
+async function addPayment() {
   // Managers are locked out of paying credit bills (partial or full) — Admin only.
   if (isManager()) {
     toast('⚠️ Managers cannot add credit bill payments. Contact Admin.', 'red');
@@ -7345,15 +7431,62 @@ function addPayment() {
     toast('Payment exceeds remaining balance!', 'red');
     return;
   }
-  if (!c.payments) c.payments = [];
-  c.payments.push({
-    id: uid(),
-    amount,
-    date: $('ph-date').value || today(),
-    note: $('ph-note').value || ''
-  });
-  touchSupplier(owner, c.supplierId);
-  syncUser(owner);
+  const newPayment = { id: uid(), amount, date: $('ph-date').value || today(), note: $('ph-note').value || '' };
+
+  // NOTE: this used to mutate the local copy of `owner` and fire off
+  // syncUser(owner) -> a full-document .set(clean(user)) overwrite. If this
+  // admin's local copy of the credit owner's doc was even slightly behind
+  // the server (e.g. that manager saved something from their own device a
+  // moment earlier, or a moment later before this admin's write had
+  // propagated to them), whichever side wrote last would silently wipe out
+  // the other's change — including, on unlucky timing, this very payment.
+  // A transaction fixes that at the root: it reads the credit fresh from
+  // the server, appends to it, and writes back only the `credits` field;
+  // Firestore automatically re-runs it if another write lands on this doc
+  // in between, so the payment can no longer be silently lost that way.
+  if (!firebaseReady() || !usersCol) {
+    // Local-only mode: nothing to race against.
+    if (!c.payments) c.payments = [];
+    c.payments.push(newPayment);
+    touchSupplier(owner, c.supplierId);
+    syncUser(owner);
+  } else {
+    setSyncStatus('syncing');
+    try {
+      await fdb.runTransaction(async tx => {
+        const ref = usersCol.doc(owner.username);
+        const snap = await tx.get(ref);
+        if (!snap.exists) throw new Error('USER_NOT_FOUND');
+        const freshData = snap.data();
+        const freshCredits = Array.isArray(freshData.credits) ? freshData.credits.slice() : [];
+        const idx = freshCredits.findIndex(x => x.id === c.id);
+        if (idx === -1) throw new Error('CREDIT_NOT_FOUND');
+        const freshCredit = { ...freshCredits[idx] };
+        const freshBal = getCreditBalance(freshCredit);
+        if (amount > freshBal + 0.001) throw new Error('BALANCE_EXCEEDED');
+        freshCredit.payments = Array.isArray(freshCredit.payments) ? [...freshCredit.payments, newPayment] : [newPayment];
+        freshCredits[idx] = freshCredit;
+        const freshSuppliers = Array.isArray(freshData.suppliers) ? freshData.suppliers.slice() : [];
+        const sIdx = freshSuppliers.findIndex(s => s.id === c.supplierId);
+        if (sIdx !== -1) freshSuppliers[sIdx] = { ...freshSuppliers[sIdx], updatedAt: new Date().toISOString() };
+        tx.update(ref, { credits: freshCredits, suppliers: freshSuppliers });
+      });
+      // Server write confirmed — mirror it into local memory so the UI
+      // (and anything else reading DB.users, like Cash-in-Hand) matches.
+      if (!c.payments) c.payments = [];
+      c.payments.push(newPayment);
+      touchSupplier(owner, c.supplierId);
+      try { saveDBLocal(); } catch (e) { console.error('addPayment local mirror', e); }
+      markSynced('cloud');
+    } catch (e) {
+      console.error('addPayment transaction', e);
+      setSyncStatus('offline');
+      if (e.message === 'BALANCE_EXCEEDED') toast('Payment exceeds remaining balance!', 'red');
+      else if (e.message === 'CREDIT_NOT_FOUND' || e.message === 'USER_NOT_FOUND') toast('⚠️ Credit record not found on server — try refreshing', 'red');
+      else toast('⚠️ Payment save failed — try again', 'red');
+      return;
+    }
+  }
   renderPayHist();
   renderCredits();
   renderOverview();
@@ -7367,7 +7500,7 @@ function addPayment() {
   toast('✅ Payment added!');
 }
 
-function deletePayment(pid) {
+async function deletePayment(pid) {
   if (!isAdmin()) {
     toast('Admin only', 'red');
     return;
@@ -7378,15 +7511,47 @@ function deletePayment(pid) {
   const c = (owner.credits || []).find(x => x.id === DB.activePayHistCreditId);
   if (!c || !c.payments) return;
   const delPay = c.payments.find(p => p.id === pid);
-  c.payments = c.payments.filter(p => p.id !== pid);
-  syncUser(owner);
-  logActivity('DEL_PAYMENT', `${fmt(delPay?.amount || 0)} payment removed`);
+  if (!delPay) return;
+
+  // Same transaction-based fix as addPayment() above — see the comment
+  // there for why a plain full-document overwrite isn't safe here.
+  if (!firebaseReady() || !usersCol) {
+    c.payments = c.payments.filter(p => p.id !== pid);
+    syncUser(owner);
+  } else {
+    setSyncStatus('syncing');
+    try {
+      await fdb.runTransaction(async tx => {
+        const ref = usersCol.doc(owner.username);
+        const snap = await tx.get(ref);
+        if (!snap.exists) throw new Error('USER_NOT_FOUND');
+        const freshData = snap.data();
+        const freshCredits = Array.isArray(freshData.credits) ? freshData.credits.slice() : [];
+        const idx = freshCredits.findIndex(x => x.id === c.id);
+        if (idx === -1) throw new Error('CREDIT_NOT_FOUND');
+        const freshCredit = { ...freshCredits[idx] };
+        freshCredit.payments = (freshCredit.payments || []).filter(p => p.id !== pid);
+        freshCredits[idx] = freshCredit;
+        tx.update(ref, { credits: freshCredits });
+      });
+      c.payments = c.payments.filter(p => p.id !== pid);
+      try { saveDBLocal(); } catch (e) { console.error('deletePayment local mirror', e); }
+      markSynced('cloud');
+    } catch (e) {
+      console.error('deletePayment transaction', e);
+      setSyncStatus('offline');
+      toast('⚠️ Delete failed — try again', 'red');
+      return;
+    }
+  }
+  logActivity('DEL_PAYMENT', `${fmt(delPay.amount || 0)} payment removed`);
   renderPayHist();
   renderCredits();
   renderOverview();
   if (DB.analyticsOpen) renderSupplierAnalytics();
   toast('🗑️ Payment deleted', 'red');
 }
+
 
 // ===== PAY CREDIT WITH CHEQUE (from Manager's Hand) =====
 // Lets a manager (or Admin) settle a credit bill by issuing a real, tracked
@@ -7460,7 +7625,7 @@ function setPayChequeMethod(mode) {
   }
 }
 
-function payCreditWithCheque() {
+async function payCreditWithCheque() {
   const creditId = DB.activePayChequeCreditId;
   const ownerUsername = DB.activePayChequeOwnerUsername;
   const owner = getTargetUser(ownerUsername);
@@ -7522,7 +7687,7 @@ function payCreditWithCheque() {
     poolEntry.usedDate = today();
   }
 
-  autoSettleLinkedCredit(rec, owner);
+  await autoSettleLinkedCredit(rec, owner);
 
   logActivity('ADD_CHEQUE', `${rec.entryId} · ${fmt(rec.amount)} · Paid Credit ${c.entryId}${useManual ? ' (separate cheque)' : ''}`);
   if (isManager()) {
@@ -7605,7 +7770,7 @@ function editCheque(id, ownerUsername) {
   $('chequeModal').classList.add('show');
 }
 
-function delCheque(id, ownerUsername) {
+async function delCheque(id, ownerUsername) {
   if (!isAdmin()) {
     toast('Admin only', 'red');
     return;
@@ -7617,12 +7782,14 @@ function delCheque(id, ownerUsername) {
   // If this cheque auto-settled a linked credit, undo that payment too — otherwise
   // the credit would stay short by that amount with no cheque left to account for it.
   if (_dch?.linkedCreditId) {
-    const linkedCredit = (owner.credits||[]).find(c => c.id === _dch.linkedCreditId);
-    if (linkedCredit && Array.isArray(linkedCredit.payments)) {
-      const marker = `Auto: Cheque ${_dch.number||_dch.entryId} cleared`;
-      const pIdx = linkedCredit.payments.findIndex(p => p.note === marker);
-      if (pIdx !== -1) linkedCredit.payments.splice(pIdx, 1);
-    }
+    const marker = `Auto: Cheque ${_dch.number||_dch.entryId} cleared`;
+    await applyCreditPaymentsChange(owner, _dch.linkedCreditId, payments => {
+      const pIdx = payments.findIndex(p => p.note === marker);
+      if (pIdx === -1) return payments;
+      const copy = payments.slice();
+      copy.splice(pIdx, 1);
+      return copy;
+    });
   }
   // If this cheque was issued from the manager's-hand pool, free that cheque
   // number back up so it can be selected again for a future cheque.
@@ -7979,7 +8146,7 @@ function saveCredit() {
   toast(editId ? '✅ Credit updated!' : '✅ Credit added!');
 }
 
-function saveCheque() {
+async function saveCheque() {
   const supId = $('ch-sup-id').value;
   const amount = parseFloat($('ch-amount').value) || 0;
   if (!$('ch-date').value || !supId || !amount || !$('ch-num').value || !$('ch-bank').value || !$('ch-due').value) {
@@ -8041,7 +8208,7 @@ function saveCheque() {
     poolEntry.usedChequeId = rec.id;
     poolEntry.usedDate = today();
   }
-  if (!editId && rec.linkedCreditId) autoSettleLinkedCredit(rec, owner);
+  if (!editId && rec.linkedCreditId) await autoSettleLinkedCredit(rec, owner);
   logActivity(editId ? 'EDIT_CHEQUE' : 'ADD_CHEQUE', `${rec.entryId} · ${fmt(rec.amount)}`);
   if (!editId && isManager()) {
     queuePushEvent('cheque', '🏦 New Cheque Added', `${DB.currentUser?.name||DB.currentUsername} · ${getSupplierName(supId, owner)} · ${fmt(rec.amount)} · Due ${rec.dueDate}`);
@@ -9457,7 +9624,7 @@ function cancelEditCashLogEntry() {
   $('cl-cancel-btn')?.classList.add('hidden');
 }
 
-function saveCashLogEntry() {
+async function saveCashLogEntry() {
   const date=$('cl-date')?.value, amount=Number($('cl-amount')?.value)||0;
   const type=$('cl-type')?.value||'banked', desc=$('cl-desc')?.value||'';
   if (!date||!amount){toast('Date and Amount required','red');return;}
@@ -9495,10 +9662,8 @@ function saveCashLogEntry() {
     }
     if (existingEntry.type === 'credit_payment' && existingEntry.creditOwnerUsername) {
       const oldOwner = getUserByUsername(existingEntry.creditOwnerUsername);
-      const oldCredit = oldOwner && (oldOwner.credits||[]).find(c => c.id === existingEntry.creditId);
-      if (oldCredit && oldCredit.payments) {
-        oldCredit.payments = oldCredit.payments.filter(p => p.cashLogId !== editId);
-        syncUser(oldOwner);
+      if (oldOwner && existingEntry.creditId) {
+        await applyCreditPaymentsChange(oldOwner, existingEntry.creditId, payments => payments.filter(p => p.cashLogId !== editId));
       }
     }
   }
@@ -9567,12 +9732,9 @@ function saveCashLogEntry() {
   // if it had been paid off directly, and the amount already left Cash-in-Hand via cashLog
   if (type === 'credit_payment' && creditId) {
     const creditOwner = getUserByUsername(creditOwnerUsername);
-    const credit = creditOwner && (creditOwner.credits||[]).find(c => c.id === creditId);
-    if (credit) {
-      if (!credit.payments) credit.payments = [];
-      credit.payments.push({ id: uid(), amount, date, note: '💰 Paid via Cash Disposal Log (Cash-in-Hand)', cashLogId: logId });
-      touchSupplier(creditOwner, supplierId);
-      syncUser(creditOwner);
+    if (creditOwner) {
+      const newPayment = { id: uid(), amount, date, note: '💰 Paid via Cash Disposal Log (Cash-in-Hand)', cashLogId: logId };
+      await applyCreditPaymentsChange(creditOwner, creditId, payments => [...payments, newPayment], supplierId);
     }
   }
 
@@ -9598,7 +9760,7 @@ function saveCashLogEntry() {
   if (DB.analyticsOpen) renderSupplierAnalytics();
 }
 
-function deleteCashLogEntry(id) {
+async function deleteCashLogEntry(id) {
   if (!isAdmin()){toast('Admin only','red');return;}
   const admin=getUserByUsername('admin');
   if (!admin) { toast('⚠️ Admin data not loaded yet — please wait a moment and try again, or refresh', 'red'); return; }
@@ -9623,10 +9785,8 @@ function deleteCashLogEntry(id) {
   // Clean up the linked credit bill payment, if this was a credit_payment entry
   if (entry && entry.type === 'credit_payment' && entry.creditOwnerUsername) {
     const creditOwner = getUserByUsername(entry.creditOwnerUsername);
-    const credit = creditOwner && (creditOwner.credits||[]).find(c => c.id === entry.creditId);
-    if (credit && credit.payments) {
-      credit.payments = credit.payments.filter(p => p.cashLogId !== id);
-      syncUser(creditOwner);
+    if (creditOwner && entry.creditId) {
+      await applyCreditPaymentsChange(creditOwner, entry.creditId, payments => payments.filter(p => p.cashLogId !== id));
     }
   }
   renderCashLog(); renderOverview(); renderCredits();
@@ -10974,23 +11134,23 @@ async function saveCashEntry(handoverTarget) {
   // Now that the cash entry itself is committed, sync the credit-bill payments: strip out
   // any of THIS entry's old linked payments (edit case) and push the fresh ones — may span
   // multiple business owners since a cashier can pay off any of their own business's bills.
+  const strippedTargets = [];
   DB.users.forEach(u => (u.credits||[]).forEach(c => {
     if (c.payments && c.payments.some(p => p.cashEntryId === recId)) {
-      c.payments = c.payments.filter(p => p.cashEntryId !== recId);
+      strippedTargets.push({ user: u, creditId: c.id });
     }
   }));
-  const touchedCreditOwners = new Set();
-  creditPayRows.forEach(p => {
+  for (const t of strippedTargets) {
+    await applyCreditPaymentsChange(t.user, t.creditId, payments => payments.filter(p => p.cashEntryId !== recId));
+  }
+  for (const p of creditPayRows) {
     const creditOwner = getTargetUser(p.ownerUsername) || owner;
     const credit = (creditOwner.credits||[]).find(c => c.id === p.creditId);
     if (credit) {
-      if (!credit.payments) credit.payments = [];
-      credit.payments.push({ id: uid(), amount: p.amount, date, note: '💰 Paid via Cash Management (Daily Cash)', cashEntryId: recId });
-      touchSupplier(creditOwner, p.supplierId);
-      touchedCreditOwners.add(creditOwner);
+      const newPayment = { id: uid(), amount: p.amount, date, note: '💰 Paid via Cash Management (Daily Cash)', cashEntryId: recId };
+      await applyCreditPaymentsChange(creditOwner, credit.id, payments => [...payments, newPayment], p.supplierId);
     }
-  });
-  touchedCreditOwners.forEach(u => syncUser(u));
+  }
   if (typeof renderCredits === 'function') renderCredits();
 
   // Sync these cash-tab advances into the shared Payroll advances store
@@ -11369,14 +11529,15 @@ async function deleteCashEntry(id, ownerUsername) {
   if (hadLinkedPurchases) owner.cashPurchases = (owner.cashPurchases||[]).filter(p => p.cashEntryId !== id);
   syncUser(owner);
   // Clean up any credit bill payments linked to this cash entry (may span multiple business owners)
-  const touchedCreditOwners = new Set();
+  const strippedTargets = [];
   DB.users.forEach(u => (u.credits||[]).forEach(c => {
     if (c.payments && c.payments.some(p => p.cashEntryId === id)) {
-      c.payments = c.payments.filter(p => p.cashEntryId !== id);
-      touchedCreditOwners.add(u);
+      strippedTargets.push({ user: u, creditId: c.id });
     }
   }));
-  touchedCreditOwners.forEach(u => syncUser(u));
+  for (const t of strippedTargets) {
+    await applyCreditPaymentsChange(t.user, t.creditId, payments => payments.filter(p => p.cashEntryId !== id));
+  }
   if (typeof renderCredits === 'function') renderCredits();
   const hadLinked = PDB.advances.some(a => a.cashEntryId === id);
   if (hadLinked) { PDB.advances = PDB.advances.filter(a => a.cashEntryId !== id); savePayrollDB(); }
@@ -12208,15 +12369,16 @@ function updateChequeCreditLink(supplierId, ownerUsername) {
   wrap.style.display = '';
 }
 
-function autoSettleLinkedCredit(cheque, owner) {
+async function autoSettleLinkedCredit(cheque, owner) {
   if (!cheque.linkedCreditId) return;
   const credit = (owner.credits||[]).find(c => c.id===cheque.linkedCreditId);
   if (!credit) return;
   const bal = getCreditBalance(credit);
   if (bal <= 0.001) return;
-  if (!credit.payments) credit.payments = [];
   const payAmt = Math.min(Number(cheque.amount)||0, bal);
-  credit.payments.push({ id: uid(), amount: payAmt, date: cheque.dueDate||today(), note: `Auto: Cheque ${cheque.number||cheque.entryId} cleared` });
+  const newPayment = { id: uid(), amount: payAmt, date: cheque.dueDate||today(), note: `Auto: Cheque ${cheque.number||cheque.entryId} cleared` };
+  const ok = await applyCreditPaymentsChange(owner, credit.id, payments => [...payments, newPayment]);
+  if (!ok) return;
   logActivity('CHEQUE_LINK', `Credit ${credit.entryId} auto-settled by Cheque ${cheque.entryId}`);
   toast(`💡 Credit ${credit.entryId} auto-settled!`, 'blue');
 }
