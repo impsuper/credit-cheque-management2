@@ -1439,6 +1439,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
           <button class="sort-pill" data-col="date" onclick="setSortPill('credits','date')">📅 Date</button>
           <button class="sort-pill" data-col="supplier" onclick="setSortPill('credits','supplier')">🏪 Supplier</button>
           <button class="sort-pill" data-col="amount" onclick="setSortPill('credits','amount')">💵 Amount</button>
+          <button class="sort-pill" data-col="balance" onclick="setSortPill('credits','balance')">⚖️ Balance</button>
           <button class="sort-pill" data-col="settledDate" onclick="setSortPill('credits','settledDate')">🗓️ Settled Date</button>
           <button class="sort-pill" data-col="totalPaid" onclick="setSortPill('credits','totalPaid')">✅ Paid</button>
           <button class="sort-pill" data-col="age" onclick="setSortPill('credits','age')">⏳ Age</button>
@@ -1453,7 +1454,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
                   <th onclick="sortTable('credits','supplier')" data-col="supplier">🏪 Supplier<span class="sort-ico"></span></th>
                   <th onclick="sortTable('credits','amount')" data-col="amount">💵 Amount<span class="sort-ico"></span></th>
                   <th onclick="sortTable('credits','totalPaid')" data-col="totalPaid">✅ Paid<span class="sort-ico"></span></th>
-                  <th onclick="sortTable('credits','settledDate')" data-col="settledDate">🗓️ Settled Date<span class="sort-ico"></span></th>
+                  <th onclick="sortTable('credits','balance')" data-col="balance">⚖️ Balance<span class="sort-ico"></span></th>
                   <th onclick="sortTable('credits','age')" data-col="age">⏳ Age<span class="sort-ico"></span></th>
                   <th>⚙️ Actions</th>
                 </tr>
@@ -4159,12 +4160,48 @@ function updatePushToggleUI(on) {
   });
 }
 
+// Runs on every login / app reopen (see initDashboard()). The old version of
+// this only checked whether a Firestore push_tokens doc still existed — but
+// that doc can go stale without anyone touching it: iOS evicts a PWA's
+// service worker (and with it, the FCM subscription) after enough days away
+// from the app, so the toggle kept showing "Alerts ON" long after pushes had
+// actually stopped arriving. This version verifies the real OS-level
+// permission and, if it's still granted, silently re-registers the service
+// worker and refreshes the FCM token — which is what actually revives a
+// subscription iOS quietly killed — then confirms it with a small toast, the
+// way a native app would show "reconnected".
 async function checkPushSubscriptionState() {
   if (!isAdmin() || !fdb || !DB.currentUsername) return;
   try {
     const snap = await fdb.collection('push_tokens').doc(DB.currentUsername).get();
-    updatePushToggleUI(snap.exists);
-  } catch (e) { console.error('checkPushSubscriptionState', e); }
+    if (!snap.exists) { updatePushToggleUI(false); return; }
+
+    // A saved token exists, but that alone doesn't prove push still works on
+    // THIS device — check the actual browser/OS permission too.
+    if (!('Notification' in window) || Notification.permission !== 'granted') {
+      updatePushToggleUI(false);
+      return;
+    }
+    updatePushToggleUI(true);
+
+    // Silently refresh: re-register the service worker (revives it if iOS
+    // evicted it) and re-fetch the FCM token (Firebase returns the current
+    // valid token, minting a new one if the old one was invalidated).
+    if (VAPID_KEY.indexOf('YOUR_') === 0) return;
+    const reg = await registerServiceWorker();
+    if (!reg) return;
+    if (!fcmMessaging) initMessaging();
+    if (!fcmMessaging) return;
+    const token = await fcmMessaging.getToken({ vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
+    if (!token) return;
+    await fdb.collection('push_tokens').doc(DB.currentUsername).set({
+      token, username: DB.currentUsername, name: DB.currentUser?.name || '',
+      updatedAt: new Date().toISOString(), userAgent: navigator.userAgent
+    }, { merge: true });
+    toast('🔔 Notifications ON — refreshed', 'green');
+  } catch (e) {
+    console.error('checkPushSubscriptionState', e);
+  }
 }
 
 // Drops a lightweight event doc; Cloud Function `sendQueuedPush` sends the push then deletes this doc.
@@ -5128,6 +5165,7 @@ function renderCredits() {
       amount: c.amount || 0,
       totalPaid: paid,
       settledDate: getCreditSettledDate(c) || '',
+      balance: getCreditBalance(c),
       age: getCreditAgeDays(c) ?? -1
     };
     return map[key] ?? '';
@@ -5136,6 +5174,7 @@ function renderCredits() {
   const renderRow = c => {
     const paid = getTotalPaid(c);
     const bal = getCreditBalance(c);
+    const settled = isCreditSettled(c);
     const settledDate = getCreditSettledDate(c);
     const canPayCheque = bal > 0.001 && (isAdmin() || c._ownerUsername === DB.currentUsername);
     const actions = `
@@ -5145,20 +5184,38 @@ function renderCredits() {
         ${isAdmin() ? `<button class="btn btn-yellow btn-sm" onclick="editCredit('${c.id}','${c._ownerUsername}')">✏️</button>
         <button class="btn btn-red btn-sm" onclick="delCredit('${c.id}','${c._ownerUsername}')">🗑️</button>` : ''}
       </div>`;
+    // Settled bills have no outstanding balance, so that tab keeps showing the Settled Date.
+    // Active bills show the outstanding Balance instead, since a settled date doesn't exist yet.
+    const thirdCol = settled
+      ? `<td class="${settledDate ? 'text-green' : ''} fw700">${settledDate || '—'}</td>`
+      : `<td class="${bal > 0.001 ? 'text-red' : ''} fw700">${fmt(bal)}</td>`;
     return `<tr>
       <td><span class="entry-id">${c.entryId || '—'}</span></td>
       <td>${c.date || '—'}</td>
       <td>${getSupplierName(c.supplierId, c._owner)}${isAdmin() ? ` <span class="user-data-badge">${c._ownerUsername || '—'}</span>` : ''}</td>
       <td class="fw700">${fmt(c.amount)}</td>
       <td class="text-green fw700">${fmt(paid)}</td>
-      <td class="${settledDate ? 'text-green' : ''} fw700">${settledDate || '—'}</td>
+      ${thirdCol}
       <td class="fw700">${formatCreditAge(c)}</td>
       <td>${actions}</td>
     </tr>`;
   };
 
   const renderMobileCredit = c => {
+    const settled = isCreditSettled(c);
     const settledDate = getCreditSettledDate(c);
+    const bal = getCreditBalance(c);
+    // Settled bills have no outstanding balance, so that tab keeps showing the Settled Date.
+    // Active bills show the outstanding Balance instead, since a settled date doesn't exist yet.
+    const thirdRow = settled
+      ? `<div class="mob-card-row">
+        <span class="mob-card-label">🗓️ Settled Date</span>
+        <span class="mob-card-val ${settledDate ? 'text-green' : ''} fw700">${settledDate || '—'}</span>
+      </div>`
+      : `<div class="mob-card-row">
+        <span class="mob-card-label">⚖️ Balance</span>
+        <span class="mob-card-val ${bal > 0.001 ? 'text-red' : ''} fw700">${fmt(bal)}</span>
+      </div>`;
     return `<div class="mob-card">
       <div class="mob-card-row">
         <span class="mob-card-label">📅 Date</span>
@@ -5168,10 +5225,7 @@ function renderCredits() {
         <span class="mob-card-label">🏪 Supplier</span>
         <span class="mob-card-val">${getSupplierName(c.supplierId, c._owner)}${isAdmin() ? ` <span class="user-data-badge">${c._ownerUsername || '—'}</span>` : ''}</span>
       </div>
-      <div class="mob-card-row">
-        <span class="mob-card-label">🗓️ Settled Date</span>
-        <span class="mob-card-val ${settledDate ? 'text-green' : ''} fw700">${settledDate || '—'}</span>
-      </div>
+      ${thirdRow}
       <div class="mob-card-row">
         <span class="mob-card-label">⏳ Age</span>
         <span class="mob-card-val fw700">${formatCreditAge(c)}</span>
@@ -5185,7 +5239,7 @@ function renderCredits() {
     </div>`;
   };
 
-  const renderBody = (arr, tbodyId, mobileId, pageOpts) => {
+  const renderBody = (arr, tbodyId, mobileId, pageOpts, isSettledTab) => {
     const tbody = $(tbodyId);
     const mobileEl = $(mobileId);
     if (!tbody) return;
@@ -5195,20 +5249,22 @@ function renderCredits() {
       if (pageOpts) renderPagination(pageOpts.containerId, 0, pageOpts.page, pageOpts.fnName, pageOpts.pageSize);
       return;
     }
-    let totAmt = 0, totPaid = 0;
+    let totAmt = 0, totPaid = 0, totBal = 0;
     const sorted = sortFn(arr);
     // Totals always reflect every record in this tab, even when only one page is shown below
     sorted.forEach(c => {
       totAmt += Number(c.amount) || 0;
       totPaid += getTotalPaid(c);
+      totBal += getCreditBalance(c);
     });
     const displayArr = pageOpts ? sorted.slice((pageOpts.page - 1) * pageOpts.pageSize, pageOpts.page * pageOpts.pageSize) : sorted;
     const html = displayArr.map(renderRow).join('');
+    // Settled bills carry no balance, so that column stays blank there; Active shows the total balance.
     tbody.innerHTML = html + `<tr class="summary-row">
       <td colspan="3">📊 Total (${arr.length} records)</td>
       <td>${fmt(totAmt)}</td>
       <td>${fmt(totPaid)}</td>
-      <td></td>
+      <td>${isSettledTab ? '' : fmt(totBal)}</td>
       <td></td>
       <td></td>
     </tr>`;
@@ -5220,8 +5276,8 @@ function renderCredits() {
   if (creditSettledPage > creditSettledTotalPages) creditSettledPage = creditSettledTotalPages;
   if (creditSettledPage < 1) creditSettledPage = 1;
 
-  renderBody(activeData, 'creditsActiveBody', 'creditsActiveMobile');
-  renderBody(settledData, 'creditsSettledBody', 'creditsSettledMobile', {page: creditSettledPage, pageSize: SETTLED_PAGE_SIZE, containerId: 'creditSettledPagination', fnName: 'goCreditSettledPage'});
+  renderBody(activeData, 'creditsActiveBody', 'creditsActiveMobile', null, false);
+  renderBody(settledData, 'creditsSettledBody', 'creditsSettledMobile', {page: creditSettledPage, pageSize: SETTLED_PAGE_SIZE, containerId: 'creditSettledPagination', fnName: 'goCreditSettledPage'}, true);
   syncCreditTabUI();
   updateSortPills('credits');
 }
