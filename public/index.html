@@ -1768,7 +1768,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
 
         <!-- CLOUD BACKUPS -->
         <div id="settings-tab-content-backups" class="tab-content">
-          <div class="backup-info-box">☁️ <b>Auto Versioned Backups</b> — සෑම දවසකම ස්වයංක්‍රීයව ඔබේ සම්පූර්ණ දත්ත snapshot එකක් Cloud (Firestore) එකට save වෙනවා. පසුගිය 30 දිනයේ backups තියාගන්නවා — ඕනෑම වෙලාවක restore කරන්න පුළුවන්.</div>
+          <div class="backup-info-box">☁️ <b>Auto Versioned Backups</b> — සෑම දවසකම උදේ 11:00 සහ හවස 7:30 ට ස්වයංක්‍රීයව ඔබේ සම්පූර්ණ දත්ත snapshot 2ක් Cloud (Firestore) එකට save වෙනවා (Admin හෝ Manager කෙනෙක් ඒ වෙලාවේ app එක open කරගෙන ඉන්නවා නම්). පසුගිය 30 දිනයේ backups තියාගන්නවා — ඕනෑම වෙලාවක restore කරන්න පුළුවන්.</div>
           <div class="card-head">
             <div class="card-title">☁️ Cloud Backup History</div>
             <div class="card-actions">
@@ -4881,9 +4881,9 @@ function refreshActiveSection() {
 // server fetch, restarts the live listener if it isn't running, and only
 // then re-renders — so the button actually fixes the "stuck on old data"
 // case instead of just animating.
-async function manualRefresh() {
+async function manualRefresh(silent = false) {
   const icon = $('refreshIcon');
-  if (icon) {
+  if (!silent && icon) {
     icon.classList.remove('refresh-spin');
     void icon.offsetWidth; // restart animation if clicked repeatedly
     icon.classList.add('refresh-spin');
@@ -4893,7 +4893,7 @@ async function manualRefresh() {
     // Local-only mode: nothing to pull from a server, just re-render.
     refreshActiveSection();
     updateSyncStatusUI();
-    toast('🔄 Refreshed!');
+    if (!silent) toast('🔄 Refreshed!');
     return;
   }
 
@@ -4929,7 +4929,7 @@ async function manualRefresh() {
         if (!payrollLiveUnsub) startPayrollLiveSync();
       } catch (e) {
         console.error('manualRefresh payroll', e);
-        toast('⚠️ Payroll refresh වුනේ නෑ', 'red');
+        if (!silent) toast('⚠️ Payroll refresh වුනේ නෑ', 'red');
       }
     }
 
@@ -4957,15 +4957,66 @@ async function manualRefresh() {
     if (!liveUnsub) startLiveSync();
 
     refreshActiveSection();
-    toast('🔄 Refreshed!');
+    if (!silent) toast('🔄 Refreshed!');
   } catch (e) {
     console.error('manualRefresh', e);
     setSyncStatus('offline');
     DB.dataIncomplete = true;
     refreshActiveSection();
-    toast('⚠️ Refresh වුනේ නෑ — internet connection එක check කරන්න', 'red');
+    if (!silent) toast('⚠️ Refresh වුනේ නෑ — internet connection එක check කරන්න', 'red');
   }
 }
+
+// ===== AUTO-RECOVER FROM A SILENTLY-STALE LIVE LISTENER =====
+// manualRefresh() above already knows how to force a fresh server read and
+// restart a dead onSnapshot listener — but until now the user only got that
+// fix if they NOTICED their data looked wrong and tapped the 🔄 button
+// themselves. In practice the listener usually goes stale without ever
+// firing an error callback: the most common trigger is the device going to
+// sleep (laptop lid closed, phone locked) — the underlying WebChannel
+// stream doesn't always reconnect cleanly on wake, so the tab just keeps
+// showing whatever was last cached while other devices' changes never
+// arrive, with no visible sign anything is wrong. Re-running the exact
+// same self-heal automatically whenever the tab regains focus or the
+// network comes back closes that gap without the user needing to know it
+// exists, or remember to press anything.
+let _autoRefreshInFlight = false;
+let _lastAutoRefreshAt = 0;
+async function autoRecoverSync() {
+  if (!DB.currentUser || _autoRefreshInFlight) return;
+  if (!firebaseReady()) return; // local-only mode — nothing to recover from
+  // Guard against visibilitychange + online firing back-to-back for the
+  // same wake-up event and double-hitting Firestore.
+  if (Date.now() - _lastAutoRefreshAt < 4000) return;
+  _autoRefreshInFlight = true;
+  _lastAutoRefreshAt = Date.now();
+  try { await manualRefresh(true); } catch (e) { console.error('autoRecoverSync', e); }
+  finally { _autoRefreshInFlight = false; }
+  // Also catches the case where the device was asleep/closed right through
+  // a backup slot's time and just woke up after it.
+  if (isAdmin() || isManager()) autoBackupIfNeeded();
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') autoRecoverSync();
+});
+window.addEventListener('online', autoRecoverSync);
+window.addEventListener('pageshow', e => { if (e.persisted) autoRecoverSync(); });
+
+// ===== WARN BEFORE CLOSING A TAB WITH AN UNFINISHED SAVE =====
+// saveUserDoc() sets syncStatusState to 'syncing' while a write is in
+// flight and only clears it once Firestore has acknowledged the write (see
+// markSynced()). If the tab/window is closed in that window — e.g. right
+// after adding a credit entry, before the badge has flipped back to
+// "Synced" — the in-flight write can be abandoned. This doesn't fully
+// guarantee the write completes (nothing can, once the page is gone) but
+// it stops the accidental case of someone closing the laptop lid or tab
+// a split second after saving, which is the most common way this happens.
+window.addEventListener('beforeunload', e => {
+  if (syncStatusState === 'syncing') {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
 
 function populateUserFilter(elId) {
   const el = $(elId);
@@ -9203,14 +9254,29 @@ async function restoreBackup(e) {
 
 
 /* ============= CLOUD AUTO BACKUP (versioned, Firestore) =============
-   Every day the app takes a full timestamped snapshot of DB.users and stores
-   it in the `cms_backups` collection (one doc per calendar day, doc id =
-   YYYY-MM-DD). The last BACKUP_KEEP_DAYS snapshots are kept; older ones are
-   pruned automatically. Admins can also trigger an extra snapshot any time
+   Twice a day — around 11:00 AM and 7:30 PM — the app takes a full
+   timestamped snapshot of DB.users and stores it in the `cms_backups`
+   collection (one doc per slot, doc id = YYYY-MM-DD_AM / YYYY-MM-DD_PM).
+   The last BACKUP_KEEP_DAYS days' worth are kept; older ones are pruned
+   automatically. Admin can also trigger an extra snapshot any time
    ("Backup Now"), and can restore any past snapshot from the Cloud Backups
    screen — this is on top of (not a replacement for) the existing manual
-   Export/Import JSON backup. */
+   Export/Import JSON backup.
+
+   IMPORTANT — this is client-side, not a server cron job: a slot's snapshot
+   only gets taken once SOMEONE with the app open crosses that time. Admin
+   OR manager triggers it (see the isAdmin()||isManager() check below) so
+   the far more common case — a manager's device being open through the
+   business day — is enough to keep both slots covered, even on days no
+   admin logs in. If literally nobody opens the app on a given day, that
+   day's slot(s) are simply skipped — there is no way to guarantee an exact
+   wall-clock backup without a server-side scheduled Cloud Function, which
+   is outside what this client file can do. */
 const BACKUP_KEEP_DAYS = 30;
+const BACKUP_SLOTS = [
+  { id: 'AM', hour: 11, minute: 0, label: '11:00 AM' },
+  { id: 'PM', hour: 19, minute: 30, label: '7:30 PM' }
+];
 let backupsColRef = null;
 
 function getBackupsCol() {
@@ -9219,27 +9285,39 @@ function getBackupsCol() {
   return backupsColRef;
 }
 
-// Runs once per session after login: takes today's snapshot if it doesn't
-// already exist yet, then prunes anything older than BACKUP_KEEP_DAYS.
+// Runs after login, then re-checked periodically (see the boot IIFE and
+// autoRecoverSync() below) so a session that stays open across both slot
+// times actually takes both snapshots without needing a fresh login.
+// Takes each of today's slot snapshots once its time has passed and it
+// doesn't already exist, then prunes anything older than BACKUP_KEEP_DAYS.
 async function autoBackupIfNeeded() {
-  if (!isAdmin()) return;
+  if (!isAdmin() && !isManager()) return;
   const col = getBackupsCol();
   if (!col) return; // local-only mode — nothing to auto-backup to
-  try {
-    const todayId = today();
-    const doc = await col.doc(todayId).get();
-    if (!doc.exists) {
-      await col.doc(todayId).set({
-        date: new Date().toISOString(),
-        userCount: DB.users.length,
-        users: clean(DB.users),
-        payroll: clean(PDB)
-      });
+  const now = new Date();
+  const todayId = today();
+  for (const slot of BACKUP_SLOTS) {
+    const slotTime = new Date(now);
+    slotTime.setHours(slot.hour, slot.minute, 0, 0);
+    if (now < slotTime) continue; // this slot hasn't come around yet today
+    const docId = todayId + '_' + slot.id;
+    try {
+      const doc = await col.doc(docId).get();
+      if (!doc.exists) {
+        await col.doc(docId).set({
+          date: new Date().toISOString(),
+          slot: slot.id,
+          slotLabel: slot.label,
+          userCount: DB.users.length,
+          users: clean(DB.users),
+          payroll: clean(PDB)
+        });
+      }
+    } catch (e) {
+      console.error('autoBackupIfNeeded slot ' + slot.id, e);
     }
-    pruneCloudBackups();
-  } catch (e) {
-    console.error('autoBackupIfNeeded', e);
   }
+  pruneCloudBackups();
 }
 
 async function doManualCloudBackup() {
@@ -9247,9 +9325,11 @@ async function doManualCloudBackup() {
   const col = getBackupsCol();
   if (!col) { toast('⚠️ Cloud not connected — add your Firebase config first', 'yellow'); return; }
   try {
-    const todayId = today();
-    await col.doc(todayId).set({
+    const docId = today() + '_MANUAL';
+    await col.doc(docId).set({
       date: new Date().toISOString(),
+      slot: 'MANUAL',
+      slotLabel: 'Manual',
       userCount: DB.users.length,
       users: clean(DB.users),
       payroll: clean(PDB)
@@ -9264,8 +9344,10 @@ async function doManualCloudBackup() {
   }
 }
 
-// Deletes any daily snapshot doc older than BACKUP_KEEP_DAYS (doc ids sort
-// lexicographically the same as chronologically since they're YYYY-MM-DD).
+// Deletes any snapshot doc older than BACKUP_KEEP_DAYS. Doc ids are either a
+// bare YYYY-MM-DD (legacy, one-per-day docs from before slots existed) or
+// YYYY-MM-DD_AM / _PM / _MANUAL — either way the date prefix sorts/compares
+// correctly against a plain YYYY-MM-DD cutoff string.
 async function pruneCloudBackups() {
   const col = getBackupsCol();
   if (!col) return;
@@ -9286,7 +9368,10 @@ async function listCloudBackups() {
     const snap = await col.get();
     return snap.docs
       .map(d => ({ id: d.id, ...d.data() }))
-      .sort((a, b) => b.id.localeCompare(a.id));
+      // Sort by the actual snapshot timestamp (always present) rather than
+      // the doc id, so AM/PM/MANUAL entries on the same day land in true
+      // chronological order regardless of naming.
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   } catch (e) {
     console.error('listCloudBackups', e);
     return [];
@@ -9309,10 +9394,13 @@ async function renderBackupsSection() {
   wrap.innerHTML = backups.map(b => {
     const dt = b.date ? new Date(b.date) : null;
     const dateLabel = dt ? dt.toLocaleString() : b.id;
-    const isToday = b.id === today();
+    // Doc id is either a bare YYYY-MM-DD (legacy) or YYYY-MM-DD_SLOT.
+    const datePart = b.id.slice(0, 10);
+    const isToday = datePart === today();
+    const slotLabel = b.slotLabel || (b.id.length > 10 ? b.id.slice(11) : '');
     return `<div class="backup-row">
       <div>
-        <div class="bk-main">📅 ${b.id}${isToday ? ' <span class="badge badge-green">Today</span>' : ''}</div>
+        <div class="bk-main">📅 ${datePart}${slotLabel ? ' · ' + slotLabel : ''}${isToday ? ' <span class="badge badge-green">Today</span>' : ''}</div>
         <div class="bk-sub">🕐 ${dateLabel} · 👥 ${b.userCount ?? (b.users || []).length} users</div>
       </div>
       <div class="backup-actions">
@@ -13896,8 +13984,14 @@ restoreSidebarState();
 
   if (loggedIn) markSynced(firebaseReady() ? 'cloud' : 'local');
   updateSyncStatusUI();
-  // Take today's automatic versioned cloud snapshot (admin only, silent — no toast).
-  if (loggedIn && isAdmin()) setTimeout(autoBackupIfNeeded, 3000);
+  // Take today's automatic versioned cloud snapshot(s) if their slot time
+  // (11:00 AM / 7:30 PM) has passed — admin or manager, silent, no toast.
+  // Re-checked every 15 min so a session left open across both slot times
+  // still catches the later one without needing a fresh login.
+  if (loggedIn && (isAdmin() || isManager())) {
+    setTimeout(autoBackupIfNeeded, 3000);
+    setInterval(autoBackupIfNeeded, 15 * 60 * 1000);
+  }
 })();
 </script>
 </body>
