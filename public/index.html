@@ -644,6 +644,16 @@ body{
 #overviewSection .stat-val{font-size:1.15rem;}
 #overviewSection .stat-sub{font-size:.68rem;margin-top:.15rem;}
 
+/* ---- Sparklines on stat cards ----
+   Rendered as an absolutely-positioned background layer inside the existing
+   .stat-card (which is already position:relative;overflow:hidden), so the
+   card's own size/padding never changes — the trend line just sits behind
+   the label/value/sub text, fading in from the bottom. */
+.stat-card .stat-spark{position:absolute;left:0;right:0;bottom:0;height:46%;opacity:.55;pointer-events:none;z-index:1;transition:opacity .2s ease;}
+.stat-card .stat-spark svg{display:block;width:100%;height:100%;}
+.stat-card:hover .stat-spark{opacity:.85;}
+.stat-card .stat-label,.stat-card .stat-val,.stat-card .stat-sub{position:relative;z-index:2;}
+
 /* ---- Cards / tables ---- */
 .card{border-radius:18px;border:1px solid var(--border);}
 .card-head{border-radius:18px 18px 0 0;}
@@ -6124,6 +6134,66 @@ function supQuickSort(type) {
   renderSuppliers();
 }
 
+// ===== Sparklines on stat cards =====
+// Builds a small trend-line (+ soft area fill) SVG from a series of numbers.
+// viewBox is a fixed 100x34 unit box that scales to fill whatever pixel size
+// the .stat-spark container ends up at (CSS controls that, not this code),
+// so the same markup works across the compact overview tiles and the wider
+// desktop/mobile breakpoints without recalculation.
+function buildSparklineSVG(values, color, gradId) {
+  if (!values || values.length < 2) return '';
+  const w = 100, h = 34, padY = 3;
+  const min = Math.min(...values), max = Math.max(...values);
+  const range = (max - min) || 1;
+  const stepX = w / (values.length - 1);
+  const pts = values.map((v, i) => [
+    +(i * stepX).toFixed(2),
+    +(h - padY - ((v - min) / range) * (h - padY * 2)).toFixed(2)
+  ]);
+  const line = pts.map((p, i) => (i === 0 ? 'M' : 'L') + p[0] + ',' + p[1]).join(' ');
+  const area = `${line} L${w},${h} L0,${h} Z`;
+  const gid = 'spark-' + gradId;
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${color}" stop-opacity=".38"/>
+      <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+    </linearGradient></defs>
+    <path d="${area}" fill="url(#${gid})" stroke="none"/>
+    <path d="${line}" fill="none" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+  </svg>`;
+}
+
+// Renders (or clears) the sparkline inside a given stat-card. Creates the
+// .stat-spark layer on first use — no HTML changes needed on the cards
+// themselves, and the card's own size/padding is untouched since the layer
+// is positioned absolutely (see CSS).
+function renderStatSparkline(cardId, values, color) {
+  const card = $(cardId);
+  if (!card) return;
+  let layer = card.querySelector('.stat-spark');
+  if (!layer) {
+    layer = document.createElement('div');
+    layer.className = 'stat-spark';
+    card.appendChild(layer);
+  }
+  const clean = (values || []).map(v => Number(v) || 0);
+  const hasSignal = clean.length >= 2 && clean.some(v => v !== clean[0]);
+  layer.innerHTML = (clean.length >= 2) ? buildSparklineSVG(clean, color, cardId) : '';
+  layer.style.visibility = clean.length >= 2 ? 'visible' : 'hidden';
+  void hasSignal; // flat-but-present series still render as a flat line, which is intentional
+}
+
+// Returns the last n "YYYY-MM" month keys ending at the current month, oldest first.
+function lastNMonthKeys(n) {
+  const out = [];
+  const d = new Date();
+  for (let i = n - 1; i >= 0; i--) {
+    const dt = new Date(d.getFullYear(), d.getMonth() - i, 1);
+    out.push(`${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`);
+  }
+  return out;
+}
+
 function renderOverview() {
   if (!DB.currentUser) return;
   const credits = getDataRows('credits');
@@ -6187,6 +6257,39 @@ function renderOverview() {
     if($('ov-rl-total'))$('ov-rl-total').textContent='LKR 0';
     if($('ov-rl-cash'))$('ov-rl-cash').textContent='LKR 0';
   }
+
+  // ---- Sparklines on stat cards (last 6 months / most recent entries) ----
+  const sparkMonths = lastNMonthKeys(6);
+
+  // Active Cheques Amount tile — monthly cheque volume trend (by cheque date)
+  const sparkChqByMonth = new Map();
+  cheques.forEach(c => { if (!c.date) return; const k = c.date.slice(0, 7); sparkChqByMonth.set(k, (sparkChqByMonth.get(k) || 0) + (Number(c.amount) || 0)); });
+  renderStatSparkline('tile-activeCheques', sparkMonths.map(k => sparkChqByMonth.get(k) || 0), 'var(--yellow)');
+
+  // Outstanding tile — monthly credit-bill volume trend (by credit date)
+  const sparkCrByMonth = new Map();
+  credits.forEach(c => { if (!c.date) return; const k = c.date.slice(0, 7); sparkCrByMonth.set(k, (sparkCrByMonth.get(k) || 0) + (Number(c.amount) || 0)); });
+  renderStatSparkline('tile-outstanding', sparkMonths.map(k => sparkCrByMonth.get(k) || 0), 'var(--red)');
+
+  // Reload tiles — last up to 8 reload entries, oldest → newest
+  if (rlEntries.length) {
+    const recentRl = rlEntries.slice(0, 8).slice().reverse();
+    renderStatSparkline('rlStatTotal', recentRl.map(e => (Number(e.dialog) || 0) + (Number(e.mobitel) || 0) + (Number(e.hutch) || 0) + (Number(e.airtel) || 0) + (Number(e.cash) || 0)), 'var(--accent)');
+    renderStatSparkline('rlStatCash', recentRl.map(e => Number(e.cash) || 0), 'var(--green)');
+  } else {
+    renderStatSparkline('rlStatTotal', [], 'var(--accent)');
+    renderStatSparkline('rlStatCash', [], 'var(--green)');
+  }
+
+  // Total Purchases This Month tile — last 6 months of total purchases
+  renderStatSparkline('tile-totalPurchasesMonth', sparkMonths.map(k => (k === curMonthKey ? purchThisMonth.total : computeTotalPurchases(k).total)), '#7c3aed');
+
+  // Net Profit This Month tile — last 6 months of net profit
+  renderStatSparkline('tile-netProfitMonth', sparkMonths.map(k => {
+    if (k === curMonthKey) return plThisMonth.netProfit;
+    const [y, mo] = k.split('-');
+    return computePL(y, mo).netProfit;
+  }), 'var(--green)');
 
   // Chart 1: Monthly Credit Trend (default: last 3 months, adjustable via ov-credit-range)
   const monthMap = new Map();
