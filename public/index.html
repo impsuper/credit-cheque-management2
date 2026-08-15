@@ -14741,10 +14741,11 @@ restoreSidebarState();
 // 📱 PULL-TO-REFRESH — lets a finger-drag down from the very top of the
 // page (mobile only, matched via touch events so it never fires from a
 // mouse/trackpad drag) act like a native app's "pull down to reload".
-// Deliberately does a real page reload rather than a partial data
-// re-fetch: this app opens live Firestore onSnapshot listeners on load,
-// and re-running that setup without tearing the old listeners down first
-// would leave duplicates running, so a full reload is the safe "refresh".
+// Reuses the existing manualRefresh() (the same function behind the 🔄
+// topbar button): a real server fetch + live-listener self-heal + re-render
+// of the current section, finishing with its own green "🔄 Refreshed!"
+// toast. Deliberately NOT a location.reload() — that would kick the user
+// back through the splash screen instead of just refreshing in place.
 // =====================================================================
 (function initPullToRefresh() {
   const ind = document.getElementById('ptrIndicator');
@@ -14801,11 +14802,30 @@ restoreSidebarState();
     if (pull >= READY_AT) {
       ind.classList.add('ptr-loading');
       setPull(56);
-      setTimeout(() => location.reload(), 500);
+      runRefresh();
     } else {
       cancelPull();
     }
   }
+
+  // Holds the spinner up while manualRefresh() does its round-trip, then
+  // drops the pill away — manualRefresh() itself pops the green toast.
+  async function runRefresh() {
+    const started = Date.now();
+    try {
+      await manualRefresh();
+    } catch (e) {
+      console.error('pull-to-refresh', e);
+    } finally {
+      const elapsed = Date.now() - started;
+      const holdMore = Math.max(0, 300 - elapsed); // avoid a flash-of-spinner on a fast refresh
+      setTimeout(() => {
+        ind.classList.remove('ptr-loading');
+        cancelPull();
+      }, holdMore);
+    }
+  }
+
   function cancelPull() {
     dragging = false;
     document.body.classList.add('ptr-settling');
