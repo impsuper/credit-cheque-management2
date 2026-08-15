@@ -9910,7 +9910,15 @@ async function saveCashLogEntry() {
     if (existingEntry.type === 'credit_payment' && existingEntry.creditOwnerUsername) {
       const oldOwner = getUserByUsername(existingEntry.creditOwnerUsername);
       if (oldOwner && existingEntry.creditId) {
-        await applyCreditPaymentsChange(oldOwner, existingEntry.creditId, payments => payments.filter(p => p.cashLogId !== editId));
+        const strippedOk = await applyCreditPaymentsChange(oldOwner, existingEntry.creditId, payments => payments.filter(p => p.cashLogId !== editId));
+        // If we can't remove the OLD linked payment first, do not proceed — otherwise the
+        // new values below would get saved while the old credit bill still carries a stale
+        // payment nothing else points to (the exact class of bug this whole function used
+        // to have: a disposal-log entry and its linked credit bill silently drifting apart).
+        if (!strippedOk) {
+          toast('⚠️ මේ log entry එක link වී ඇති Credit Bill එක update කිරීමට නොහැකි විය — නැවත උත්සාහ කරන්න', 'red');
+          return;
+        }
       }
     }
   }
@@ -9941,6 +9949,10 @@ async function saveCashLogEntry() {
   }
 
   let logId = editId;
+  // Snapshot the entry's PRE-edit fields so a failed credit-bill link below can be rolled
+  // back cleanly (see the credit_payment block further down) instead of leaving the log
+  // entry saved with new values while the linked credit bill never actually got the payment.
+  const prevEntrySnapshot = (editId && existingEntry) ? { ...existingEntry } : null;
   if (editId && existingEntry) {
     Object.assign(existingEntry, {
       date, type, amount, description: desc,
@@ -9976,12 +9988,34 @@ async function saveCashLogEntry() {
   }
 
   // Record this as a payment against the linked credit bill — the bill's balance drops as
-  // if it had been paid off directly, and the amount already left Cash-in-Hand via cashLog
+  // if it had been paid off directly, and the amount already left Cash-in-Hand via cashLog.
+  //
+  // IMPORTANT: this is a SEPARATE write from the syncUser(admin) above, so it can fail on
+  // its own (network hiccup, stale doc, etc) even though the log entry itself already saved
+  // successfully. If that happens we MUST roll the log entry back — otherwise Cash-in-Hand
+  // shows the money as gone (paid to the supplier) while the credit bill still shows the
+  // full amount outstanding, with nothing on screen telling anyone the two disagree. This is
+  // exactly the bug that let bill CR0049 sit "active" after its cash-disposal payment was
+  // logged: the log entry saved, this call below failed silently, and nothing undid the log.
   if (type === 'credit_payment' && creditId) {
     const creditOwner = getUserByUsername(creditOwnerUsername);
+    let linkOk = false;
     if (creditOwner) {
       const newPayment = { id: uid(), amount, date, note: '💰 Paid via Cash Disposal Log (Cash-in-Hand)', cashLogId: logId };
-      await applyCreditPaymentsChange(creditOwner, creditId, payments => [...payments, newPayment], supplierId);
+      linkOk = await applyCreditPaymentsChange(creditOwner, creditId, payments => [...payments, newPayment], supplierId);
+    }
+    if (!linkOk) {
+      // Roll back the log entry to whatever it was before this save, so the disposal log
+      // and the credit bill can never end up disagreeing about whether this was paid.
+      if (editId && prevEntrySnapshot) {
+        Object.assign(existingEntry, prevEntrySnapshot);
+      } else {
+        admin.cashLog = admin.cashLog.filter(e => e.id !== logId);
+      }
+      syncUser(admin);
+      renderCashLog(); renderOverview(); renderCredits();
+      toast('⚠️ Credit Bill එකට payment එක link කිරීමට නොහැකි විය — Log entry එක save කළේ නැත. නැවත උත්සාහ කරන්න.', 'red');
+      return;
     }
   }
 
@@ -10018,6 +10052,21 @@ async function deleteCashLogEntry(id) {
   }
   if (!confirm('Delete this log entry?')) return;
   const entry = (admin.cashLog||[]).find(e=>e.id===id);
+  // Unlink the credit-bill payment FIRST, before touching the log entry itself. If this
+  // fails, we stop here and leave everything as-is — deleting the log entry anyway would
+  // leave the credit bill carrying a payment nothing points to any more, which makes the
+  // bill look paid/settled when it was never actually reversed (this is how bill CR0072
+  // ended up stuck "settled" after its linked cash entry was deleted elsewhere in the app).
+  if (entry && entry.type === 'credit_payment' && entry.creditOwnerUsername) {
+    const creditOwner = getUserByUsername(entry.creditOwnerUsername);
+    if (creditOwner && entry.creditId) {
+      const unlinkOk = await applyCreditPaymentsChange(creditOwner, entry.creditId, payments => payments.filter(p => p.cashLogId !== id));
+      if (!unlinkOk) {
+        toast('⚠️ Link වී ඇති Credit Bill එක update කිරීමට නොහැකි විය — Log entry එක delete කළේ නැත. නැවත උත්සාහ කරන්න.', 'red');
+        return;
+      }
+    }
+  }
   admin.cashLog=(admin.cashLog||[]).filter(e=>e.id!==id);
   syncUser(admin);
   logActivity('DEL_CASH_LOG', `${entry?.type||'entry'} · ${fmt(entry?.amount||0)}`);
@@ -10027,13 +10076,6 @@ async function deleteCashLogEntry(id) {
     if (supOwner && supOwner.cashPurchases) {
       supOwner.cashPurchases = supOwner.cashPurchases.filter(p => p.cashLogId !== id);
       syncUser(supOwner);
-    }
-  }
-  // Clean up the linked credit bill payment, if this was a credit_payment entry
-  if (entry && entry.type === 'credit_payment' && entry.creditOwnerUsername) {
-    const creditOwner = getUserByUsername(entry.creditOwnerUsername);
-    if (creditOwner && entry.creditId) {
-      await applyCreditPaymentsChange(creditOwner, entry.creditId, payments => payments.filter(p => p.cashLogId !== id));
     }
   }
   renderCashLog(); renderOverview(); renderCredits();
@@ -11387,18 +11429,33 @@ async function saveCashEntry(handoverTarget) {
       strippedTargets.push({ user: u, creditId: c.id });
     }
   }));
+  // The cash entry itself is already committed above and this cash entry is a complex,
+  // multi-part record (sales, purchases, advances, salaries...) that isn't safe to unwind
+  // here, so a failure below can't be rolled back the way a simple Cash Disposal Log entry
+  // can (see saveCashLogEntry). Instead we track failures and warn loudly, by bill number,
+  // so nothing goes unnoticed the way it did for CR0072 — a cash entry whose linked credit
+  // payment silently failed to unlink on delete, leaving that bill stuck showing "settled".
+  const failedCreditLinks = [];
   for (const t of strippedTargets) {
-    await applyCreditPaymentsChange(t.user, t.creditId, payments => payments.filter(p => p.cashEntryId !== recId));
+    const ok = await applyCreditPaymentsChange(t.user, t.creditId, payments => payments.filter(p => p.cashEntryId !== recId));
+    if (!ok) {
+      const c = (t.user.credits||[]).find(x => x.id === t.creditId);
+      failedCreditLinks.push(c?.entryId || t.creditId);
+    }
   }
   for (const p of creditPayRows) {
     const creditOwner = getTargetUser(p.ownerUsername) || owner;
     const credit = (creditOwner.credits||[]).find(c => c.id === p.creditId);
     if (credit) {
       const newPayment = { id: uid(), amount: p.amount, date, note: '💰 Paid via Cash Management (Daily Cash)', cashEntryId: recId };
-      await applyCreditPaymentsChange(creditOwner, credit.id, payments => [...payments, newPayment], p.supplierId);
+      const ok = await applyCreditPaymentsChange(creditOwner, credit.id, payments => [...payments, newPayment], p.supplierId);
+      if (!ok) failedCreditLinks.push(credit.entryId || credit.id);
     }
   }
   if (typeof renderCredits === 'function') renderCredits();
+  if (failedCreditLinks.length) {
+    toast('⚠️ Cash entry එක save උනත්, මේ Credit Bill(s) update කිරීමට නොහැකි විය: ' + failedCreditLinks.join(', ') + ' — Credits tab එකෙන් manually check කර, අවශ්‍ය නම් Payment History වලින් නිවැරදි කරන්න.', 'red');
+  }
 
   // Sync these cash-tab advances into the shared Payroll advances store
   const hadLinkedBefore = PDB.advances.some(a => a.cashEntryId === recId);
@@ -11770,12 +11827,12 @@ async function deleteCashEntry(id, ownerUsername) {
   const owner = getTargetUser(ownerUsername);
   if (!owner) return;
   const entry=(owner.cashEntries||[]).find(e=>e.id===id);
-  owner.cashEntries=(owner.cashEntries||[]).filter(e=>e.id!==id);
-  logActivity('DEL_CASH', `${entry?.date||id} deleted`);
-  const hadLinkedPurchases = (owner.cashPurchases||[]).some(p => p.cashEntryId === id);
-  if (hadLinkedPurchases) owner.cashPurchases = (owner.cashPurchases||[]).filter(p => p.cashEntryId !== id);
-  syncUser(owner);
-  // Clean up any credit bill payments linked to this cash entry (may span multiple business owners)
+  // Unlink any credit bill payments tied to this cash entry FIRST, before deleting the cash
+  // entry itself (may span multiple business owners). If any of these fail, we stop here and
+  // delete nothing — deleting the cash entry anyway would leave those credit bills carrying
+  // payments that no longer point to anything real, making a bill look paid when the cash
+  // record that supposedly paid it is gone. (This ordering bug is exactly how credit bill
+  // CR0072 ended up stuck showing "settled" after one of its cash entries was deleted.)
   const strippedTargets = [];
   DB.users.forEach(u => (u.credits||[]).forEach(c => {
     if (c.payments && c.payments.some(p => p.cashEntryId === id)) {
@@ -11783,8 +11840,17 @@ async function deleteCashEntry(id, ownerUsername) {
     }
   }));
   for (const t of strippedTargets) {
-    await applyCreditPaymentsChange(t.user, t.creditId, payments => payments.filter(p => p.cashEntryId !== id));
+    const unlinkOk = await applyCreditPaymentsChange(t.user, t.creditId, payments => payments.filter(p => p.cashEntryId !== id));
+    if (!unlinkOk) {
+      toast('⚠️ Link වී ඇති Credit Bill payment(s) update කිරීමට නොහැකි විය — Cash entry එක delete කළේ නැත. නැවත උත්සාහ කරන්න.', 'red');
+      return;
+    }
   }
+  owner.cashEntries=(owner.cashEntries||[]).filter(e=>e.id!==id);
+  logActivity('DEL_CASH', `${entry?.date||id} deleted`);
+  const hadLinkedPurchases = (owner.cashPurchases||[]).some(p => p.cashEntryId === id);
+  if (hadLinkedPurchases) owner.cashPurchases = (owner.cashPurchases||[]).filter(p => p.cashEntryId !== id);
+  syncUser(owner);
   if (typeof renderCredits === 'function') renderCredits();
   const hadLinked = PDB.advances.some(a => a.cashEntryId === id);
   if (hadLinked) { PDB.advances = PDB.advances.filter(a => a.cashEntryId !== id); savePayrollDB(); }
