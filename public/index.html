@@ -1165,6 +1165,36 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
 .theme-card-desc{font-size:.76rem;color:var(--muted);margin-top:.25rem;line-height:1.5;}
 .theme-check{display:none;background:var(--navy3);color:#fff;width:22px;height:22px;border-radius:50%;align-items:center;justify-content:center;font-size:.75rem;flex-shrink:0;}
 .theme-card.active .theme-check{display:inline-flex;}
+
+/* =====================================================================
+   📱 PULL-TO-REFRESH (mobile) — native-app-style "drag down at top to
+   reload" gesture. #ptrIndicator is a fixed pill that peeks in from above
+   the viewport; as the user drags, JS translates it (and <body>, so the
+   whole UI slides down together) by the pull distance. Two states:
+   dragging (no transition, tracks the finger 1:1 via JS) and settling
+   (transition back to 0, or hold + spin while the "refresh" runs). */
+#ptrIndicator{
+  position:fixed;top:0;left:0;right:0;height:64px;z-index:5000;
+  display:flex;align-items:center;justify-content:center;
+  pointer-events:none;transform:translateY(-64px);
+}
+#ptrIndicator .ptr-circle{
+  width:40px;height:40px;border-radius:50%;background:var(--surface);
+  box-shadow:var(--shadow2);display:flex;align-items:center;justify-content:center;
+  opacity:0;transform:scale(.7);transition:opacity .15s ease,transform .15s ease;
+}
+#ptrIndicator.ptr-visible .ptr-circle{opacity:1;transform:scale(1);}
+#ptrIndicator .ptr-arrow{font-size:1.05rem;line-height:1;display:block;transition:transform .2s ease;}
+#ptrIndicator.ptr-ready .ptr-arrow{transform:rotate(180deg);}
+#ptrIndicator .ptr-spin{
+  display:none;width:20px;height:20px;border-radius:50%;
+  border:3px solid var(--border);border-top-color:var(--navy3);
+}
+#ptrIndicator.ptr-loading .ptr-arrow{display:none;}
+#ptrIndicator.ptr-loading .ptr-spin{display:block;animation:ptrSpin .7s linear infinite;}
+@keyframes ptrSpin{to{transform:rotate(360deg);}}
+body.ptr-dragging{transition:none!important;}
+body.ptr-settling{transition:background-color .25s ease,border-color .25s ease,color .25s ease,transform .32s cubic-bezier(.22,.8,.2,1)!important;}
 </style>
 <script>
 /* ===== INSTANT THEME BOOT — runs before first paint, prevents theme flash ===== */
@@ -1182,6 +1212,14 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
 </script>
 </head>
 <body>
+
+<!-- ===== PULL-TO-REFRESH INDICATOR (mobile) ===== -->
+<div id="ptrIndicator" aria-hidden="true">
+  <div class="ptr-circle">
+    <span class="ptr-arrow">⬇️</span>
+    <span class="ptr-spin"></span>
+  </div>
+</div>
 
 <!-- ===== SPLASH SCREEN ===== -->
 <div id="splashScreen">
@@ -14698,6 +14736,86 @@ document.querySelectorAll('.overlay').forEach(o => {
 });
 
 restoreSidebarState();
+
+// =====================================================================
+// 📱 PULL-TO-REFRESH — lets a finger-drag down from the very top of the
+// page (mobile only, matched via touch events so it never fires from a
+// mouse/trackpad drag) act like a native app's "pull down to reload".
+// Deliberately does a real page reload rather than a partial data
+// re-fetch: this app opens live Firestore onSnapshot listeners on load,
+// and re-running that setup without tearing the old listeners down first
+// would leave duplicates running, so a full reload is the safe "refresh".
+// =====================================================================
+(function initPullToRefresh() {
+  const ind = document.getElementById('ptrIndicator');
+  if (!ind || !('ontouchstart' in window)) return;
+
+  const DRAG_FACTOR = 0.45;   // resistance — finger travel vs visual pull
+  const MAX_PULL = 120;       // px, visual cap so it doesn't stretch forever
+  const READY_AT = 62;        // visual px pulled before release triggers refresh
+
+  let startY = 0, lastY = 0, dragging = false, released = false;
+
+  function appVisible() {
+    const dash = document.getElementById('dashboardPage');
+    return dash && dash.classList.contains('show');
+  }
+  function modalOpen() {
+    return !!document.querySelector('.overlay.show');
+  }
+
+  function setPull(px) {
+    document.body.style.transform = px ? `translateY(${px}px)` : '';
+    ind.style.transform = px ? `translateY(${px}px)` : '';
+    ind.classList.toggle('ptr-visible', px > 0);
+    ind.classList.toggle('ptr-ready', px >= READY_AT);
+  }
+
+  document.addEventListener('touchstart', e => {
+    if (window.scrollY > 0 || !appVisible() || modalOpen() || e.touches.length !== 1) return;
+    if (e.touches[0].target.closest('.sidebar')) return; // mobile top-nav has its own horizontal scroll
+    startY = lastY = e.touches[0].clientY;
+    dragging = true;
+    released = false;
+    document.body.classList.remove('ptr-settling');
+    document.body.classList.add('ptr-dragging');
+  }, { passive: true });
+
+  document.addEventListener('touchmove', e => {
+    if (!dragging) return;
+    if (window.scrollY > 0) { cancelPull(); return; }
+    lastY = e.touches[0].clientY;
+    const diff = lastY - startY;
+    if (diff <= 0) { setPull(0); return; }
+    setPull(Math.min(MAX_PULL, diff * DRAG_FACTOR));
+    if (e.cancelable) e.preventDefault(); // stop the native rubber-band fighting our own drag
+  }, { passive: false });
+
+  function finishPull() {
+    if (!dragging || released) return;
+    released = true;
+    dragging = false;
+    document.body.classList.remove('ptr-dragging');
+    document.body.classList.add('ptr-settling');
+    const pull = Math.min(MAX_PULL, Math.max(0, (lastY - startY) * DRAG_FACTOR));
+    if (pull >= READY_AT) {
+      ind.classList.add('ptr-loading');
+      setPull(56);
+      setTimeout(() => location.reload(), 500);
+    } else {
+      cancelPull();
+    }
+  }
+  function cancelPull() {
+    dragging = false;
+    document.body.classList.add('ptr-settling');
+    setPull(0);
+    setTimeout(() => document.body.classList.remove('ptr-settling'), 320);
+  }
+
+  document.addEventListener('touchend', finishPull);
+  document.addEventListener('touchcancel', cancelPull);
+})();
 
 (async function () {
   await initFirebase();
