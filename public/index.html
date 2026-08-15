@@ -33,6 +33,10 @@
   --splash-ring:rgba(14,116,144,.35);--splash-ring2:rgba(14,116,144,.18);
   --splash-bar-1:#0e7490;--splash-bar-2:#15803d;
   --splash-title-grad:#a8e6d9;--splash-icon-glow:rgba(14,116,144,.2);
+  /* Cheque Due Calendar heatmap tiers (None uses --track-bg/--muted already) */
+  --cdc-low-bg:#fef3c7;--cdc-low-text:#92400e;
+  --cdc-med-bg:#f97316;--cdc-med-text:#fff;
+  --cdc-high-bg:#dc2626;--cdc-high-text:#fff;
 }
 
 /* ===== THEME PALETTES (applied via html[data-theme]) ===== */
@@ -51,6 +55,9 @@ html[data-theme="dark"]{
   --splash-ring:rgba(96,165,250,.35);--splash-ring2:rgba(96,165,250,.18);
   --splash-bar-1:#22d3ee;--splash-bar-2:#4ade80;
   --splash-title-grad:#7dd3fc;--splash-icon-glow:rgba(34,211,238,.25);
+  --cdc-low-bg:#3f2d0a;--cdc-low-text:#fbbf24;
+  --cdc-med-bg:#c2540a;--cdc-med-text:#fff;
+  --cdc-high-bg:#a51515;--cdc-high-text:#fff;
 }
 html[data-theme="tie"]{
   --navy:#1a2942;--navy2:#0f1b2e;--navy3:#7a1f2b;
@@ -67,6 +74,9 @@ html[data-theme="tie"]{
   --splash-ring:rgba(156,107,48,.35);--splash-ring2:rgba(156,107,48,.18);
   --splash-bar-1:#9c6b30;--splash-bar-2:#7a1f2b;
   --splash-title-grad:#e8c68a;--splash-icon-glow:rgba(156,107,48,.25);
+  --cdc-low-bg:#f0e0b8;--cdc-low-text:#7a4a12;
+  --cdc-med-bg:#c9812e;--cdc-med-text:#fff;
+  --cdc-high-bg:#9b1c1c;--cdc-high-text:#fff;
 }
 html[data-theme="gold"]{
   --navy:#f3e5c3;--navy2:#d9c48f;--navy3:#d4af37;
@@ -83,6 +93,9 @@ html[data-theme="gold"]{
   --splash-ring:rgba(212,175,55,.4);--splash-ring2:rgba(212,175,55,.2);
   --splash-bar-1:#d4af37;--splash-bar-2:#f0c75e;
   --splash-title-grad:#f0c75e;--splash-icon-glow:rgba(212,175,55,.35);
+  --cdc-low-bg:#3a2c0d;--cdc-low-text:#e8b93a;
+  --cdc-med-bg:#8a5a12;--cdc-med-text:#fff8e1;
+  --cdc-high-bg:#7a1f2b;--cdc-high-text:#fff;
 }
 html[data-theme="nature"]{
   --navy:#1b4332;--navy2:#2d6a4f;--navy3:#40916c;
@@ -99,6 +112,9 @@ html[data-theme="nature"]{
   --splash-ring:rgba(82,183,136,.35);--splash-ring2:rgba(82,183,136,.18);
   --splash-bar-1:#52b788;--splash-bar-2:#95d5b2;
   --splash-title-grad:#b7e4c7;--splash-icon-glow:rgba(82,183,136,.25);
+  --cdc-low-bg:#fdf0d5;--cdc-low-text:#8a5a12;
+  --cdc-med-bg:#dda15e;--cdc-med-text:#3a2410;
+  --cdc-high-bg:#bc4749;--cdc-high-text:#fff;
 }
 html[data-theme="sky"]{
   --navy:#0c4a6e;--navy2:#075985;--navy3:#0284c7;
@@ -115,6 +131,9 @@ html[data-theme="sky"]{
   --splash-ring:rgba(14,165,233,.35);--splash-ring2:rgba(14,165,233,.18);
   --splash-bar-1:#0ea5e9;--splash-bar-2:#7dd3fc;
   --splash-title-grad:#bae6fd;--splash-icon-glow:rgba(14,165,233,.25);
+  --cdc-low-bg:#fef3c7;--cdc-low-text:#92400e;
+  --cdc-med-bg:#f59e0b;--cdc-med-text:#fff;
+  --cdc-high-bg:#dc2626;--cdc-high-text:#fff;
 }
 html{transition:background-color .25s ease;}
 body,.card,.modal,.sidebar,.stat-card,.auth-card{transition:background-color .25s ease,border-color .25s ease,color .25s ease;}
@@ -565,9 +584,70 @@ tr:hover td{background:var(--surface-2);}
 .chart-row{display:grid;grid-template-columns:110px 1fr 72px;gap:.7rem;align-items:center;margin-bottom:.55rem;}
 .chart-label{font-size:.8rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .chart-bar-wrap{height:12px;background:var(--track-bg);border-radius:999px;overflow:hidden;border:1px solid var(--border);}
-.chart-bar{height:100%;background:linear-gradient(90deg,var(--navy3),var(--accent));border-radius:999px;}
+.chart-bar{height:100%;background:linear-gradient(90deg,var(--navy3),var(--accent));border-radius:999px;transition:width .6s cubic-bezier(.34,1.2,.4,1);}
 .chart-val{text-align:right;font-size:.8rem;font-weight:700;color:var(--text);}
 @media(max-width:768px){.analytics-grid{grid-template-columns:1fr;}.chart-row{grid-template-columns:92px 1fr 60px;}}
+
+/* ===== Cheque Due Calendar (dashboard mini-chart) — month-grid heatmap of
+   pending cheques by due date; color intensity = total amount due that day. ===== */
+.cdc-nav-btn{background:none;border:none;color:var(--muted);font-size:1.05rem;line-height:1;cursor:pointer;padding:.1rem .5rem;border-radius:6px;transition:all .15s ease;}
+.cdc-nav-btn:hover{background:var(--border);color:var(--text);}
+.cdc-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+.cdc-dow{text-align:center;font-size:.64rem;font-weight:700;color:var(--muted);padding:.15rem 0 .35rem;letter-spacing:.03em;}
+.cdc-cell{position:relative;border-radius:8px;min-height:42px;padding:.28rem .3rem;display:flex;flex-direction:column;gap:.1rem;background:var(--track-bg);border:1px solid var(--border);}
+.cdc-cell.cdc-out{opacity:.4;}
+.cdc-cell.cdc-today{box-shadow:0 0 0 2px var(--navy3) inset;}
+.cdc-daynum{font-size:.68rem;font-weight:600;color:var(--muted);}
+.cdc-amt{font-size:.6rem;font-weight:800;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.cdc-cell.cdc-clickable{cursor:pointer;transition:transform .12s ease,box-shadow .12s ease;}
+.cdc-cell.cdc-clickable:hover{transform:translateY(-1px);box-shadow:var(--shadow2);}
+.cdc-cell.cdc-low{background:var(--cdc-low-bg);border-color:transparent;}
+.cdc-cell.cdc-low .cdc-daynum,.cdc-cell.cdc-low .cdc-amt{color:var(--cdc-low-text);}
+.cdc-cell.cdc-medium{background:var(--cdc-med-bg);border-color:transparent;}
+.cdc-cell.cdc-medium .cdc-daynum,.cdc-cell.cdc-medium .cdc-amt{color:var(--cdc-med-text);}
+.cdc-cell.cdc-high{background:var(--cdc-high-bg);border-color:transparent;}
+.cdc-cell.cdc-high .cdc-daynum,.cdc-cell.cdc-high .cdc-amt{color:var(--cdc-high-text);}
+.cdc-legend{display:flex;flex-wrap:wrap;gap:.85rem;padding:.85rem .1rem .1rem;justify-content:center;}
+.cdc-legend-item{display:flex;align-items:center;gap:.32rem;font-size:.7rem;color:var(--muted);font-weight:600;}
+.cdc-swatch{width:11px;height:11px;border-radius:4px;display:inline-block;}
+.cdc-swatch.cdc-none{background:var(--track-bg);border:1px solid var(--border);}
+.cdc-swatch.cdc-low{background:var(--cdc-low-bg);}
+.cdc-swatch.cdc-medium{background:var(--cdc-med-bg);}
+.cdc-swatch.cdc-high{background:var(--cdc-high-bg);}
+@media(max-width:480px){.cdc-cell{min-height:36px;padding:.2rem .22rem;}.cdc-daynum{font-size:.6rem;}.cdc-amt{font-size:.53rem;}}
+.cdc-nav-btn:disabled{opacity:.35;cursor:not-allowed;}
+.cdc-nav-btn:disabled:hover{background:none;color:var(--muted);}
+
+/* ===== Cheque Due Calendar — WEEKLY (dashboard mini-chart) — row of
+   week-cards (one card per Sat–Fri "cheque cycle" week, each showing that
+   whole week's pending-cheque total), same tier colors/logic as the
+   month-grid version above. Column count is set inline per-render since the
+   number of cards (CDCW_CARDS, +1 when an "Overdue" card is present) can vary. ===== */
+.cdcw-grid{display:grid;gap:6px;}
+.cdcw-cell{position:relative;border-radius:10px;min-height:92px;padding:.5rem .3rem;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:.15rem;text-align:center;background:var(--track-bg);border:1px solid var(--border);}
+.cdcw-cell.cdcw-today{box-shadow:0 0 0 2px var(--navy3) inset;}
+.cdcw-dow{font-size:.68rem;font-weight:800;color:var(--muted);letter-spacing:.03em;}
+.cdcw-daynum{font-size:.92rem;font-weight:800;color:var(--text);}
+.cdcw-daterange{font-size:.6rem;font-weight:600;color:var(--muted);margin-top:.1rem;}
+.cdcw-amt{font-size:.68rem;font-weight:800;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.25rem;max-width:100%;}
+.cdcw-count{font-size:.58rem;font-weight:600;opacity:.85;}
+.cdcw-empty{font-size:.72rem;color:var(--muted);margin-top:.3rem;}
+.cdcw-cell.cdcw-clickable{cursor:pointer;transition:transform .12s ease,box-shadow .12s ease;}
+.cdcw-cell.cdcw-clickable:hover{transform:translateY(-1px);box-shadow:var(--shadow2);}
+.cdcw-cell.cdcw-low{background:var(--cdc-low-bg);border-color:transparent;}
+.cdcw-cell.cdcw-low .cdcw-dow,.cdcw-cell.cdcw-low .cdcw-daynum,.cdcw-cell.cdcw-low .cdcw-daterange,.cdcw-cell.cdcw-low .cdcw-amt,.cdcw-cell.cdcw-low .cdcw-count{color:var(--cdc-low-text);}
+.cdcw-cell.cdcw-medium{background:var(--cdc-med-bg);border-color:transparent;}
+.cdcw-cell.cdcw-medium .cdcw-dow,.cdcw-cell.cdcw-medium .cdcw-daynum,.cdcw-cell.cdcw-medium .cdcw-daterange,.cdcw-cell.cdcw-medium .cdcw-amt,.cdcw-cell.cdcw-medium .cdcw-count{color:var(--cdc-med-text);}
+.cdcw-cell.cdcw-high{background:var(--cdc-high-bg);border-color:transparent;}
+.cdcw-cell.cdcw-high .cdcw-dow,.cdcw-cell.cdcw-high .cdcw-daynum,.cdcw-cell.cdcw-high .cdcw-daterange,.cdcw-cell.cdcw-high .cdcw-amt,.cdcw-cell.cdcw-high .cdcw-count{color:var(--cdc-high-text);}
+/* "⚠ OVERDUE" bucket card — pending cheques due before the leftmost week
+   card's Sat–Fri window, folded in the way applyChequeQuickFilter(1)/"This
+   Week (incl. Overdue)" does. Always styled with the urgent/high palette
+   regardless of the week cards' relative tiering. */
+.cdcw-cell.cdcw-overdue{background:var(--cdc-high-bg);border-color:transparent;}
+.cdcw-cell.cdcw-overdue .cdcw-dow,.cdcw-cell.cdcw-overdue .cdcw-amt,.cdcw-cell.cdcw-overdue .cdcw-count{color:var(--cdc-high-text);}
+.cdcw-cell.cdcw-overdue .cdcw-dow{font-size:.58rem;letter-spacing:.02em;}
+@media(max-width:480px){.cdcw-cell{min-height:82px;padding:.35rem .18rem;}.cdcw-dow{font-size:.58rem;}.cdcw-daterange{font-size:.52rem;}.cdcw-amt{font-size:.58rem;}.cdcw-count{font-size:.5rem;}}
 
 @media(max-width:768px){
   .sidebar{width:60px;}
@@ -1334,6 +1414,17 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
               <div id="ov-daily-sales-monthly-trend-chart" class="simple-chart mini-apex-wrap" style="min-height:230px;"></div>
             </div>
           </div>
+          <div class="ov-carousel-slide" data-slide="4" id="ov-slide-dailySalesHeatmap">
+            <div class="card-head">
+              <div class="card-title">🔥 Daily Sales Heatmap</div>
+              <div style="display:flex;align-items:center;gap:.3rem;">
+                <button type="button" class="cdc-nav-btn" id="dsh-prev-btn" onclick="dshShiftMonth(-1)" title="Previous month">‹</button>
+                <span id="dsh-month-label" style="font-size:.78rem;font-weight:700;color:var(--navy);min-width:96px;text-align:center;"></span>
+                <button type="button" class="cdc-nav-btn" id="dsh-next-btn" onclick="dshShiftMonth(1)" title="Next month">›</button>
+              </div>
+            </div>
+            <div id="ov-daily-sales-heatmap" class="simple-chart" style="min-height:200px;padding:.6rem 1rem 1rem;"></div>
+          </div>
         </div>
         <div class="ov-carousel-dots" id="ov-carousel2-dots">
           <button type="button" class="ov-arrow-btn" onclick="ovPrevSlide2()" title="Previous chart">‹</button>
@@ -1341,6 +1432,7 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
           <span class="ov-dot" onclick="ovGoToSlide2(1)" title="Daily Total Sales"></span>
           <span class="ov-dot" onclick="ovGoToSlide2(2)" title="Daily Sales Comparison"></span>
           <span class="ov-dot" onclick="ovGoToSlide2(3)" title="This Month vs Past Months"></span>
+          <span class="ov-dot" onclick="ovGoToSlide2(4)" title="Daily Sales Heatmap"></span>
           <button type="button" class="ov-arrow-btn" onclick="ovNextSlide2()" title="Next chart">›</button>
         </div>
       </div>
@@ -1359,11 +1451,33 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
             </div>
             <div id="ov-credit-chart" class="simple-chart mini-chartjs-wrap" style="min-height:160px;"></div>
           </div>
-          <div class="ov-carousel-slide" data-slide="1" id="ov-slide-chequeStatus">
+          <div class="ov-carousel-slide" data-slide="1" id="ov-slide-chequeDueCalendar">
+            <div class="card-head">
+              <div class="card-title">📅 Cheque Due Calendar</div>
+              <div style="display:flex;align-items:center;gap:.3rem;">
+                <button type="button" class="cdc-nav-btn" onclick="cdcShiftMonth(-1)" title="Previous month">‹</button>
+                <span id="cdc-month-label" style="font-size:.78rem;font-weight:700;color:var(--navy);min-width:96px;text-align:center;"></span>
+                <button type="button" class="cdc-nav-btn" onclick="cdcShiftMonth(1)" title="Next month">›</button>
+              </div>
+            </div>
+            <div id="ov-cheque-due-calendar" class="simple-chart" style="min-height:200px;padding:.6rem 1rem 1rem;"></div>
+          </div>
+          <div class="ov-carousel-slide" data-slide="2" id="ov-slide-chequeDueCalendarWeekly">
+            <div class="card-head">
+              <div class="card-title">🗓️ Cheque Due Calendar (Weekly)</div>
+              <div style="display:flex;align-items:center;gap:.3rem;">
+                <button type="button" class="cdc-nav-btn" id="cdcw-prev-btn" onclick="cdcwShiftWeek(-1)" title="Previous week (←)">‹</button>
+                <span id="cdcw-week-label" style="font-size:.78rem;font-weight:700;color:var(--navy);min-width:150px;text-align:center;"></span>
+                <button type="button" class="cdc-nav-btn" id="cdcw-next-btn" onclick="cdcwShiftWeek(1)" title="Next week (→)">›</button>
+              </div>
+            </div>
+            <div id="ov-cheque-due-calendar-weekly" class="simple-chart" style="min-height:170px;padding:.6rem 1rem 1rem;"></div>
+          </div>
+          <div class="ov-carousel-slide" data-slide="3" id="ov-slide-chequeStatus">
             <div class="card-head"><div class="card-title">📊 Cheque Status Overview</div></div>
             <div id="ov-cheque-chart" class="simple-chart mini-apex-wrap" style="min-height:160px;"></div>
           </div>
-          <div class="ov-carousel-slide" data-slide="2" id="ov-sales-row">
+          <div class="ov-carousel-slide" data-slide="4" id="ov-sales-row">
             <div class="card-head">
               <div class="card-title">💰 Monthly Sales Trend</div>
               <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;">
@@ -1377,21 +1491,21 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
             </div>
             <div id="ov-sales-chart" class="simple-chart mini-chartjs-wrap" style="min-height:160px;"></div>
           </div>
-          <div class="ov-carousel-slide" data-slide="3" id="ov-payment-row">
+          <div class="ov-carousel-slide" data-slide="5" id="ov-payment-row">
             <div class="card-head">
               <div class="card-title">💳 Payment Breakdown</div>
               <select id="ov-payment-month" onchange="renderOverview()" style="padding:.35rem .7rem;border:1.5px solid var(--border);border-radius:7px;font-size:.78rem;background:var(--surface);color:var(--text);"></select>
             </div>
             <div id="ov-payment-chart" class="simple-chart mini-apex-wrap" style="min-height:160px;padding:1rem 1.2rem;"></div>
           </div>
-          <div class="ov-carousel-slide" data-slide="4" id="ov-slide-purchasesBreakdown">
+          <div class="ov-carousel-slide" data-slide="6" id="ov-slide-purchasesBreakdown">
             <div class="card-head">
               <div class="card-title">🛒 Purchases Breakdown</div>
               <select id="ov-purch-month" onchange="renderPurchasesBreakdown()" style="padding:.35rem .7rem;border:1.5px solid var(--border);border-radius:7px;font-size:.78rem;background:var(--surface);color:var(--text);"></select>
             </div>
             <div id="ov-purchases-breakdown" class="simple-chart" style="min-height:140px;padding:.6rem 1.2rem 1rem;"></div>
           </div>
-          <div class="ov-carousel-slide" data-slide="5" id="ov-slide-topSuppliers">
+          <div class="ov-carousel-slide" data-slide="7" id="ov-slide-topSuppliers">
             <div class="card-head">
               <div class="card-title">🏆 Top Suppliers by Purchase Value</div>
             </div>
@@ -1401,11 +1515,13 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
         <div class="ov-carousel-dots" id="ov-carousel-dots">
           <button type="button" class="ov-arrow-btn" onclick="ovPrevSlide()" title="Previous chart">‹</button>
           <span class="ov-dot active" onclick="ovGoToSlide(0)" title="Monthly Credit Trend"></span>
-          <span class="ov-dot" onclick="ovGoToSlide(1)" title="Cheque Status Overview"></span>
-          <span class="ov-dot" onclick="ovGoToSlide(2)" title="Monthly Sales Trend"></span>
-          <span class="ov-dot" onclick="ovGoToSlide(3)" title="Payment Breakdown"></span>
-          <span class="ov-dot" onclick="ovGoToSlide(4)" title="Purchases Breakdown"></span>
-          <span class="ov-dot" onclick="ovGoToSlide(5)" title="Top Suppliers by Purchase Value"></span>
+          <span class="ov-dot" onclick="ovGoToSlide(1)" title="Cheque Due Calendar"></span>
+          <span class="ov-dot" onclick="ovGoToSlide(2)" title="Cheque Due Calendar (Weekly)"></span>
+          <span class="ov-dot" onclick="ovGoToSlide(3)" title="Cheque Status Overview"></span>
+          <span class="ov-dot" onclick="ovGoToSlide(4)" title="Monthly Sales Trend"></span>
+          <span class="ov-dot" onclick="ovGoToSlide(5)" title="Payment Breakdown"></span>
+          <span class="ov-dot" onclick="ovGoToSlide(6)" title="Purchases Breakdown"></span>
+          <span class="ov-dot" onclick="ovGoToSlide(7)" title="Top Suppliers by Purchase Value"></span>
           <button type="button" class="ov-arrow-btn" onclick="ovNextSlide()" title="Next chart">›</button>
         </div>
       </div>
@@ -3473,11 +3589,11 @@ const DEFAULT_MANAGER_PERMS = {
   tile_cashInHand: true, tile_reloadTotal: true, tile_reloadCash: true,
   tile_totalPurchasesMonth: true, tile_chequesDueWeek: true, tile_netProfitMonth: true,
   // Dashboard charts (both mini-chart carousels)
-  chart_monthlyCreditTrend: true, chart_chequeStatusOverview: true,
+  chart_monthlyCreditTrend: true, chart_chequeDueCalendar: true, chart_chequeDueCalendarWeekly: true, chart_chequeStatusOverview: true,
   chart_monthlySalesTrend: true, chart_paymentBreakdown: true,
   chart_purchasesBreakdown: true, chart_monthlySalesGrowth: true,
   chart_dailyTotalSales: true, chart_dailySalesComparison: true,
-  chart_dailySalesMonthlyTrend: true, chart_topSuppliers: true
+  chart_dailySalesMonthlyTrend: true, chart_topSuppliers: true, chart_dailySalesHeatmap: true
 };
 // Admin's own defaults — same key set as Manager's, all true (Admin sees
 // everything out of the box, same as before this per-role tick existed).
@@ -3516,6 +3632,8 @@ const DASHBOARD_TILES = [
 // "no data yet" slides — permission-off behaves exactly like "no data".
 const DASHBOARD_CHARTS = [
   { key: 'chart_monthlyCreditTrend',   slideId: 'ov-slide-creditTrend',        dotsId: 'ov-carousel-dots',  label: '📈 Monthly Credit Trend' },
+  { key: 'chart_chequeDueCalendar',    slideId: 'ov-slide-chequeDueCalendar',  dotsId: 'ov-carousel-dots',  label: '📅 Cheque Due Calendar' },
+  { key: 'chart_chequeDueCalendarWeekly', slideId: 'ov-slide-chequeDueCalendarWeekly', dotsId: 'ov-carousel-dots', label: '🗓️ Cheque Due Calendar (Weekly)' },
   { key: 'chart_chequeStatusOverview', slideId: 'ov-slide-chequeStatus',       dotsId: 'ov-carousel-dots',  label: '📊 Cheque Status Overview' },
   { key: 'chart_monthlySalesTrend',    slideId: 'ov-sales-row',                dotsId: 'ov-carousel-dots',  label: '💰 Monthly Sales Trend' },
   { key: 'chart_paymentBreakdown',     slideId: 'ov-payment-row',              dotsId: 'ov-carousel-dots',  label: '💳 Payment Breakdown' },
@@ -3524,6 +3642,7 @@ const DASHBOARD_CHARTS = [
   { key: 'chart_dailyTotalSales',      slideId: 'ov-slide-dailySales',         dotsId: 'ov-carousel2-dots', label: '📈 Daily Total Sales' },
   { key: 'chart_dailySalesComparison', slideId: 'ov-slide-salesComparison',    dotsId: 'ov-carousel2-dots', label: '📊 Daily Sales Comparison' },
   { key: 'chart_dailySalesMonthlyTrend', slideId: 'ov-slide-monthlyTrend',     dotsId: 'ov-carousel2-dots', label: '🐛 This Month vs Past Months (Day-by-Day)' },
+  { key: 'chart_dailySalesHeatmap',    slideId: 'ov-slide-dailySalesHeatmap',  dotsId: 'ov-carousel2-dots', label: '🔥 Daily Sales Heatmap' },
   { key: 'chart_topSuppliers',         slideId: 'ov-slide-topSuppliers',       dotsId: 'ov-carousel-dots',  label: '🏆 Top Suppliers by Purchase Value' }
 ];
 
@@ -5529,7 +5648,7 @@ function renderBarChart(elId, items, valueLabel) {
   el.innerHTML = items.map(i => `
     <div class="chart-row">
       <div class="chart-label">${i.label}</div>
-      <div class="chart-bar-wrap"><div class="chart-bar" style="width:${Math.max(4, (i.value / max) * 100)}%"></div></div>
+      <div class="chart-bar-wrap" title="${i.label}: ${valueLabel(i.value)}"><div class="chart-bar" style="width:${Math.max(4, (i.value / max) * 100)}%"></div></div>
       <div class="chart-val">${valueLabel(i.value)}</div>
     </div>
   `).join('');
@@ -5560,8 +5679,31 @@ function chartTextColors() {
     muted: pick('--muted', '#64748b'),
     border: pick('--border', '#e2e8f0'),
     navy: pick('--navy', '#0f172a'),
-    surface: pick('--surface', '#fff')
+    navy2: pick('--navy2', '#1e293b'),
+    surface: pick('--surface', '#fff'),
+    surface2: pick('--surface-2', '#f8fafc'),
+    bg: pick('--bg', '#f8fafc'),
+    accent: pick('--accent', '#0e7490'),
+    accent2: pick('--accent2', '#2980b9'),
+    green: pick('--green', '#15803d'),
+    red: pick('--red', '#b91c1c'),
+    yellow: pick('--yellow', '#b45309')
   };
+}
+
+// Approximate relative luminance of a hex color, used to decide whether the
+// active theme "reads" dark (so ApexCharts/Chart.js tooltips & chart chrome
+// can switch to a matching dark treatment instead of always defaulting to a
+// light tooltip that clashes with dark-ish themes like Dark or Gold).
+function hexLuminance(hex) {
+  const h = String(hex || '').replace('#', '');
+  if (h.length < 6) return 255;
+  const r = parseInt(h.substring(0, 2), 16), g = parseInt(h.substring(2, 4), 16), b = parseInt(h.substring(4, 6), 16);
+  if ([r, g, b].some(Number.isNaN)) return 255;
+  return 0.299 * r + 0.587 * g + 0.114 * b;
+}
+function isDarkChartTheme() {
+  return hexLuminance(chartTextColors().surface) < 128;
 }
 
 // Chart.js bar chart — used for Monthly Credit Trend & Monthly Sales Trend,
@@ -5580,24 +5722,50 @@ function renderBarChartJS(elId, items, valueLabel, colorHex) {
   const tc = chartTextColors();
   const labels = items.map(i => i.label);
   const data = items.map(i => i.value);
+  // Soft top-to-bottom gradient (full color at the top fading toward the
+  // baseline) reads as far more polished than a flat fill, and doubles as a
+  // subtle depth cue. Rebuilt on every render so it always matches the
+  // canvas's current height and the live theme colors.
+  const ctx2d = canvas.getContext('2d');
+  function barGradient(chartArea) {
+    const area = chartArea || { top: 0, bottom: canvas.height || 200 };
+    const g = ctx2d.createLinearGradient(0, area.top, 0, area.bottom);
+    g.addColorStop(0, color);
+    g.addColorStop(1, color + '55');
+    return g;
+  }
+  const tooltipStyle = {
+    backgroundColor: tc.surface,
+    titleColor: tc.muted,
+    bodyColor: tc.text,
+    borderColor: tc.border,
+    borderWidth: 1,
+    padding: 10,
+    cornerRadius: 8,
+    displayColors: false,
+    titleFont: { size: 11, weight: '600' },
+    bodyFont: { size: 13, weight: '700' },
+    callbacks: { label: ctx => valueLabel(ctx.parsed.y) }
+  };
   if (__ovChartJS[elId]) {
     const ch = __ovChartJS[elId];
     ch.data.labels = labels;
     ch.data.datasets[0].data = data;
-    ch.data.datasets[0].backgroundColor = color + 'cc';
+    ch.data.datasets[0].backgroundColor = ctx => barGradient(ctx.chart.chartArea);
     ch.data.datasets[0].hoverBackgroundColor = color;
+    Object.assign(ch.options.plugins.tooltip, tooltipStyle);
     ch.options.scales.y.ticks.color = tc.muted;
     ch.options.scales.y.grid.color = tc.border;
     ch.options.scales.x.ticks.color = tc.muted;
     ch.update();
   } else {
-    __ovChartJS[elId] = new Chart(canvas.getContext('2d'), {
+    __ovChartJS[elId] = new Chart(ctx2d, {
       type: 'bar',
       data: {
         labels,
         datasets: [{
           data,
-          backgroundColor: color + 'cc',
+          backgroundColor: ctx => barGradient(ctx.chart.chartArea),
           hoverBackgroundColor: color,
           borderRadius: 6,
           maxBarThickness: 46
@@ -5606,10 +5774,10 @@ function renderBarChartJS(elId, items, valueLabel, colorHex) {
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        animation: { duration: 450 },
+        animation: { duration: 550, easing: 'easeOutQuart' },
         plugins: {
           legend: { display: false },
-          tooltip: { callbacks: { label: ctx => valueLabel(ctx.parsed.y) } }
+          tooltip: tooltipStyle
         },
         scales: {
           y: { beginAtZero: true, ticks: { color: tc.muted, callback: v => valueLabel(v) }, grid: { color: tc.border } },
@@ -5636,8 +5804,10 @@ function renderDonutApex(elId, items) {
   const labels = items.map(i => i.label);
   const series = items.map(i => i.value);
   const colors = items.map(i => i.color || '#2563eb');
+  const dark = isDarkChartTheme();
   __ovApex[elId] = new ApexCharts(el, {
-    chart: { type: 'donut', height: 230, fontFamily: 'inherit', foreColor: tc.muted, animations: { speed: 400 } },
+    chart: { type: 'donut', height: 230, fontFamily: 'inherit', foreColor: tc.muted, animations: { speed: 400, easing: 'easeinout' }, dropShadow: { enabled: true, top: 2, left: 0, blur: 6, opacity: dark ? .35 : .12 } },
+    theme: { mode: dark ? 'dark' : 'light' },
     series, labels, colors,
     legend: { position: 'bottom', fontSize: '12px', labels: { colors: tc.text }, markers: { radius: 4 } },
     // Slices under 6% get their on-slice % label hidden — with several
@@ -5658,7 +5828,7 @@ function renderDonutApex(elId, items) {
       }
     } } } },
     stroke: { width: 2, colors: [tc.surface] },
-    tooltip: { y: { formatter: v => fmt(v) } }
+    tooltip: { theme: dark ? 'dark' : 'light', y: { formatter: v => fmt(v) } }
   });
   __ovApex[elId].render();
 }
@@ -5676,18 +5846,20 @@ function renderAreaApex(elId, items, valueLabel) {
   }
   el.innerHTML = '';
   const tc = chartTextColors();
+  const dark = isDarkChartTheme();
   __ovApex[elId] = new ApexCharts(el, {
-    chart: { type: 'area', height: 230, toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'inherit', foreColor: tc.muted, animations: { speed: 350 } },
+    chart: { type: 'area', height: 230, toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'inherit', foreColor: tc.muted, animations: { speed: 350, easing: 'easeinout' } },
+    theme: { mode: dark ? 'dark' : 'light' },
     series: [{ name: 'Total Sales', data: items.map(i => i.value) }],
     xaxis: { categories: items.map(i => i.label), labels: { style: { fontSize: '10px', colors: tc.muted }, rotate: -45 } },
     yaxis: { labels: { style: { colors: tc.muted }, formatter: v => valueLabel(v) } },
-    colors: ['#0e7490'],
-    stroke: { curve: 'smooth', width: 2.5 },
-    fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: .35, opacityTo: 0, stops: [0, 90, 100] } },
+    colors: [tc.accent],
+    stroke: { curve: 'smooth', width: 2.75 },
+    fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: .4, opacityTo: 0, stops: [0, 55, 100] } },
     dataLabels: { enabled: false },
     grid: { borderColor: tc.border, strokeDashArray: 3 },
-    tooltip: { y: { formatter: v => valueLabel(v) } },
-    markers: { size: 3, strokeColors: tc.surface, strokeWidth: 1.5, hover: { size: 5 } }
+    tooltip: { theme: dark ? 'dark' : 'light', y: { formatter: v => valueLabel(v) } },
+    markers: { size: 3, strokeColors: tc.surface, strokeWidth: 1.5, hover: { size: 6, sizeOffset: 2 } }
   });
   __ovApex[elId].render();
 }
@@ -5705,8 +5877,10 @@ function renderMultiLineApex(elId, series, categories, valueLabel) {
   }
   el.innerHTML = '';
   const tc = chartTextColors();
+  const dark = isDarkChartTheme();
   __ovApex[elId] = new ApexCharts(el, {
-    chart: { type: 'line', height: 260, toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'inherit', foreColor: tc.muted, animations: { speed: 350 } },
+    chart: { type: 'line', height: 260, toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'inherit', foreColor: tc.muted, animations: { speed: 350, easing: 'easeinout' } },
+    theme: { mode: dark ? 'dark' : 'light' },
     series: series.map(s => ({ name: s.name, data: s.data })),
     xaxis: { categories, labels: { style: { fontSize: '10px', colors: tc.muted } }, title: { text: 'Day of Month', style: { fontSize: '10px', color: tc.muted } } },
     yaxis: { labels: { style: { colors: tc.muted }, formatter: v => valueLabel(v) } },
@@ -5715,8 +5889,8 @@ function renderMultiLineApex(elId, series, categories, valueLabel) {
     dataLabels: { enabled: false },
     grid: { borderColor: tc.border, strokeDashArray: 3 },
     legend: { position: 'bottom', fontSize: '12px', labels: { colors: tc.text }, markers: { radius: 4 } },
-    tooltip: { shared: true, y: { formatter: v => (v === null || v === undefined) ? '—' : valueLabel(v) } },
-    markers: { size: 0, strokeColors: tc.surface, strokeWidth: 1.5, hover: { size: 5 } }
+    tooltip: { shared: true, theme: dark ? 'dark' : 'light', y: { formatter: v => (v === null || v === undefined) ? '—' : valueLabel(v) } },
+    markers: { size: 0, strokeColors: tc.surface, strokeWidth: 1.5, hover: { size: 6, sizeOffset: 2 } }
   });
   __ovApex[elId].render();
 }
@@ -5735,17 +5909,20 @@ function renderMultiBarApex(elId, series, categories, valueLabel) {
   }
   el.innerHTML = '';
   const tc = chartTextColors();
+  const dark = isDarkChartTheme();
   __ovApex[elId] = new ApexCharts(el, {
-    chart: { type: 'bar', height: 260, toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'inherit', foreColor: tc.muted, animations: { speed: 350 } },
+    chart: { type: 'bar', height: 260, toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'inherit', foreColor: tc.muted, animations: { speed: 350, easing: 'easeinout' } },
+    theme: { mode: dark ? 'dark' : 'light' },
     series: series.map(s => ({ name: s.name, data: s.data })),
     xaxis: { categories, labels: { style: { fontSize: '10px', colors: tc.muted } }, title: { text: 'Day of Month', style: { fontSize: '10px', color: tc.muted } } },
     yaxis: { labels: { style: { colors: tc.muted }, formatter: v => valueLabel(v) } },
     colors: series.map(s => s.color),
-    plotOptions: { bar: { borderRadius: 2, columnWidth: '75%', dataLabels: { position: 'top' } } },
+    fill: { type: 'gradient', gradient: { shade: dark ? 'dark' : 'light', shadeIntensity: .25, opacityFrom: .95, opacityTo: .65, stops: [0, 100] } },
+    plotOptions: { bar: { borderRadius: 3, columnWidth: '75%', dataLabels: { position: 'top' } } },
     dataLabels: { enabled: false },
     grid: { borderColor: tc.border, strokeDashArray: 3 },
     legend: { position: 'bottom', fontSize: '12px', labels: { colors: tc.text }, markers: { radius: 4 } },
-    tooltip: { shared: true, intersect: false, y: { formatter: v => (v === null || v === undefined) ? '—' : valueLabel(v) } }
+    tooltip: { shared: true, intersect: false, theme: dark ? 'dark' : 'light', y: { formatter: v => (v === null || v === undefined) ? '—' : valueLabel(v) } }
   });
   __ovApex[elId].render();
 }
@@ -6194,6 +6371,311 @@ function lastNMonthKeys(n) {
   return out;
 }
 
+// ===== CHEQUE DUE CALENDAR (dashboard mini-chart) =====
+// Month-grid heatmap of PENDING cheques grouped by due date — color
+// intensity (None/Low/Medium/High) reflects that day's total due amount
+// relative to the busiest day shown in the same month. Clicking any day
+// that has cheques due jumps straight to Cheques (Active tab), filtered to
+// that exact due date, the same way the "This Week" quick-filter chips do.
+let cdcViewMonth = null; // 'YYYY-MM' of the month currently shown; set lazily to the current month
+
+function cdcShiftMonth(delta) {
+  if (!cdcViewMonth) cdcViewMonth = today().slice(0, 7);
+  const [y, m] = cdcViewMonth.split('-').map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  cdcViewMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  renderChequeDueCalendar();
+}
+
+// Compact "85K" / "1.2M" style amount label so a cheque total still fits
+// inside a small calendar cell. Falls back to the plain number under 1,000.
+function cdcCompactAmt(n) {
+  n = Number(n) || 0;
+  if (n >= 1000000) return (n % 1000000 === 0 ? (n / 1000000) : (n / 1000000).toFixed(1)) + 'M';
+  if (n >= 1000) return (n % 1000 === 0 ? (n / 1000) : (n / 1000).toFixed(1)) + 'K';
+  return String(Math.round(n));
+}
+
+// Jumps to Cheques > Active, filtered to pending cheques due on exactly
+// `dateStr` — mirrors applyChequeQuickFilter()'s pattern of clearing the
+// other filters first so the result set is exactly that one day's cheques.
+function cdcGoToDate(dateStr) {
+  if ($('ch-search')) $('ch-search').value = '';
+  if ($('ch-filter-sup')) $('ch-filter-sup').value = '';
+  if ($('ch-filter-bank')) $('ch-filter-bank').value = '';
+  if ($('ch-filter-user')) $('ch-filter-user').value = '';
+  if ($('ch-filter-date-from')) $('ch-filter-date-from').value = '';
+  if ($('ch-filter-date-to')) $('ch-filter-date-to').value = '';
+  if ($('ch-filter-status')) $('ch-filter-status').value = 'pending';
+  if ($('ch-filter-due-from')) $('ch-filter-due-from').value = dateStr;
+  if ($('ch-filter-due-to')) $('ch-filter-due-to').value = dateStr;
+  DB.chequeTab = 'active';
+  showSection('cheques'); // populates filters + calls renderCheques() using the values set above
+  syncChequeTabUI();
+}
+
+// Jumps to Cheques > Active, filtered to pending cheques overdue from BEFORE
+// `weekStartStr` (unbounded start, same as applyChequeQuickFilter(1)'s "This
+// Week (incl. Overdue)" filter) — used by the weekly calendar's "⚠ OVERDUE"
+// cell. Excludes the week itself since those days are already one click away
+// via their own cells.
+function cdcwGoToOverdue(weekStartStr) {
+  const dayBefore = new Date(weekStartStr + 'T00:00:00Z');
+  dayBefore.setUTCDate(dayBefore.getUTCDate() - 1);
+  const toStr = dayBefore.toISOString().slice(0, 10);
+  if ($('ch-search')) $('ch-search').value = '';
+  if ($('ch-filter-sup')) $('ch-filter-sup').value = '';
+  if ($('ch-filter-bank')) $('ch-filter-bank').value = '';
+  if ($('ch-filter-user')) $('ch-filter-user').value = '';
+  if ($('ch-filter-date-from')) $('ch-filter-date-from').value = '';
+  if ($('ch-filter-date-to')) $('ch-filter-date-to').value = '';
+  if ($('ch-filter-status')) $('ch-filter-status').value = 'pending';
+  if ($('ch-filter-due-from')) $('ch-filter-due-from').value = '';
+  if ($('ch-filter-due-to')) $('ch-filter-due-to').value = toStr;
+  DB.chequeTab = 'active';
+  showSection('cheques');
+  syncChequeTabUI();
+}
+
+function renderChequeDueCalendar() {
+  const wrap = $('ov-cheque-due-calendar');
+  if (!wrap) return;
+  if (!cdcViewMonth) cdcViewMonth = today().slice(0, 7);
+  const [yr, mo] = cdcViewMonth.split('-').map(Number);
+  if ($('cdc-month-label')) {
+    $('cdc-month-label').textContent = new Date(yr, mo - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  }
+
+  // Same scope as getChequesNeedingAttention()/the "Cheques Due This Week"
+  // tile: pending (not yet cleared/bounced) cheques, grouped by due date.
+  const totals = new Map(); // 'YYYY-MM-DD' -> { amt, count }
+  getDataRows('cheques').forEach(c => {
+    if (!c.dueDate || isChequeSettled(c) || c.dueDate.slice(0, 7) !== cdcViewMonth) return;
+    const cur = totals.get(c.dueDate) || { amt: 0, count: 0 };
+    cur.amt += Number(c.amount) || 0;
+    cur.count += 1;
+    totals.set(c.dueDate, cur);
+  });
+  const maxAmt = Math.max(0, ...[...totals.values()].map(v => v.amt));
+  const t1 = maxAmt / 3, t2 = (maxAmt * 2) / 3;
+  const tierOf = amt => {
+    if (!amt) return 'none';
+    if (amt <= t1) return 'low';
+    if (amt <= t2) return 'medium';
+    return 'high';
+  };
+
+  const firstOfMonth = new Date(yr, mo - 1, 1);
+  const startOffset = firstOfMonth.getDay(); // 0=Sun … 6=Sat
+  const daysInMonth = new Date(yr, mo, 0).getDate();
+  const totalCells = Math.ceil((startOffset + daysInMonth) / 7) * 7;
+  const gridStart = new Date(yr, mo - 1, 1 - startOffset);
+
+  const dow = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+  let html = `<div class="cdc-grid">` + dow.map(d => `<div class="cdc-dow">${d}</div>`).join('');
+  for (let i = 0; i < totalCells; i++) {
+    const d = new Date(gridStart); d.setDate(gridStart.getDate() + i);
+    const inMonth = d.getMonth() === mo - 1;
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const info = inMonth ? totals.get(dateStr) : null;
+    const tier = info ? tierOf(info.amt) : 'none';
+    const clickable = !!(info && info.amt > 0);
+    html += `<div class="cdc-cell cdc-${tier}${inMonth ? '' : ' cdc-out'}${clickable ? ' cdc-clickable' : ''}"` +
+      (clickable ? ` onclick="cdcGoToDate('${dateStr}')" title="${info.count} cheque${info.count === 1 ? '' : 's'} due — ${fmt(info.amt)}"` : '') +
+      `><span class="cdc-daynum">${d.getDate()}</span>` +
+      (clickable ? `<span class="cdc-amt">LKR ${cdcCompactAmt(info.amt)}</span>` : '') +
+      `</div>`;
+  }
+  html += `</div>
+    <div class="cdc-legend">
+      <span class="cdc-legend-item"><span class="cdc-swatch cdc-none"></span>None</span>
+      <span class="cdc-legend-item"><span class="cdc-swatch cdc-low"></span>Low</span>
+      <span class="cdc-legend-item"><span class="cdc-swatch cdc-medium"></span>Medium</span>
+      <span class="cdc-legend-item"><span class="cdc-swatch cdc-high"></span>High</span>
+    </div>`;
+  wrap.innerHTML = html;
+}
+
+// ===== CHEQUE DUE CALENDAR — WEEKLY (dashboard mini-chart) =====
+// Row of week-cards (not a single week's days) — each card is one Sat–Fri
+// "cheque cycle" week (same boundaries as chequeCycleBounds()/the Cheques
+// tab's This Week / Next Week quick filters) showing that WHOLE week's
+// pending-cheque total. Card 1 = the week containing today, card 2 = the
+// following week, card 3 = the week after that, and so on — labelled by the
+// calendar year's ISO week number (e.g. "Week 33"), same as how weeks are
+// commonly referred to locally. Navigation is forward-only: offset 0 = the
+// week containing today, and it caps out once the leftmost card reaches the
+// last upcoming week that actually has a pending cheque due in it (no point
+// paging through empty future weeks). Moves one week at a time via the ‹ ›
+// buttons OR the ← → keyboard arrow keys while this slide is the one showing
+// (see the keydown listener below).
+let cdcwWeekOffset = 0; // weeks forward from the current Sat–Fri cycle; 0 = this week is the leftmost card
+const CDCW_CARDS = 4; // how many week-cards are shown side by side at once
+
+// ISO-8601 week number (1–53) for a 'YYYY-MM-DD' date string — used to label
+// each card by the calendar year's week number (e.g. "Week 33").
+function isoWeekNumber(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00Z');
+  const dayNum = (d.getUTCDay() + 6) % 7; // Mon=0 … Sun=6
+  d.setUTCDate(d.getUTCDate() - dayNum + 3); // shift to this ISO week's Thursday
+  const firstThursday = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
+  const firstDayNum = (firstThursday.getUTCDay() + 6) % 7;
+  firstThursday.setUTCDate(firstThursday.getUTCDate() - firstDayNum + 3);
+  return 1 + Math.round((d - firstThursday) / 604800000);
+}
+
+// Furthest week offset (>=0) that still has at least one pending cheque due,
+// relative to the week containing today. Weeks before today's week are not
+// counted — navigation never needs to go backward past "this week".
+function cdcwMaxOffset() {
+  const curStart = chequeCycleBounds(0).start;
+  const curStartMs = new Date(curStart + 'T00:00:00Z').getTime();
+  let maxOffset = 0;
+  getDataRows('cheques').forEach(c => {
+    if (!c.dueDate || isChequeSettled(c) || c.dueDate < curStart) return;
+    const days = Math.round((new Date(c.dueDate + 'T00:00:00Z').getTime() - curStartMs) / 86400000);
+    const wk = Math.floor(days / 7);
+    if (wk > maxOffset) maxOffset = wk;
+  });
+  return maxOffset;
+}
+
+// Step the weekly calendar's card window forward/backward by `delta` weeks,
+// clamped to [0, cdcwMaxOffset()] — can't go before this week, can't push
+// the leftmost card past the last week with cheque data.
+function cdcwShiftWeek(delta) {
+  const maxOffset = cdcwMaxOffset();
+  cdcwWeekOffset = Math.min(maxOffset, Math.max(0, cdcwWeekOffset + delta));
+  renderChequeDueCalendarWeekly();
+}
+
+// Jumps to Cheques > Active, filtered to pending cheques due within
+// [startStr, endStr] — used when a week-card is clicked. Mirrors
+// cdcGoToDate()/cdcwGoToOverdue()'s pattern of clearing the other filters
+// first so the result set is exactly that week's cheques.
+function cdcwGoToWeek(startStr, endStr) {
+  if ($('ch-search')) $('ch-search').value = '';
+  if ($('ch-filter-sup')) $('ch-filter-sup').value = '';
+  if ($('ch-filter-bank')) $('ch-filter-bank').value = '';
+  if ($('ch-filter-user')) $('ch-filter-user').value = '';
+  if ($('ch-filter-date-from')) $('ch-filter-date-from').value = '';
+  if ($('ch-filter-date-to')) $('ch-filter-date-to').value = '';
+  if ($('ch-filter-status')) $('ch-filter-status').value = 'pending';
+  if ($('ch-filter-due-from')) $('ch-filter-due-from').value = startStr;
+  if ($('ch-filter-due-to')) $('ch-filter-due-to').value = endStr;
+  DB.chequeTab = 'active';
+  showSection('cheques'); // populates filters + calls renderCheques() using the values set above
+  syncChequeTabUI();
+}
+
+function renderChequeDueCalendarWeekly() {
+  const wrap = $('ov-cheque-due-calendar-weekly');
+  if (!wrap) return;
+  const maxOffset = cdcwMaxOffset();
+  cdcwWeekOffset = Math.min(maxOffset, Math.max(0, cdcwWeekOffset));
+
+  // One card per week: CDCW_CARDS consecutive Sat–Fri cheque-cycle weeks,
+  // starting at cdcwWeekOffset — card 1 = the week currently in focus
+  // (today's week when offset is 0), card 2 = the next week, etc. Each
+  // card's number is that WHOLE week's pending-cheque total (not broken
+  // down by day).
+  const cheques = getDataRows('cheques');
+  const weeks = [];
+  for (let i = 0; i < CDCW_CARDS; i++) {
+    const off = cdcwWeekOffset + i;
+    const { start, end } = chequeCycleBounds(off);
+    let amt = 0, count = 0;
+    cheques.forEach(c => {
+      if (!c.dueDate || isChequeSettled(c)) return;
+      if (c.dueDate >= start && c.dueDate <= end) { amt += Number(c.amount) || 0; count++; }
+    });
+    weeks.push({ off, start, end, amt, count });
+  }
+
+  // Same "Overdue" concept as before: pending cheques due BEFORE the
+  // leftmost card's week, surfaced only when that leftmost card is the
+  // current week (offset 0) — mirrors the Cheques tab's "🔴 This Week (incl.
+  // Overdue)" quick filter. Cheques overdue but still dated within one of
+  // the weeks shown below are NOT double-counted here — they already show
+  // correctly inside their own week's card.
+  let overdueAmt = 0, overdueCount = 0;
+  const leftmostStart = weeks[0].start;
+  if (cdcwWeekOffset === 0) {
+    cheques.forEach(c => {
+      if (!c.dueDate || isChequeSettled(c) || c.dueDate >= leftmostStart) return;
+      overdueAmt += Number(c.amount) || 0; overdueCount++;
+    });
+  }
+  const hasOverdue = cdcwWeekOffset === 0 && overdueCount > 0;
+
+  if ($('cdcw-week-label')) {
+    const firstLabel = cdcwWeekOffset === 0 ? 'This Week' : `Week ${isoWeekNumber(weeks[0].start)}`;
+    const lastLabel = `Week ${isoWeekNumber(weeks[weeks.length - 1].start)}`;
+    $('cdcw-week-label').textContent = `${firstLabel} – ${lastLabel}`;
+  }
+  if ($('cdcw-prev-btn')) $('cdcw-prev-btn').disabled = cdcwWeekOffset <= 0;
+  if ($('cdcw-next-btn')) $('cdcw-next-btn').disabled = cdcwWeekOffset >= maxOffset;
+
+  // Heatmap tiers are relative to the busiest week CURRENTLY shown, same
+  // approach as the day-grid/month-grid versions of this chart.
+  const maxAmt = Math.max(0, ...weeks.map(w => w.amt));
+  const t1 = maxAmt / 3, t2 = (maxAmt * 2) / 3;
+  const tierOf = amt => {
+    if (!amt) return 'none';
+    if (amt <= t1) return 'low';
+    if (amt <= t2) return 'medium';
+    return 'high';
+  };
+
+  const opt = { month: 'short', day: 'numeric', timeZone: 'UTC' };
+  const cols = weeks.length + (hasOverdue ? 1 : 0);
+  let html = `<div class="cdcw-grid" style="grid-template-columns:repeat(${cols},1fr);">`;
+  if (hasOverdue) {
+    html += `<div class="cdcw-cell cdcw-overdue cdcw-clickable" onclick="cdcwGoToOverdue('${leftmostStart}')" title="${overdueCount} cheque${overdueCount === 1 ? '' : 's'} overdue (before this week) — ${fmt(overdueAmt)}">` +
+      `<span class="cdcw-dow">⚠ OVERDUE</span>` +
+      `<span class="cdcw-amt">LKR ${cdcCompactAmt(overdueAmt)}</span><span class="cdcw-count">${overdueCount} chq${overdueCount === 1 ? '' : 's'}</span>` +
+      `</div>`;
+  }
+  weeks.forEach(w => {
+    const tier = tierOf(w.amt);
+    const clickable = w.amt > 0;
+    const isCurrent = w.off === 0;
+    const s = new Date(w.start + 'T00:00:00Z'), e = new Date(w.end + 'T00:00:00Z');
+    const dateRange = `${s.toLocaleDateString('en-US', opt)} – ${e.toLocaleDateString('en-US', opt)}`;
+    const wkLabel = `WEEK ${isoWeekNumber(w.start)}`;
+    html += `<div class="cdcw-cell cdcw-${tier}${clickable ? ' cdcw-clickable' : ''}${isCurrent ? ' cdcw-today' : ''}"` +
+      (clickable ? ` onclick="cdcwGoToWeek('${w.start}','${w.end}')" title="${w.count} cheque${w.count === 1 ? '' : 's'} due ${dateRange} — ${fmt(w.amt)}"` : '') +
+      `><span class="cdcw-dow">${isCurrent ? 'THIS WEEK' : wkLabel}</span><span class="cdcw-daterange">${dateRange}</span>` +
+      (clickable
+        ? `<span class="cdcw-amt">LKR ${cdcCompactAmt(w.amt)}</span><span class="cdcw-count">${w.count} chq${w.count === 1 ? '' : 's'}</span>`
+        : `<span class="cdcw-empty">—</span>`) +
+      `</div>`;
+  });
+  html += `</div>
+    <div class="cdc-legend">
+      <span class="cdc-legend-item"><span class="cdc-swatch cdc-none"></span>None</span>
+      <span class="cdc-legend-item"><span class="cdc-swatch cdc-low"></span>Low</span>
+      <span class="cdc-legend-item"><span class="cdc-swatch cdc-medium"></span>Medium</span>
+      <span class="cdc-legend-item"><span class="cdc-swatch cdc-high"></span>High</span>
+    </div>`;
+  wrap.innerHTML = html;
+}
+
+// ← / → keyboard support for the weekly calendar — only acts while its slide
+// is the one actually showing in the carousel (and Overview is the visible
+// section), and never hijacks arrow keys while the user is typing in a
+// field, so it can't interfere with normal keyboard use elsewhere in the app.
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  const activeTag = (document.activeElement && document.activeElement.tagName || '').toLowerCase();
+  if (activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select' || (document.activeElement && document.activeElement.isContentEditable)) return;
+  if (!$('overviewSection') || !$('overviewSection').classList.contains('show')) return;
+  const slide = $('ov-slide-chequeDueCalendarWeekly');
+  if (!slide || !slide.classList.contains('active')) return;
+  e.preventDefault();
+  cdcwShiftWeek(e.key === 'ArrowLeft' ? -1 : 1);
+});
+
 function renderOverview() {
   if (!DB.currentUser) return;
   const credits = getDataRows('credits');
@@ -6323,6 +6805,16 @@ function renderOverview() {
   }
   ovSetSlideAvailable('ov-slide-chequeStatus', chartAllowed('chart_chequeStatusOverview'), 'ov-carousel-dots');
 
+  // Chart: Cheque Due Calendar — plain HTML grid, no width-measurement
+  // dependency like ApexCharts/Chart.js have, so it's safe to render eagerly
+  // every time regardless of which carousel slide is currently active.
+  try { renderChequeDueCalendar(); } catch (e) { console.error('renderChequeDueCalendar failed:', e); }
+  ovSetSlideAvailable('ov-slide-chequeDueCalendar', chartAllowed('chart_chequeDueCalendar'), 'ov-carousel-dots');
+
+  // Chart: Cheque Due Calendar (Weekly) — same eager-render reasoning as above.
+  try { renderChequeDueCalendarWeekly(); } catch (e) { console.error('renderChequeDueCalendarWeekly failed:', e); }
+  ovSetSlideAvailable('ov-slide-chequeDueCalendarWeekly', chartAllowed('chart_chequeDueCalendarWeekly'), 'ov-carousel-dots');
+
   // Mini Sales Charts on Dashboard
   const allCash = getAllCashEntries ? getAllCashEntries() : [];
   ovSetSlideAvailable('ov-sales-row', !!allCash.length && chartAllowed('chart_monthlySalesTrend'), 'ov-carousel-dots');
@@ -6344,7 +6836,12 @@ function renderOverview() {
       'ov-slide-salesGrowth': renderMonthlySalesGrowthChart,
       'ov-slide-dailySales': renderDailySalesChart,
       'ov-slide-salesComparison': renderDailySalesComparisonChart,
-      'ov-slide-monthlyTrend': renderDailySalesMonthlyTrendChart
+      'ov-slide-monthlyTrend': renderDailySalesMonthlyTrendChart,
+      // Plain HTML grid, not ApexCharts — no 0-width-container issue, but it
+      // still needs an entry here so THIS fallback doesn't default to
+      // re-rendering Monthly Sales Growth's Apex chart into a hidden
+      // (0-width) container whenever the heatmap slide is the active one.
+      'ov-slide-dailySalesHeatmap': renderDailySalesHeatmap
     };
     const activeRenderer2 = renderers2[activeSlide2] || renderMonthlySalesGrowthChart;
     try { activeRenderer2(); } catch (e) { console.error('active carousel2 chart render failed:', e); }
@@ -6352,6 +6849,11 @@ function renderOverview() {
     ovSetSlideAvailable('ov-slide-dailySales', chartAllowed('chart_dailyTotalSales'), 'ov-carousel2-dots');
     ovSetSlideAvailable('ov-slide-salesComparison', chartAllowed('chart_dailySalesComparison'), 'ov-carousel2-dots');
     ovSetSlideAvailable('ov-slide-monthlyTrend', chartAllowed('chart_dailySalesMonthlyTrend'), 'ov-carousel2-dots');
+    // Plain HTML grid like the cheque calendars (not ApexCharts), so — unlike
+    // the 4 chart types above — it's safe to render eagerly every time
+    // regardless of which carousel-2 slide is currently active.
+    try { renderDailySalesHeatmap(); } catch (e) { console.error('renderDailySalesHeatmap failed:', e); }
+    ovSetSlideAvailable('ov-slide-dailySalesHeatmap', chartAllowed('chart_dailySalesHeatmap'), 'ov-carousel2-dots');
     const mSales = new Map();
     allCash.forEach(e => {
       if (!e.date) return;
@@ -6628,6 +7130,7 @@ function ovRefreshChartVisibility2(idx) {
     if (idx === 1) renderDailySalesChart();
     if (idx === 2) renderDailySalesComparisonChart();
     if (idx === 3) renderDailySalesMonthlyTrendChart();
+    if (idx === 4) renderDailySalesHeatmap();
   } catch (e) { console.error('ovRefreshChartVisibility2 failed:', e); }
 }
 
@@ -10402,6 +10905,7 @@ function renderLineChart(containerId, items, fmtFn) {
   const el=$(containerId);
   if(!el||!items.length){if(el)el.innerHTML=`<div class="sa-no-data"><span class="ico">📭</span>No data</div>`;return;}
   const fmtV=typeof fmtFn==='function'?fmtFn:(v=>String(v));
+  const tc=chartTextColors();
   const max=Math.max(...items.map(i=>i.value),1);
   const h=120, padT=8, padB=8, padL=44, padR=10;
   const w=el.offsetWidth||400;
@@ -10427,30 +10931,37 @@ function renderLineChart(containerId, items, fmtFn) {
 
   // Grid: horizontal lines + y-axis value labels, plus vertical guides per point — gives a
   // graph-paper look so it's easy to gauge values at a glance without hovering.
+  // Colors are pulled from the live theme (chartTextColors) rather than fixed
+  // hex, so the grid/labels/line stay legible and on-brand across all themes.
   const gridRows=4;
   let gridSVG='';
   for(let g=0; g<=gridRows; g++){
     const gy=padT+g*((h-padT-padB)/gridRows);
     const gv=max-(max*g/gridRows);
-    gridSVG+=`<line x1="${padL}" y1="${gy.toFixed(1)}" x2="${w-padR}" y2="${gy.toFixed(1)}" stroke="#e7edf3" stroke-width="1"${g===gridRows?'':' stroke-dasharray="3,3"'}/>`;
-    gridSVG+=`<text x="${(padL-6).toFixed(1)}" y="${(gy+3).toFixed(1)}" text-anchor="end" font-size="8.5" fill="#9aa5b1">${fmtV(gv)}</text>`;
+    gridSVG+=`<line x1="${padL}" y1="${gy.toFixed(1)}" x2="${w-padR}" y2="${gy.toFixed(1)}" stroke="${tc.border}" stroke-width="1"${g===gridRows?'':' stroke-dasharray="3,3"'}/>`;
+    gridSVG+=`<text x="${(padL-6).toFixed(1)}" y="${(gy+3).toFixed(1)}" text-anchor="end" font-size="8.5" fill="${tc.muted}">${fmtV(gv)}</text>`;
   }
-  const vgridSVG=pts.map(p=>`<line x1="${p.x.toFixed(1)}" y1="${padT}" x2="${p.x.toFixed(1)}" y2="${h-padB}" stroke="#eef2f6" stroke-width="1"/>`).join('');
+  const vgridSVG=pts.map(p=>`<line x1="${p.x.toFixed(1)}" y1="${padT}" x2="${p.x.toFixed(1)}" y2="${h-padB}" stroke="${tc.border}" stroke-width="1" opacity=".55"/>`).join('');
 
   const uid='lc_'+containerId.replace(/[^a-zA-Z0-9]/g,'')+'_tip';
+  const gid='lg_'+containerId.replace(/[^a-zA-Z0-9]/g,'');
   const escAttr=s=>String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   el.innerHTML=`<div style="position:relative;">
-  <div style="overflow-x:auto;"><svg width="100%" viewBox="0 0 ${w} ${h+28}" style="display:block;min-width:${Math.max(280,items.length*30)}px;">
-    <defs><linearGradient id="lg_${containerId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0e7490" stop-opacity=".25"/><stop offset="100%" stop-color="#0e7490" stop-opacity="0"/></linearGradient></defs>
+  <div style="overflow-x:auto;"><svg class="ov-fade-in" width="100%" viewBox="0 0 ${w} ${h+28}" style="display:block;min-width:${Math.max(280,items.length*30)}px;">
+    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${tc.accent}" stop-opacity=".38"/>
+      <stop offset="55%" stop-color="${tc.accent}" stop-opacity=".12"/>
+      <stop offset="100%" stop-color="${tc.accent}" stop-opacity="0"/>
+    </linearGradient></defs>
     ${vgridSVG}
     ${gridSVG}
-    <path d="${areaD}" fill="url(#lg_${containerId})"/>
-    <path d="${pathD}" fill="none" stroke="#0e7490" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="${areaD}" fill="url(#${gid})"/>
+    <path d="${pathD}" fill="none" stroke="${tc.accent}" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"/>
     ${pts.map((p,i)=>`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="9" fill="transparent" style="cursor:pointer;" data-tip-uid="${uid}" data-label="${escAttr(p.it.label)}" data-value="${escAttr(fmtV(p.it.value))}" onmousemove="lcShowTip(event,this)" onmouseleave="lcHideTip('${uid}')"/>
-      <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.5" fill="#0e7490" stroke="#fff" stroke-width="1.5" style="pointer-events:none;"/>
-      <text x="${p.x.toFixed(1)}" y="${h+18}" text-anchor="middle" font-size="9" fill="#888">${items.length<=12?p.it.label:i%Math.ceil(items.length/10)===0?p.it.label:''}</text>`).join('')}
+      <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.5" fill="${tc.accent}" stroke="${tc.surface}" stroke-width="1.5" style="pointer-events:none;"/>
+      <text x="${p.x.toFixed(1)}" y="${h+18}" text-anchor="middle" font-size="9" fill="${tc.muted}">${items.length<=12?p.it.label:i%Math.ceil(items.length/10)===0?p.it.label:''}</text>`).join('')}
   </svg></div>
-  <div id="${uid}" class="lc-tooltip" style="display:none;position:absolute;pointer-events:none;background:#0f1f2e;color:#fff;padding:.35rem .65rem;border-radius:8px;font-size:.74rem;font-weight:600;white-space:nowrap;transform:translate(-50%,-115%);box-shadow:0 4px 14px rgba(0,0,0,.28);z-index:20;left:0;top:0;"></div>
+  <div id="${uid}" class="lc-tooltip" style="display:none;position:absolute;pointer-events:none;background:var(--navy-bg);color:#fff;padding:.4rem .7rem;border-radius:8px;font-size:.74rem;font-weight:600;white-space:nowrap;transform:translate(-50%,-115%);box-shadow:var(--shadow2);z-index:20;left:0;top:0;opacity:0;transition:opacity .12s ease;"></div>
   </div>`;
 }
 function lcShowTip(evt, node){
@@ -10459,14 +10970,15 @@ function lcShowTip(evt, node){
   if(!tip) return;
   const wrap=tip.parentElement;
   const rect=wrap.getBoundingClientRect();
-  tip.innerHTML=`<div style="opacity:.7;font-weight:500;font-size:.68rem;margin-bottom:1px;">${node.dataset.label}</div>${node.dataset.value}`;
+  tip.innerHTML=`<div style="opacity:.72;font-weight:500;font-size:.68rem;margin-bottom:2px;color:#a8e6d9;">${node.dataset.label}</div>${node.dataset.value}`;
   tip.style.left=(evt.clientX-rect.left)+'px';
   tip.style.top=(evt.clientY-rect.top)+'px';
   tip.style.display='block';
+  requestAnimationFrame(()=>{ tip.style.opacity='1'; });
 }
 function lcHideTip(uid){
   const tip=document.getElementById(uid);
-  if(tip) tip.style.display='none';
+  if(tip) { tip.style.opacity='0'; tip.style.display='none'; }
 }
 
 function renderDailySalesChart() {
@@ -10490,6 +11002,91 @@ function renderDailySalesChart() {
   }
   renderAreaApex('ov-daily-sales-chart', items, v => fmt(v));
   ovPlayFadeIn(el);
+}
+
+// ===== DAILY SALES HEATMAP (dashboard mini-chart) =====
+// Month-grid heatmap of Total Sales by day — same visual language (color
+// tiers None/Low/Medium/High, via the cdc-* classes) as the 📅 Cheque Due
+// Calendar above, just sourced from daily cash entries (getAllCashEntries())
+// instead of cheques, so slow vs. busy sales days jump out at a glance.
+// Plain HTML grid like the cheque calendars, so — like those — it's safe to
+// render eagerly regardless of which carousel-2 slide is currently active
+// (no ApexCharts 0-width-container issue to work around).
+let dshViewMonth = null; // 'YYYY-MM' of the month currently shown; set lazily to the current month
+
+function dshShiftMonth(delta) {
+  if (!dshViewMonth) dshViewMonth = today().slice(0, 7);
+  const [y, m] = dshViewMonth.split('-').map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  dshViewMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  renderDailySalesHeatmap();
+}
+
+// Jumps to Daily Summary pre-set to `dateStr` — the date field is set BEFORE
+// calling showSection() so initDailySummarySection()'s "only default the
+// date when the field is empty" check leaves our value alone.
+function dshGoToDate(dateStr) {
+  if ($('ds-date')) $('ds-date').value = dateStr;
+  showSection('dailySummary');
+}
+
+function renderDailySalesHeatmap() {
+  const wrap = $('ov-daily-sales-heatmap');
+  if (!wrap) return;
+  if (!dshViewMonth) dshViewMonth = today().slice(0, 7);
+  const [yr, mo] = dshViewMonth.split('-').map(Number);
+  if ($('dsh-month-label')) {
+    $('dsh-month-label').textContent = new Date(yr, mo - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  }
+
+  // Total Sales per date within the shown month, summed across every user's
+  // cash entries for that date (same aggregation the Monthly Sales Trend /
+  // Growth charts use).
+  const totals = new Map(); // 'YYYY-MM-DD' -> amount
+  (getAllCashEntries ? getAllCashEntries() : []).forEach(e => {
+    if (!e.date || e.date.slice(0, 7) !== dshViewMonth) return;
+    totals.set(e.date, (totals.get(e.date) || 0) + (Number(e.totalSales) || 0));
+  });
+  const maxAmt = Math.max(0, ...[...totals.values()]);
+  const t1 = maxAmt / 3, t2 = (maxAmt * 2) / 3;
+  const tierOf = amt => {
+    if (!amt) return 'none';
+    if (amt <= t1) return 'low';
+    if (amt <= t2) return 'medium';
+    return 'high';
+  };
+
+  const firstOfMonth = new Date(yr, mo - 1, 1);
+  const startOffset = firstOfMonth.getDay(); // 0=Sun … 6=Sat
+  const daysInMonth = new Date(yr, mo, 0).getDate();
+  const totalCells = Math.ceil((startOffset + daysInMonth) / 7) * 7;
+  const gridStart = new Date(yr, mo - 1, 1 - startOffset);
+  const todayStr = today();
+
+  const dow = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+  let html = `<div class="cdc-grid">` + dow.map(d => `<div class="cdc-dow">${d}</div>`).join('');
+  for (let i = 0; i < totalCells; i++) {
+    const d = new Date(gridStart); d.setDate(gridStart.getDate() + i);
+    const inMonth = d.getMonth() === mo - 1;
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const amt = inMonth ? (totals.get(dateStr) || 0) : 0;
+    const tier = inMonth ? tierOf(amt) : 'none';
+    const clickable = inMonth && amt > 0;
+    const isToday = dateStr === todayStr;
+    html += `<div class="cdc-cell cdc-${tier}${inMonth ? '' : ' cdc-out'}${clickable ? ' cdc-clickable' : ''}${isToday ? ' cdc-today' : ''}"` +
+      (clickable ? ` onclick="dshGoToDate('${dateStr}')" title="Total Sales on ${dateStr} — ${fmt(amt)}"` : '') +
+      `><span class="cdc-daynum">${d.getDate()}</span>` +
+      (clickable ? `<span class="cdc-amt">LKR ${cdcCompactAmt(amt)}</span>` : '') +
+      `</div>`;
+  }
+  html += `</div>
+    <div class="cdc-legend">
+      <span class="cdc-legend-item"><span class="cdc-swatch cdc-none"></span>None</span>
+      <span class="cdc-legend-item"><span class="cdc-swatch cdc-low"></span>Low</span>
+      <span class="cdc-legend-item"><span class="cdc-swatch cdc-medium"></span>Medium</span>
+      <span class="cdc-legend-item"><span class="cdc-swatch cdc-high"></span>High</span>
+    </div>`;
+  wrap.innerHTML = html;
 }
 
 // Shared fill logic for the three "day-of-month, one series per month" charts
@@ -10713,15 +11310,15 @@ function renderDualBarChart(containerId, items) {
         <span style="font-size:.75rem;color:var(--muted);">Net: <b style="color:var(--green)">${fmt(it.value)}</b> · Exp: <b style="color:var(--red)">${fmt(it.value2||0)}</b></span>
       </div>
       <div style="height:10px;background:var(--track-bg);border-radius:999px;overflow:hidden;margin-bottom:3px;">
-        <div style="height:100%;width:${netPct}%;background:linear-gradient(90deg,#15803d,#0e7490);border-radius:999px;"></div>
+        <div style="height:100%;width:${netPct}%;background:linear-gradient(90deg,var(--green),var(--accent));border-radius:999px;transition:width .6s cubic-bezier(.34,1.2,.4,1);"></div>
       </div>
       <div style="height:6px;background:var(--track-bg);border-radius:999px;overflow:hidden;">
-        <div style="height:100%;width:${expPct}%;background:linear-gradient(90deg,#e63946,#f4a0a5);border-radius:999px;"></div>
+        <div style="height:100%;width:${expPct}%;background:linear-gradient(90deg,var(--red),var(--yellow));border-radius:999px;transition:width .6s cubic-bezier(.34,1.2,.4,1);"></div>
       </div>
     </div>`;
   }).join('')+`<div style="display:flex;gap:1rem;margin-top:.6rem;font-size:.75rem;color:var(--muted);">
-    <span style="display:flex;align-items:center;gap:.3rem;"><span style="display:inline-block;width:10px;height:4px;background:#15803d;border-radius:2px;"></span>Net Cash</span>
-    <span style="display:flex;align-items:center;gap:.3rem;"><span style="display:inline-block;width:10px;height:4px;background:#e63946;border-radius:2px;"></span>Expenses</span>
+    <span style="display:flex;align-items:center;gap:.3rem;"><span style="display:inline-block;width:10px;height:4px;background:linear-gradient(90deg,var(--green),var(--accent));border-radius:2px;"></span>Net Cash</span>
+    <span style="display:flex;align-items:center;gap:.3rem;"><span style="display:inline-block;width:10px;height:4px;background:linear-gradient(90deg,var(--red),var(--yellow));border-radius:2px;"></span>Expenses</span>
   </div>`;
 }
 
@@ -11009,15 +11606,15 @@ function renderPLTrendChart(containerId, items) {
         <span style="font-size:.75rem;">Profit: <b style="color:${profitColor}">${fmt(it.profit)}</b></span>
       </div>
       <div style="height:9px;background:var(--track-bg);border-radius:999px;overflow:hidden;margin-bottom:3px;">
-        <div style="height:100%;width:${incPct}%;background:linear-gradient(90deg,#15803d,#0e7490);border-radius:999px;"></div>
+        <div style="height:100%;width:${incPct}%;background:linear-gradient(90deg,var(--green),var(--accent));border-radius:999px;transition:width .6s cubic-bezier(.34,1.2,.4,1);"></div>
       </div>
       <div style="height:9px;background:var(--track-bg);border-radius:999px;overflow:hidden;">
-        <div style="height:100%;width:${expPct}%;background:linear-gradient(90deg,#e63946,#f4a0a5);border-radius:999px;"></div>
+        <div style="height:100%;width:${expPct}%;background:linear-gradient(90deg,var(--red),var(--yellow));border-radius:999px;transition:width .6s cubic-bezier(.34,1.2,.4,1);"></div>
       </div>
     </div>`;
   }).join('') + `<div style="display:flex;gap:1rem;margin-top:.6rem;font-size:.75rem;color:var(--muted);">
-    <span style="display:flex;align-items:center;gap:.3rem;"><span style="display:inline-block;width:10px;height:4px;background:#15803d;border-radius:2px;"></span>Income</span>
-    <span style="display:flex;align-items:center;gap:.3rem;"><span style="display:inline-block;width:10px;height:4px;background:#e63946;border-radius:2px;"></span>Expense (Purchases + Operating)</span>
+    <span style="display:flex;align-items:center;gap:.3rem;"><span style="display:inline-block;width:10px;height:4px;background:linear-gradient(90deg,var(--green),var(--accent));border-radius:2px;"></span>Income</span>
+    <span style="display:flex;align-items:center;gap:.3rem;"><span style="display:inline-block;width:10px;height:4px;background:linear-gradient(90deg,var(--red),var(--yellow));border-radius:2px;"></span>Expense (Purchases + Operating)</span>
   </div>`;
 }
 
@@ -12468,9 +13065,14 @@ function renderReloadChart() {
   const canvas = ensureReloadChartDOM();
   if (!canvas) return;
   const labels = last14.map(e => { const d = new Date(e.date); return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); });
+  // Per-network colors intentionally stay fixed (they mirror each network
+  // card's own brand accent stripe: dialog/mobitel/hutch/airtel/cash below),
+  // so a color always means the same network everywhere in the app. Only the
+  // "Total" / single-series fallback line follows the live theme's navy tone.
+  const navyTone = chartTextColors().navy;
   const datasets = [];
   if (filter === 'all') {
-    datasets.push({ key: 'total', label: 'Total', color: '#0f172a', data: last14.map(e => (Number(e.dialog)||0)+(Number(e.mobitel)||0)+(Number(e.hutch)||0)+(Number(e.airtel)||0)+(Number(e.cash)||0)) });
+    datasets.push({ key: 'total', label: 'Total', color: navyTone, data: last14.map(e => (Number(e.dialog)||0)+(Number(e.mobitel)||0)+(Number(e.hutch)||0)+(Number(e.airtel)||0)+(Number(e.cash)||0)) });
     datasets.push({ key: 'dialog', label: 'Dialog', color: '#e63946', data: last14.map(e => Number(e.dialog)||0) });
     datasets.push({ key: 'mobitel', label: 'Mobitel', color: '#2d6a4f', data: last14.map(e => Number(e.mobitel)||0) });
     datasets.push({ key: 'hutch', label: 'Hutch', color: '#e67e22', data: last14.map(e => Number(e.hutch)||0) });
@@ -12480,7 +13082,7 @@ function renderReloadChart() {
     datasets.push({ key: 'cash', label: 'Cash in Hand', color: '#2563eb', data: last14.map(e => Number(e.cash)||0) });
   } else {
     const colors = { dialog: '#e63946', mobitel: '#2d6a4f', hutch: '#e67e22', airtel: '#c0392b' };
-    datasets.push({ key: filter, label: NETWORK_LABELS[filter] || filter, color: colors[filter] || '#0f172a', data: last14.map(e => Number(e[filter])||0) });
+    datasets.push({ key: filter, label: NETWORK_LABELS[filter] || filter, color: colors[filter] || navyTone, data: last14.map(e => Number(e[filter])||0) });
   }
   drawLineChart(canvas, labels, datasets);
   renderReloadChartLegend(datasets);
@@ -12530,6 +13132,9 @@ function drawLineChart(canvas, labels, datasets) {
   const step = labels.length > 1 ? cW / (labels.length - 1) : cW;
   const xAt = i => pad.left + i * step;
   const yAt = v => pad.top + cH - (v / maxVal) * cH;
+  // Theme colors read once per draw so grid/axis/point chrome always matches
+  // whichever of the app's themes is currently active.
+  const tc = chartTextColors();
 
   function paint(hoverIdx) {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -12537,21 +13142,21 @@ function drawLineChart(canvas, labels, datasets) {
     ctx.clearRect(0, 0, W, H);
 
     // grid + y-axis labels
-    ctx.strokeStyle = '#eef2f7'; ctx.lineWidth = 1;
+    ctx.strokeStyle = tc.border; ctx.lineWidth = 1;
     for (let i = 0; i <= 4; i++) {
       const y = pad.top + (cH / 4) * i;
       ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + cW, y); ctx.stroke();
       const val = maxVal * (1 - i / 4);
-      ctx.fillStyle = '#94a3b8'; ctx.font = '10px -apple-system,sans-serif'; ctx.textAlign = 'right';
+      ctx.fillStyle = tc.muted; ctx.font = '10px -apple-system,sans-serif'; ctx.textAlign = 'right';
       ctx.fillText('LKR ' + (val >= 1000 ? (val / 1000).toFixed(0) + 'k' : val.toFixed(0)), pad.left - 8, y + 4);
     }
     // x-axis labels
-    ctx.fillStyle = '#94a3b8'; ctx.font = '10px -apple-system,sans-serif'; ctx.textAlign = 'center';
+    ctx.fillStyle = tc.muted; ctx.font = '10px -apple-system,sans-serif'; ctx.textAlign = 'center';
     labels.forEach((lbl, i) => ctx.fillText(lbl, xAt(i), H - pad.bottom + 18));
 
     // hover guide line
     if (hoverIdx != null) {
-      ctx.beginPath(); ctx.strokeStyle = '#cbd5e1'; ctx.setLineDash([3, 3]); ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.strokeStyle = tc.muted; ctx.setLineDash([3, 3]); ctx.lineWidth = 1;
       ctx.moveTo(xAt(hoverIdx), pad.top); ctx.lineTo(xAt(hoverIdx), pad.top + cH); ctx.stroke();
       ctx.setLineDash([]);
     }
@@ -12583,7 +13188,7 @@ function drawLineChart(canvas, labels, datasets) {
         const isHover = hoverIdx === i;
         const r = isHover ? (ds.key === 'total' ? 6 : 5) : (ds.key === 'total' ? 4 : 3);
         ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-        ctx.fillStyle = '#fff'; ctx.fill();
+        ctx.fillStyle = tc.surface; ctx.fill();
         ctx.lineWidth = isHover ? 2.5 : 1.8; ctx.strokeStyle = ds.color; ctx.stroke();
         ctx.beginPath(); ctx.arc(p.x, p.y, r - 1.8, 0, Math.PI * 2); ctx.fillStyle = ds.color; ctx.fill();
       });
