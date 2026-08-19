@@ -3996,6 +3996,13 @@ function syncUser(user) {
   saveUserDoc(user);
 }
 
+// Per-username cache of "the top-level field values we last successfully wrote
+// to Firestore for this user, from THIS browser tab" (JSON-stringified, one
+// entry per top-level field). Read by saveUserDoc() below — see the comment
+// there for why this exists (it's the fix for CR0091/CR0093-style bugs where
+// a routine save silently reverted an unrelated credit-bill payment).
+const _lastSyncSnapshot = {};
+
 async function saveUserDoc(user) {
   if (!user) return;
   // Always keep a local mirror in sync, cloud write or not — see the
@@ -4020,7 +4027,45 @@ async function saveUserDoc(user) {
     if (isManagerWritingAdmin) {
       await usersCol.doc('admin').set({ cashLog: clean(user).cashLog || [] }, { merge: true });
     } else {
-      await usersCol.doc(user.username).set(clean(user));
+      // CR0091 / CR0093 fix: this used to be a blind `set(clean(user))` — a
+      // full-document overwrite using whatever this tab's in-memory copy of
+      // `user` happens to hold. That copy is stale on `credits`/`suppliers`
+      // any time applyCreditPaymentsChange() has *just* committed a payment
+      // straight to the server via its own transaction (Cash Management /
+      // Cash Disposal Log / cheque auto-settle all do this). Firestore gives
+      // no ordering guarantee between this write and that one, so whichever
+      // one lands on the server LAST wins — and if it's this one, the just
+      // recorded payment gets silently wiped back out of `credits`, even
+      // though the cash was already deducted elsewhere and everything LOOKED
+      // saved. That's exactly how CR0091 and CR0093 ended up with cash
+      // already paid out but the bill still showing full balance.
+      //
+      // Fix: only send the top-level fields that actually changed in THIS
+      // tab since our last successful write, via a merge. A field this call
+      // never touched (like `credits`, when all we're doing here is saving a
+      // cash entry) is simply left out of the payload, so it's structurally
+      // impossible for this write to overwrite it — no matter what order the
+      // two writes land in. First sync of a session (no snapshot yet) falls
+      // back to a full write, same as before.
+      const payload = clean(user);
+      const prevSnap = _lastSyncSnapshot[user.username];
+      let toWrite = payload;
+      if (prevSnap) {
+        toWrite = {};
+        for (const key of Object.keys(payload)) {
+          if (JSON.stringify(payload[key]) !== prevSnap[key]) toWrite[key] = payload[key];
+        }
+      }
+      if (Object.keys(toWrite).length) {
+        await usersCol.doc(user.username).set(toWrite, { merge: true });
+      }
+      // Only advance the snapshot after a write we know succeeded — if the
+      // .set() above throws, we fall into the catch block below and must
+      // NOT update this, or a genuinely-changed-but-failed-to-save field
+      // would look "already synced" next time and get skipped for real.
+      const freshSnap = {};
+      for (const key of Object.keys(payload)) freshSnap[key] = JSON.stringify(payload[key]);
+      _lastSyncSnapshot[user.username] = freshSnap;
     }
     markSynced('cloud');
   } catch (e) {
