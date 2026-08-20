@@ -245,28 +245,77 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .err-msg{background:#fde8e8;color:var(--red);padding:.8rem 1rem;border-radius:8px;margin-bottom:1rem;border-left:4px solid var(--red);font-size:.88rem;}
 .suc-msg{background:#e8f8f0;color:var(--green);padding:.8rem 1rem;border-radius:8px;margin-bottom:1rem;border-left:4px solid var(--green);font-size:.88rem;}
 #dashboardPage{flex-direction:row;}
-.sidebar{width:240px;height:100vh;background:var(--navy-bg);display:flex;flex-direction:column;padding:1.2rem;position:fixed;top:0;left:0;z-index:100;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent;transition:width .22s ease,padding .22s ease;}
+/* ===== 3D GLASS SIDEBAR =====
+   Same structure/classes as before — only the visual treatment changed to a
+   frosted, layered "glass" look. Colors are still pulled from the active
+   theme's own variables (--navy-bg/--navy2-bg/--accent/--navy3) via
+   color-mix(), so every theme (dark / tie / gold / nature / sky) gets its
+   own correctly-tinted glass rather than one hardcoded palette. */
+.sidebar{
+  width:240px;height:100vh;padding:1.2rem;
+  display:flex;flex-direction:column;position:fixed;top:0;left:0;z-index:100;
+  overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent;
+  transition:width .22s ease,padding .22s ease,background .25s ease;
+  background:linear-gradient(
+    165deg,
+    color-mix(in srgb,var(--navy-bg) 96%,transparent) 0%,
+    color-mix(in srgb,var(--navy2-bg) 94%,transparent) 45%,
+    color-mix(in srgb,var(--accent) 80%,transparent) 100%
+  );
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-right:1px solid rgba(255,255,255,.10);
+  box-shadow:
+    14px 0 48px rgba(0,0,0,.38),
+    inset -1px 0 0 rgba(255,255,255,.07),
+    inset 0 1px 0 rgba(255,255,255,.06);
+}
 .sidebar::-webkit-scrollbar{width:4px;}
 .sidebar::-webkit-scrollbar-track{background:transparent;}
 .sidebar::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:4px;}
 .sidebar::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.4);}
-.sb-toggle-btn{display:flex;align-items:center;justify-content:center;width:100%;background:rgba(255,255,255,.08);border:none;color:var(--white);font-size:1.2rem;padding:.6rem 0;border-radius:8px;cursor:pointer;margin-bottom:.9rem;transition:background .2s;flex-shrink:0;}
+/* soft floating light orb behind the nav items (desktop only — see media query below) */
+.sidebar::before{
+  content:'';position:absolute;top:-35%;left:-40%;width:200%;height:65%;
+  background:radial-gradient(circle,color-mix(in srgb,var(--accent) 18%,transparent) 0%,transparent 68%);
+  pointer-events:none;z-index:0;
+}
+.sidebar > *{position:relative;z-index:1;}
+.sb-toggle-btn{display:flex;align-items:center;justify-content:center;width:100%;background:rgba(255,255,255,.08);border:none;color:var(--white);font-size:1.2rem;padding:.6rem 0;border-radius:10px;cursor:pointer;margin-bottom:.9rem;transition:background .2s;flex-shrink:0;}
 .sb-toggle-btn:hover{background:rgba(255,255,255,.18);}
-.sb-logo{display:flex;align-items:center;gap:.8rem;padding:.8rem;background:var(--navy2-bg);border-radius:10px;margin-bottom:1.5rem;}
-.sb-logo .ico{font-size:1.8rem;}
+.sb-logo{
+  display:flex;align-items:center;gap:.8rem;padding:.85rem 1rem;margin-bottom:1.5rem;
+  background:linear-gradient(145deg,rgba(255,255,255,.13),rgba(255,255,255,.04));
+  border-radius:14px;border:1px solid rgba(255,255,255,.14);
+  box-shadow:
+    0 10px 28px rgba(0,0,0,.32),
+    inset 0 1px 0 rgba(255,255,255,.22),
+    0 0 0 1px color-mix(in srgb,var(--accent) 15%,transparent);
+}
+.sb-logo .ico{font-size:1.8rem;filter:drop-shadow(0 2px 4px rgba(0,0,0,.3));}
 .sb-logo span{color:var(--white);font-weight:700;font-size:.9rem;letter-spacing:-.2px;}
 .sb-section{color:rgba(255,255,255,.4);font-size:.72rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;margin:1rem 0 .5rem;}
-.sb-link{display:flex;align-items:center;gap:.7rem;padding:.75rem 1rem;margin-bottom:.3rem;border-radius:8px;cursor:pointer;color:rgba(255,255,255,.7);transition:all .2s;font-size:.9rem;}
-.sb-link:hover{background:var(--navy2-bg);color:var(--white);padding-left:1.2rem;}
-.sb-link.active{background:var(--accent);color:var(--white);}
-.sb-link .ico{font-size:1.1rem;width:20px;text-align:center;}
-.sb-divider{height:1px;background:rgba(255,255,255,.1);margin:.8rem 0;}
-.sb-user{margin-top:auto;background:var(--navy2-bg);border-radius:10px;padding:1rem;color:var(--white);}
+.sb-link{display:flex;align-items:center;gap:.7rem;padding:.75rem 1rem;margin-bottom:.3rem;border-radius:11px;cursor:pointer;color:rgba(255,255,255,.72);transition:all .22s cubic-bezier(.34,1.4,.4,1);font-size:.9rem;position:relative;overflow:hidden;}
+.sb-link::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,color-mix(in srgb,var(--accent) 22%,transparent),transparent);opacity:0;transition:opacity .2s;pointer-events:none;}
+.sb-link:hover{background:rgba(255,255,255,.09);color:var(--white);padding-left:1.2rem;box-shadow:0 6px 16px rgba(0,0,0,.2);}
+.sb-link:hover::before{opacity:1;}
+.sb-link.active{
+  background:linear-gradient(135deg,var(--accent),var(--navy3));color:var(--white);
+  box-shadow:
+    0 8px 22px color-mix(in srgb,var(--accent) 48%,transparent),
+    inset 0 1px 0 rgba(255,255,255,.28);
+}
+.sb-link .ico{font-size:1.1rem;width:20px;text-align:center;filter:drop-shadow(0 2px 3px rgba(0,0,0,.25));}
+.sb-divider{height:1px;background:rgba(255,255,255,.09);margin:.8rem 0;}
+.sb-user{
+  margin-top:auto;background:linear-gradient(145deg,rgba(255,255,255,.11),rgba(255,255,255,.03));
+  border-radius:13px;padding:1rem;color:var(--white);
+  border:1px solid rgba(255,255,255,.11);box-shadow:0 8px 22px rgba(0,0,0,.28);
+}
 .sb-user-name{font-weight:600;font-size:.95rem;}
 .sb-user-biz{font-size:.8rem;opacity:.7;margin-top:.2rem;}
 .sb-badge{display:inline-block;padding:.15rem .5rem;border-radius:10px;font-size:.7rem;font-weight:700;background:var(--red);color:var(--white);margin-left:.4rem;vertical-align:middle;}
-.sb-logout{width:100%;margin-top:.8rem;background:rgba(255,255,255,.1);color:var(--white);border:none;padding:.6rem;border-radius:8px;cursor:pointer;font-size:.88rem;transition:background .2s;}
-.sb-logout:hover{background:var(--red);}
+.sb-logout{width:100%;margin-top:.8rem;background:color-mix(in srgb,var(--red) 24%,transparent);color:var(--white);border:none;padding:.6rem;border-radius:9px;cursor:pointer;font-size:.88rem;font-weight:600;transition:all .2s;}
+.sb-logout:hover{background:var(--red);transform:translateY(-1px);box-shadow:0 6px 16px color-mix(in srgb,var(--red) 45%,transparent);}
 .sb-mob-logout{display:none!important;}
 .main{flex:1;margin-left:240px;padding:2rem;min-height:100vh;transition:margin-left .22s ease;}
 .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.8rem;}
@@ -738,7 +787,6 @@ body{
 .card{border-radius:18px;border:1px solid var(--border);}
 .card-head{border-radius:18px 18px 0 0;}
 .sup-card{border-radius:16px;}
-.sb-link.active{box-shadow:0 6px 14px rgba(14,116,144,.4);}
 tr:hover td{background:var(--row-hover);}
 
 /* ---- Toast ---- */
@@ -755,8 +803,9 @@ tr:hover td{background:var(--row-hover);}
     align-items:center;justify-content:space-around;
     overflow-x:auto;overflow-y:hidden;
     box-shadow:0 6px 24px rgba(0,0,0,.28);
-    border-radius:0 0 22px 22px;z-index:400;
+    border-radius:0 0 22px 22px;border-right:none;z-index:400;
   }
+  .sidebar::before{display:none;} /* the floating orb glow is tuned for a tall vertical sidebar */
   .sb-logo,.sb-divider,.sb-user,.sb-section,.sb-logout,.sb-user-name,.sb-user-biz,.sb-toggle-btn{display:none!important;}
   .sb-mob-logout{display:flex!important;}
   .bk-label{display:none;}
@@ -829,7 +878,7 @@ tr:hover td{background:var(--row-hover);}
   body.sidebar-open .sb-logo{justify-content:flex-start;padding:.8rem;}
   body.sidebar-open .sb-link{justify-content:flex-start;padding:.75rem 1rem;}
   body.sidebar-open .sb-link:hover{padding-left:1.2rem;}
-  body.sidebar-open .sb-user{padding:1rem;background:var(--navy2-bg);text-align:left;}
+  body.sidebar-open .sb-user{padding:1rem;text-align:left;}
   body.sidebar-open .sb-logout{padding:.6rem;font-size:.88rem;}
   body.sidebar-open .main{margin-left:250px;}
 }
@@ -1195,6 +1244,115 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
 @keyframes ptrSpin{to{transform:rotate(360deg);}}
 body.ptr-dragging{transition:none!important;}
 body.ptr-settling{transition:background-color .25s ease,border-color .25s ease,color .25s ease,transform .32s cubic-bezier(.22,.8,.2,1)!important;}
+
+/* =====================================================================
+   ✨ 3D GLASS UI — dashboard cards, stat tiles, modals/dialogs, buttons,
+   table cards. Same frosted, layered treatment as the sidebar, extended
+   to the rest of the app. Built from color-mix() against each theme's
+   own --surface/--border/--accent/--navy3 tokens, so light, dark, and
+   every colour theme (tie/gold/nature/sky) get correctly tinted glass —
+   nothing here is a hardcoded palette. The page background stays light
+   with soft floating colour blobs so the blur/translucency is visible
+   under the glass instead of just sitting on flat white.
+   ===================================================================== */
+:root{
+  --glass-blur:18px;
+  --glass-surface:color-mix(in srgb,var(--surface) 60%,transparent);
+  --glass-surface-strong:color-mix(in srgb,var(--surface) 85%,transparent);
+  --glass-border:color-mix(in srgb,var(--white) 55%,transparent);
+  --glass-border-soft:color-mix(in srgb,var(--white) 32%,transparent);
+  --glass-hi:inset 0 1px 0 color-mix(in srgb,var(--white) 65%,transparent);
+  --glass-shadow:0 10px 32px rgba(15,23,42,.10),0 2px 8px rgba(15,23,42,.06);
+  --glass-shadow-hover:0 20px 46px rgba(15,23,42,.16),0 4px 14px rgba(15,23,42,.08);
+}
+html[data-theme="dark"]{
+  --glass-surface:color-mix(in srgb,var(--surface) 55%,transparent);
+  --glass-shadow:0 10px 32px rgba(0,0,0,.45),0 2px 8px rgba(0,0,0,.3);
+  --glass-shadow-hover:0 20px 46px rgba(0,0,0,.55),0 4px 14px rgba(0,0,0,.35);
+}
+
+/* ---- Light background + soft floating colour blobs behind the glass ---- */
+.main{position:relative;isolation:isolate;}
+.main::before{
+  content:'';position:fixed;top:0;left:240px;right:0;bottom:0;z-index:-1;pointer-events:none;
+  background:
+    radial-gradient(560px circle at 12% 8%,color-mix(in srgb,var(--navy3) 15%,transparent),transparent 62%),
+    radial-gradient(520px circle at 88% 20%,color-mix(in srgb,var(--accent) 13%,transparent),transparent 62%),
+    radial-gradient(460px circle at 25% 92%,color-mix(in srgb,var(--green) 10%,transparent),transparent 62%);
+  transition:left .22s ease;
+}
+body.sidebar-open .main::before{left:250px;}
+@media(min-width:769px){.main::before{left:68px;}body.sidebar-open .main::before{left:250px;}}
+@media(max-width:768px){.main::before{left:0;top:66px;}}
+
+/* ---- Dashboard cards & table cards ---- */
+.card,.sup-card,.mob-card,.network-card,.notif-panel,.ds-mini-stat{
+  background:linear-gradient(165deg,var(--glass-surface-strong),var(--glass-surface));
+  backdrop-filter:blur(var(--glass-blur)) saturate(160%);
+  -webkit-backdrop-filter:blur(var(--glass-blur)) saturate(160%);
+  border:1px solid var(--glass-border-soft);
+  box-shadow:var(--glass-shadow),var(--glass-hi);
+}
+.card:hover,.sup-card:hover,.network-card:hover,.mob-card:hover{
+  box-shadow:var(--glass-shadow-hover),var(--glass-hi);
+}
+.card-head,.notif-head{
+  background:linear-gradient(165deg,color-mix(in srgb,var(--surface-2) 78%,transparent),color-mix(in srgb,var(--surface-2) 42%,transparent));
+  backdrop-filter:blur(var(--glass-blur));-webkit-backdrop-filter:blur(var(--glass-blur));
+  border-bottom-color:var(--glass-border-soft);
+}
+.toolbar{
+  background:color-mix(in srgb,var(--surface-2) 55%,transparent);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+}
+th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
+.tab-bar{background:color-mix(in srgb,var(--surface) 65%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);}
+.summary-row{background:color-mix(in srgb,var(--surface-2) 70%,transparent)!important;}
+
+/* ---- Stat tiles ---- */
+.stat-card{
+  background:linear-gradient(165deg,var(--glass-surface-strong),var(--glass-surface));
+  backdrop-filter:blur(var(--glass-blur)) saturate(160%);
+  -webkit-backdrop-filter:blur(var(--glass-blur)) saturate(160%);
+  border:1px solid var(--glass-border-soft);
+  box-shadow:var(--glass-shadow),var(--glass-hi);
+}
+.stat-card:hover{box-shadow:var(--glass-shadow-hover),var(--glass-hi);}
+.ds-mini-stat.ds-highlight{background:linear-gradient(165deg,color-mix(in srgb,var(--hover-tint) 85%,transparent),color-mix(in srgb,var(--hover-tint) 55%,transparent));}
+
+/* ---- Modals & dialogs ---- */
+.overlay{background:rgba(8,15,30,.45);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);}
+.modal{
+  background:linear-gradient(165deg,var(--glass-surface-strong),color-mix(in srgb,var(--surface) 78%,transparent));
+  backdrop-filter:blur(26px) saturate(170%);-webkit-backdrop-filter:blur(26px) saturate(170%);
+  border:1px solid var(--glass-border);
+  box-shadow:0 30px 70px rgba(0,0,0,.35),var(--glass-hi);
+}
+.modal-head{
+  background:linear-gradient(135deg,color-mix(in srgb,var(--navy-bg) 90%,transparent),color-mix(in srgb,var(--navy2-bg) 82%,transparent));
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border-bottom:1px solid rgba(255,255,255,.14);
+}
+.modal-foot{background:color-mix(in srgb,var(--surface-2) 45%,transparent);border-top-color:var(--glass-border-soft);}
+.network-card.dialog{background:linear-gradient(165deg,var(--glass-surface-strong),var(--glass-surface));}
+
+/* ---- Buttons: glossy 3D glass finish ---- */
+.btn{position:relative;overflow:hidden;border:1px solid rgba(255,255,255,.18);isolation:isolate;}
+.btn::before{
+  content:'';position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:linear-gradient(165deg,rgba(255,255,255,.35),rgba(255,255,255,0) 55%);
+}
+.btn > *{position:relative;z-index:2;}
+.btn:hover{transform:translateY(-2px);filter:brightness(1.06);}
+.btn:active{transform:translateY(0);filter:brightness(.97);}
+.btn-navy,.btn-navy:hover{background:linear-gradient(155deg,color-mix(in srgb,var(--navy2-bg) 92%,transparent),color-mix(in srgb,var(--navy3) 88%,transparent));backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 8px 20px color-mix(in srgb,var(--navy-bg) 35%,transparent),inset 0 1px 0 rgba(255,255,255,.28);}
+.btn-green,.btn-green:hover{background:linear-gradient(155deg,color-mix(in srgb,#15803d 92%,transparent),color-mix(in srgb,#1f9b53 88%,transparent));backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 8px 20px rgba(21,128,61,.35),inset 0 1px 0 rgba(255,255,255,.28);}
+.btn-red,.btn-red:hover{background:linear-gradient(155deg,color-mix(in srgb,var(--red) 92%,transparent),color-mix(in srgb,#c0392b 88%,transparent));backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 8px 20px color-mix(in srgb,var(--red) 35%,transparent),inset 0 1px 0 rgba(255,255,255,.28);}
+.btn-yellow,.btn-yellow:hover{background:linear-gradient(155deg,color-mix(in srgb,var(--yellow) 92%,transparent),color-mix(in srgb,#d68910 88%,transparent));backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 8px 20px color-mix(in srgb,var(--yellow) 35%,transparent),inset 0 1px 0 rgba(255,255,255,.28);}
+.btn-accent,.btn-accent:hover{background:linear-gradient(155deg,color-mix(in srgb,var(--accent) 92%,transparent),color-mix(in srgb,#17a589 88%,transparent));backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 8px 20px color-mix(in srgb,var(--accent) 35%,transparent),inset 0 1px 0 rgba(255,255,255,.28);}
+.btn-ghost{background:color-mix(in srgb,var(--surface) 55%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-color:var(--glass-border-soft);box-shadow:0 4px 14px rgba(15,23,42,.08),inset 0 1px 0 rgba(255,255,255,.4);color:var(--text);}
+.btn-ghost:hover{background:color-mix(in srgb,var(--surface) 75%,transparent);}
+.sort-btn,.clear-btn,.pg-btn,.ch-quick-btn{background:color-mix(in srgb,var(--surface) 55%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-color:var(--glass-border-soft);}
 </style>
 <script>
 /* ===== INSTANT THEME BOOT — runs before first paint, prevents theme flash ===== */
