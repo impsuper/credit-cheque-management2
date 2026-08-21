@@ -1785,6 +1785,7 @@ th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
             </table>
           </div>
           <div class="mobile-cards" id="creditsActiveMobile"></div>
+          <div id="creditActivePagination" class="pg-bar-wrap"></div>
         </div>
         <div id="credit-tab-content-settled" class="tab-content">
           <div class="table-wrap">
@@ -1895,6 +1896,7 @@ th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
             </table>
           </div>
           <div class="mobile-cards" id="chequesActiveMobile"></div>
+          <div id="chequeActivePagination" class="pg-bar-wrap"></div>
         </div>
         <div id="cheque-tab-content-settled" class="tab-content">
           <div class="table-wrap">
@@ -2016,6 +2018,7 @@ th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
             <tbody id="supGrid"></tbody>
           </table>
         </div>
+        <div id="supPagination" class="pg-bar-wrap"></div>
       </div>
     </div>
 
@@ -2562,6 +2565,7 @@ th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
                   <option value="absent">❌ Absent</option>
                   <option value="half">🌓 Half Day</option>
                   <option value="leave">🏖️ Leave</option>
+                  <option value="holiday">🏪 Shop Closed (Holiday)</option>
                 </select>
               </div>
               <div class="form-group"><label>📝 Note</label><input type="text" id="att-note" placeholder="Optional note..."></div>
@@ -2569,6 +2573,7 @@ th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
             <div style="display:flex;gap:.7rem;">
               <button class="btn btn-navy btn-sm" id="att-save-btn" onclick="saveAttendance()">➕ Mark Attendance</button>
               <button class="btn btn-ghost btn-sm hidden" id="att-cancel-btn" onclick="resetAttendanceForm()">✕ Cancel Edit</button>
+              <button class="btn btn-yellow btn-sm" onclick="markHoliday(today(), 'අද (' + today() + ')')">🏖️ Mark Today as Holiday</button>
             </div>
           </div>
         </div>
@@ -2580,7 +2585,7 @@ th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>👤 Employee</th><th>✅ Present</th><th>❌ Absent</th><th>🌓 Half Day</th><th>🏖️ Leave</th><th>📆 Marked Days</th></tr></thead>
+              <thead><tr><th>👤 Employee</th><th>✅ Present</th><th>❌ Absent</th><th>🌓 Half Day</th><th>🏖️ Leave</th><th>🏪 Holiday</th><th>📆 Marked Days</th></tr></thead>
               <tbody id="attSummaryBody"></tbody>
             </table>
           </div>
@@ -3552,6 +3557,30 @@ th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
   </div>
 </div>
 
+<!-- ===== DAILY SALES ENTRY REMINDER MODAL (Admin/Manager, 11:00 AM) ===== -->
+<div id="salesReminderModal" class="overlay">
+  <div class="modal">
+    <div class="modal-head" style="background:linear-gradient(135deg,#b91c1c,#dc2626);color:#fff;">
+      <h3 style="color:#fff;">💰 Sales Entry Reminder</h3>
+      <button class="modal-close" style="color:rgba(255,255,255,.8);" onclick="closeModal('salesReminderModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;gap:.8rem;align-items:flex-start;">
+        <div style="font-size:1.8rem;line-height:1;">💵</div>
+        <div>
+          <div style="font-weight:700;font-size:.95rem;color:var(--text);margin-bottom:.35rem;">ඔබ තවම පෙර දින සේල්ස් දත්ත ඇතුලත් කර නැත.</div>
+          <div style="font-size:.83rem;color:var(--muted);line-height:1.6;">පෙර දිනය (<span id="salesReminderDate"></span>) සඳහා කිසිම Cashier ගේ Day Sale එකක් තවම ඇතුළත් කර නොමැත. දැන් ඇතුළත් කරන්න, එසේත් නැත්නම් එදින ආයතනය වසා තිබූ නිවාඩු දිනක් නම් පහතින් එය සටහන් කරන්න.</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot" style="flex-wrap:wrap;">
+      <button class="btn btn-ghost" onclick="closeModal('salesReminderModal')">⏭ පසුව</button>
+      <button class="btn btn-yellow" onclick="markHoliday(_salesReminderDate, 'ඊයේ (' + _salesReminderDate + ')')">🏖️ එදින නිවාඩුයි</button>
+      <button class="btn btn-navy" onclick="closeModal('salesReminderModal');showSection('cash');">💰 දැන් ඇතුලත් කරන්න</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== RELOAD CASH-IN-HAND → HAND OVER TO OWNER MODAL (Manager only) ===== -->
 <div id="reloadHandoverModal" class="overlay">
   <div class="modal">
@@ -3748,6 +3777,7 @@ let PDB = {
   advances: [],    // {id, empId, amount, date, note, givenBy, givenByName, settled, payrollId}
   payrolls: [],    // {id, empId, period, daysWorked, dailyRate, basicSalary, gross, epfEmployee, epfEmployer, etfEmployer, advanceDeducted, advanceIds, netPay, processedBy, processedByName, processedAt}
   attendance: [],  // {id, empId, empName, date, status, note, markedBy, markedByName, markedAt}
+  holidays: [],    // {id, date, note, markedBy, markedByName, markedAt} — shop-closed days (see markHoliday())
   counters: { employee: 0 }
 };
 let payrollDocRef = null;
@@ -3863,6 +3893,17 @@ function uid() {
 
 function today() {
   return new Date().toISOString().split('T')[0];
+}
+
+function yesterday() {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().split('T')[0];
+}
+
+// Was `dateStr` (YYYY-MM-DD) marked as a shop-closed Holiday? See markHoliday().
+function isHoliday(dateStr) {
+  return (PDB.holidays || []).some(h => h.date === dateStr);
 }
 
 function fmt(n) {
@@ -4327,15 +4368,6 @@ async function applyCreditPaymentsChange(owner, creditId, mutateFn, supplierId) 
   }
 }
 
-function saveDB() {
-  if (!firebaseReady()) {
-    saveDBLocal();
-    markSynced('local');
-    return;
-  }
-  DB.users.forEach(u => saveUserDoc(u));
-}
-
 function saveDBLocal() {
   localStorage.setItem('cms_users', JSON.stringify(DB.users));
 }
@@ -4690,6 +4722,24 @@ async function loadDB() {
   }
 }
 
+// Coalesces refreshActiveSection() calls that come from the live-sync
+// onSnapshot listeners below. When several writes land close together
+// (e.g. a cashier saving a few entries in quick succession, or the
+// initial snapshot after reconnecting), each one used to trigger its own
+// full re-render (table rebuild + chart redraw) of whatever section is
+// open. This waits for a short quiet period and then renders once with
+// the final state, instead of once per write. DB.users itself is still
+// updated immediately in the listener — only the (expensive) re-render
+// is delayed, so no data becomes stale, it's just drawn less redundantly.
+let _liveRefreshDebounceTimer = null;
+function debouncedRefreshActiveSection() {
+  if (_liveRefreshDebounceTimer) clearTimeout(_liveRefreshDebounceTimer);
+  _liveRefreshDebounceTimer = setTimeout(() => {
+    _liveRefreshDebounceTimer = null;
+    refreshActiveSection();
+  }, 400);
+}
+
 let _liveSyncRetried = false;
 function startLiveSync() {
   if (liveUnsub || !usersCol) return;
@@ -4711,7 +4761,7 @@ function startLiveSync() {
       DB.dataIncomplete = false;
       markSynced('cloud');
       try { saveDBLocal(); } catch (e) { console.error('live sync local mirror', e); }
-      refreshActiveSection();
+      debouncedRefreshActiveSection();
     }, async err => {
       console.error('live sync (own doc)', err);
       setSyncStatus('offline');
@@ -4738,7 +4788,7 @@ function startLiveSync() {
     }
     markSynced('cloud');
     try { saveDBLocal(); } catch (e) { console.error('live sync local mirror', e); }
-    refreshActiveSection();
+    debouncedRefreshActiveSection();
   }, async err => {
     console.error('live sync', err);
     setSyncStatus('offline');
@@ -4791,6 +4841,7 @@ async function loadPayrollDB() {
       PDB.advances = data.advances || [];
       PDB.payrolls = data.payrolls || [];
       PDB.attendance = data.attendance || [];
+      PDB.holidays = data.holidays || [];
       PDB.counters = data.counters || { employee: 0 };
     } else {
       // IMPORTANT: do NOT auto-write an empty doc here. This used to call
@@ -4825,6 +4876,7 @@ function loadPayrollDBLocal() {
       PDB.advances = data.advances || [];
       PDB.payrolls = data.payrolls || [];
       PDB.attendance = data.attendance || [];
+      PDB.holidays = data.holidays || [];
       PDB.counters = data.counters || { employee: 0 };
     }
   } catch (e) {
@@ -4843,6 +4895,7 @@ function startPayrollLiveSync() {
     PDB.advances = data.advances || [];
     PDB.payrolls = data.payrolls || [];
     PDB.attendance = data.attendance || [];
+    PDB.holidays = data.holidays || [];
     PDB.counters = data.counters || { employee: 0 };
     try { localStorage.setItem('cms_payroll', JSON.stringify(PDB)); } catch (e) { console.error('payroll live sync local mirror', e); }
     const active = document.querySelector('.section.show');
@@ -5132,6 +5185,7 @@ function initDashboard() {
   setTimeout(checkPendingHandovers, 1200);
   setTimeout(checkAttendanceReminder, 1900);
   setTimeout(checkReloadDataReminder, 2200);
+  setTimeout(checkSalesEntryReminder, 2500);
 }
 
 const sectionTitles = {
@@ -5293,6 +5347,7 @@ async function manualRefresh(silent = false) {
           PDB.advances = pdata.advances || [];
           PDB.payrolls = pdata.payrolls || [];
           PDB.attendance = pdata.attendance || [];
+          PDB.holidays = pdata.holidays || [];
           PDB.counters = pdata.counters || { employee: 0 };
           try { localStorage.setItem('cms_payroll', JSON.stringify(PDB)); } catch (e) { console.error('manualRefresh payroll local mirror', e); }
         }
@@ -5546,11 +5601,6 @@ function buildSupplierKey(ownerUsername, id) {
   return `${ownerUsername}::${id}`;
 }
 
-function parseSupplierKey(key) {
-  const [ownerUsername, ...rest] = String(key || '').split('::');
-  return { ownerUsername, id: rest.join('::') };
-}
-
 function renderCredits() {
   const q = (($('cr-search')?.value || '') + '').toLowerCase();
   const supFilter = $('cr-filter-sup')?.value || '';
@@ -5693,11 +5743,14 @@ function renderCredits() {
     if (pageOpts) renderPagination(pageOpts.containerId, arr.length, pageOpts.page, pageOpts.fnName, pageOpts.pageSize);
   };
 
+  const creditActiveTotalPages = Math.max(1, Math.ceil(activeData.length / LIST_PAGE_SIZE));
+  if (creditActivePage > creditActiveTotalPages) creditActivePage = creditActiveTotalPages;
+  if (creditActivePage < 1) creditActivePage = 1;
   const creditSettledTotalPages = Math.max(1, Math.ceil(settledData.length / SETTLED_PAGE_SIZE));
   if (creditSettledPage > creditSettledTotalPages) creditSettledPage = creditSettledTotalPages;
   if (creditSettledPage < 1) creditSettledPage = 1;
 
-  renderBody(activeData, 'creditsActiveBody', 'creditsActiveMobile', null, false);
+  renderBody(activeData, 'creditsActiveBody', 'creditsActiveMobile', {page: creditActivePage, pageSize: LIST_PAGE_SIZE, containerId: 'creditActivePagination', fnName: 'goCreditActivePage'}, false);
   renderBody(settledData, 'creditsSettledBody', 'creditsSettledMobile', {page: creditSettledPage, pageSize: SETTLED_PAGE_SIZE, containerId: 'creditSettledPagination', fnName: 'goCreditSettledPage'}, true);
   syncCreditTabUI();
   updateSortPills('credits');
@@ -5848,23 +5901,18 @@ function renderCheques() {
     if (pageOpts) renderPagination(pageOpts.containerId, arr.length, pageOpts.page, pageOpts.fnName, pageOpts.pageSize);
   };
 
+  const chequeActiveTotalPages = Math.max(1, Math.ceil(activeData.length / LIST_PAGE_SIZE));
+  if (chequeActivePage > chequeActiveTotalPages) chequeActivePage = chequeActiveTotalPages;
+  if (chequeActivePage < 1) chequeActivePage = 1;
   const chequeSettledTotalPages = Math.max(1, Math.ceil(settledData.length / SETTLED_PAGE_SIZE));
   if (chequeSettledPage > chequeSettledTotalPages) chequeSettledPage = chequeSettledTotalPages;
   if (chequeSettledPage < 1) chequeSettledPage = 1;
 
-  renderBody(activeData, 'activeChequesBody', 'chequesActiveMobile');
+  renderBody(activeData, 'activeChequesBody', 'chequesActiveMobile', {page: chequeActivePage, pageSize: LIST_PAGE_SIZE, containerId: 'chequeActivePagination', fnName: 'goChequeActivePage'});
   renderBody(settledData, 'settledChequesBody', 'chequesSettledMobile', {page: chequeSettledPage, pageSize: SETTLED_PAGE_SIZE, containerId: 'chequeSettledPagination', fnName: 'goChequeSettledPage'});
   syncChequeTabUI();
   updateSortPills('cheques');
   renderChequeBookTab();
-}
-
-function getSupplierHistoryTarget(ownerUsername, supplierId) {
-  const owner = getUserByUsername(ownerUsername);
-  if (!owner) return null;
-  const sup = (owner.suppliers || []).find(s => s.id === supplierId);
-  if (!sup) return null;
-  return { owner, sup };
 }
 
 function getSupplierAnalyticsData(ownerUsername, supplierId) {
@@ -6518,10 +6566,15 @@ function renderSuppliers() {
   const rows = renderSupplierRows();
   const tbody = $('supGrid');
   if (!tbody) return;
+  const supTotalPages = Math.max(1, Math.ceil(rows.length / LIST_PAGE_SIZE));
+  if (supPage > supTotalPages) supPage = supTotalPages;
+  if (supPage < 1) supPage = 1;
   if (!rows.length) {
     tbody.innerHTML = `<tr><td colspan="7" class="no-data"><span class="ico">🏪</span>No suppliers yet</td></tr>`;
+    renderPagination('supPagination', 0, supPage, 'goSupPage', LIST_PAGE_SIZE);
   } else {
-    tbody.innerHTML = rows.map(s => `<tr>
+    const displayRows = rows.slice((supPage - 1) * LIST_PAGE_SIZE, supPage * LIST_PAGE_SIZE);
+    tbody.innerHTML = displayRows.map(s => `<tr>
       <td>
         <div class="fw700" style="color:var(--navy);">🏪 ${s.name}</div>
         ${isAdmin() ? `<span class="user-data-badge">${s.ownerUsername}</span>` : ''}
@@ -6537,6 +6590,7 @@ function renderSuppliers() {
         </div>
       </td>
     </tr>`).join('');
+    renderPagination('supPagination', rows.length, supPage, 'goSupPage', LIST_PAGE_SIZE);
   }
   // Highlight whichever quick-sort pill (if any) matches the current sort selection
   const { col, dir } = DB.sortState.suppliers;
@@ -7179,11 +7233,6 @@ function ovSetSlideAvailable(slideId, available, dotsId) {
   }
 }
 
-function ovAvailableSlides() {
-  return [...document.querySelectorAll('#ov-carousel-slides .ov-carousel-slide')]
-    .filter(s => s.getAttribute('data-nodata') !== '1');
-}
-
 function ovShowSlide(idx) {
   const slides = [...document.querySelectorAll('#ov-carousel-slides .ov-carousel-slide')];
   const dots = [...document.querySelectorAll('#ov-carousel-dots .ov-dot')];
@@ -7634,14 +7683,14 @@ function checkPendingHandovers() {
 /* ===== DAILY ATTENDANCE REMINDER =====
    If nobody has marked today's staff attendance by 1:30 PM local time, remind
    the Admin/Manager with a popup the next time they log in / reopen the app.
-   There's no shop-holiday calendar here, so this can also pop up on a day the
-   shop is genuinely closed with no attendance to mark — that's an accepted
-   trade-off of keeping this simple, not something we try to detect. */
+   Skipped on days already marked as a shop Holiday via markHoliday() — see
+   the Shop Holiday Marking section near renderAttendance(). */
 const ATTENDANCE_REMINDER_HOUR = 13;
 const ATTENDANCE_REMINDER_MINUTE = 30;
 
 async function checkAttendanceReminder() {
   if (!canAccessPayroll()) return;
+  if (isHoliday(today())) return; // shop closed today — nothing to mark
 
   const now = new Date();
   const pastCutoff = now.getHours() > ATTENDANCE_REMINDER_HOUR ||
@@ -7696,6 +7745,43 @@ function checkReloadDataReminder() {
   }
   openModal('reloadReminderModal');
   try { localStorage.setItem(reloadReminderStorageKey(), '1'); } catch (e) {}
+}
+
+/* ===== DAILY SALES ENTRY REMINDER =====
+   If, by 11:00 AM local time, nobody has entered ANY cashier's Day Sale for
+   YESTERDAY, remind the Admin/Manager with a popup. Shown at most once per
+   missing date per logged-in user (localStorage, same pattern as the Friday
+   Reload reminder). Skipped entirely if yesterday was already marked a shop
+   Holiday — see markHoliday(). The reminder itself also offers a one-tap way
+   to mark that date as a Holiday if that's why nothing was entered. */
+const SALES_REMINDER_HOUR = 11;
+const SALES_REMINDER_MINUTE = 0;
+let _salesReminderDate = '';
+
+function salesReminderStorageKey(dateStr) {
+  return `cms_sales_reminder_shown_${DB.currentUsername || ''}_${dateStr}`;
+}
+
+function checkSalesEntryReminder() {
+  if (!(isAdmin() || isManager())) return;
+
+  const now = new Date();
+  const pastCutoff = now.getHours() > SALES_REMINDER_HOUR ||
+    (now.getHours() === SALES_REMINDER_HOUR && now.getMinutes() >= SALES_REMINDER_MINUTE);
+  if (!pastCutoff) return;
+
+  const missingDate = yesterday();
+  if (isHoliday(missingDate)) return; // shop was closed — nothing was expected
+
+  try { if (localStorage.getItem(salesReminderStorageKey(missingDate)) === '1') return; } catch (e) {}
+
+  const entered = getAllCashEntries().some(e => e.date === missingDate);
+  if (entered) return;
+
+  _salesReminderDate = missingDate;
+  if ($('salesReminderDate')) $('salesReminderDate').textContent = missingDate;
+  openModal('salesReminderModal');
+  try { localStorage.setItem(salesReminderStorageKey(missingDate), '1'); } catch (e) {}
 }
 
 // Small "📱 Reload" tag shown on a handover card when it's a Reload Cash-in-Hand
@@ -10080,6 +10166,7 @@ async function restoreBackup(e) {
         PDB.advances = data.payroll.advances || [];
         PDB.payrolls = data.payroll.payrolls || [];
         PDB.attendance = data.payroll.attendance || [];
+        PDB.holidays = data.payroll.holidays || [];
         PDB.counters = data.payroll.counters || { employee: 0 };
         await savePayrollDB();
       }
@@ -10302,6 +10389,7 @@ async function restoreCloudBackup(backupId) {
       PDB.advances = d.payroll.advances || [];
       PDB.payrolls = d.payroll.payrolls || [];
       PDB.attendance = d.payroll.attendance || [];
+      PDB.holidays = d.payroll.holidays || [];
       PDB.counters = d.payroll.counters || { employee: 0 };
       await savePayrollDB();
     }
@@ -10336,19 +10424,6 @@ function updateCashierDropdown() {
   const cur = sel.value;
   sel.innerHTML = names.map((n,i) => `<option value="${i}">${n}</option>`).join('');
   sel.value = cur;
-}
-
-function saveCashierSettings() {
-  if (!isAdmin()) { toast('Admin only','red'); return; }
-  const admin = getUserByUsername('admin');
-  if (!admin) return;
-  if (!admin.settings) admin.settings = {};
-  admin.settings.cashier1=$('cname1')?.value||'Cashier 1';
-  admin.settings.cashier2=$('cname2')?.value||'Cashier 2';
-  admin.settings.cashier3=$('cname3')?.value||'Cashier 3';
-  admin.settings.cashier4=$('cname4')?.value||'Cashier 4';
-  syncUser(admin); updateCashierDropdown();
-  toast('✅ Settings saved!');
 }
 
 /* ============= THEME SYSTEM ============= */
@@ -10869,22 +10944,6 @@ function calcCashInHandBefore(cutoffDate) {
   const totalNet=allEntries.filter(e=>(e.date||'')<cutoffDate).reduce((a,e)=>a+(Number(e.netCash)||0),0);
   const totalDisposed=getCashLog().filter(e=>(e.date||'')<cutoffDate).reduce((a,e)=>a+cashLogSignedAmount(e),0);
   return totalNet-totalDisposed;
-}
-
-function calcHandoverStats() {
-  const store = getHandoverStore();
-  const notifications = store?.handoverNotifications || [];
-  // Cashier handovers — filter by role:
-  // Manager sees only cashier→manager; Owner/Admin sees all cashier handovers
-  const cashierNotifs = isAdmin()
-    ? notifications.filter(n => n.fromRole === 'cashier')
-    : notifications.filter(n => n.fromRole === 'cashier' && n.toRole === 'manager');
-  const cashierConf = cashierNotifs.filter(n => n.status === 'confirmed').reduce((a,n) => a + (Number(n.amount)||0), 0);
-  const cashierPend = cashierNotifs.filter(n => n.status === 'pending').reduce((a,n) => a + (Number(n.amount)||0), 0);
-  // Manager → Owner (only meaningful for admin/owner)
-  const mgrConf = notifications.filter(n => n.fromRole === 'manager' && n.status === 'confirmed').reduce((a,n) => a + (Number(n.amount)||0), 0);
-  const mgrPend = notifications.filter(n => n.fromRole === 'manager' && n.status === 'pending').reduce((a,n) => a + (Number(n.amount)||0), 0);
-  return { cashierConf, cashierPend, mgrConf, mgrPend };
 }
 
 /* ===== SALES ANALYTICS ===== */
@@ -11868,6 +11927,14 @@ let cashPurchaseHistPage = 1;
 let activityLogPage = 1;
 let creditSettledPage = 1;
 let chequeSettledPage = 1;
+// Suppliers list + Active Credits/Cheques tables — same "1-50 · 51-100 · ..."
+// range pagination as the Settled tabs, 50 rows/page. These three were the
+// only main tables left rendering their full (uncapped, ever-growing) list
+// in one go on every re-render.
+const LIST_PAGE_SIZE = 50;
+let creditActivePage = 1;
+let chequeActivePage = 1;
+let supPage = 1;
 // Supplier Profile (Credit Bills / Cheques / Cash Purchases) + Daily Reload History —
 // same "1-50 · 51-100 · ..." range pagination as the lists above, 50 rows/page.
 const PROFILE_LIST_PAGE_SIZE = 50;
@@ -11878,6 +11945,9 @@ let reloadHistPage = 1;
 
 function goCreditSettledPage(p) { creditSettledPage = p; renderCredits(); }
 function goChequeSettledPage(p) { chequeSettledPage = p; renderCheques(); }
+function goCreditActivePage(p) { creditActivePage = p; renderCredits(); }
+function goChequeActivePage(p) { chequeActivePage = p; renderCheques(); }
+function goSupPage(p) { supPage = p; renderSuppliers(); }
 function goSupCreditPage(p) { supCreditPage = p; renderSupplierAnalytics(); }
 function goSupChequePage(p) { supChequePage = p; renderSupplierAnalytics(); }
 function goSupCashPurchasePage(p) { supCashPurchasePage = p; renderSupplierAnalytics(); }
@@ -14047,10 +14117,6 @@ function calcETFEmployer(basic) { return (Number(basic) || 0) * ETF_EMPLOYER_RAT
 function getUnsettledAdvances(empId) {
   return PDB.advances.filter(a => a.empId === empId && !a.settled);
 }
-function sumUnsettledAdvances(empId) {
-  return getUnsettledAdvances(empId).reduce((s, a) => s + (Number(a.amount) || 0), 0);
-}
-
 function initPayrollSection() {
   if ($('adv-date') && !$('adv-date').value) $('adv-date').value = today();
   if ($('pv-period') && !$('pv-period').value) $('pv-period').value = new Date().toISOString().slice(0, 7);
@@ -14223,7 +14289,8 @@ const ATTENDANCE_STATUS = {
   present: { label: '✅ Present',  bg: '#e8f8f0', color: '#15803d' },
   absent:  { label: '❌ Absent',   bg: '#fde8e8', color: '#b91c1c' },
   half:    { label: '🌓 Half Day', bg: '#fffbeb', color: '#92400e' },
-  leave:   { label: '🏖️ Leave',   bg: '#f5f3ff', color: '#6d28d9' }
+  leave:   { label: '🏖️ Leave',   bg: '#f5f3ff', color: '#6d28d9' },
+  holiday: { label: '🏪 Shop Closed', bg: '#e0f2fe', color: '#0369a1' }
 };
 
 function attStatusBadge(status) {
@@ -14328,7 +14395,7 @@ function renderAttendance() {
   const summaryRows = PDB.attendance.filter(a => (a.date || '').slice(0, 7) === summaryMonth);
   const byEmp = new Map();
   summaryRows.forEach(a => {
-    const cur = byEmp.get(a.empId) || { name: a.empName || a.empId, present: 0, absent: 0, half: 0, leave: 0 };
+    const cur = byEmp.get(a.empId) || { name: a.empName || a.empId, present: 0, absent: 0, half: 0, leave: 0, holiday: 0 };
     if (cur[a.status] !== undefined) cur[a.status]++;
     byEmp.set(a.empId, cur);
   });
@@ -14336,16 +14403,17 @@ function renderAttendance() {
   if (summaryBody) {
     const entries = [...byEmp.entries()].sort((a, b) => (a[1].name || '').localeCompare(b[1].name || ''));
     summaryBody.innerHTML = entries.length ? entries.map(([empId, s]) => {
-      const total = s.present + s.absent + s.half + s.leave;
+      const total = s.present + s.absent + s.half + s.leave + s.holiday;
       return `<tr>
         <td>${s.name} <code style="font-size:.72rem;">${empId}</code></td>
         <td style="color:var(--green);font-weight:600;">${s.present}</td>
         <td style="color:var(--red);font-weight:600;">${s.absent}</td>
         <td style="color:#92400e;font-weight:600;">${s.half}</td>
         <td style="color:#6d28d9;font-weight:600;">${s.leave}</td>
+        <td style="color:#0369a1;font-weight:600;">${s.holiday}</td>
         <td class="fw700">${total}</td>
       </tr>`;
-    }).join('') : `<tr><td colspan="6" class="no-data"><span class="ico">🗓️</span>No attendance marked for this month</td></tr>`;
+    }).join('') : `<tr><td colspan="7" class="no-data"><span class="ico">🗓️</span>No attendance marked for this month</td></tr>`;
   }
 
   // ----- History table -----
@@ -14378,6 +14446,55 @@ function renderAttendance() {
       ${isAdmin() ? `<div class="mob-card-actions"><button class="btn btn-yellow btn-sm" onclick="editAttendance('${a.id}')">✏️ Edit</button><button class="btn btn-red btn-sm" onclick="deleteAttendance('${a.id}')">🗑️ Delete</button></div>` : ''}
     </div>`).join('');
   }
+}
+
+/* ===== SHOP HOLIDAY MARKING =====
+   Lets Admin/Manager flag a date (usually today, or the date flagged by the
+   Sales Entry Reminder) as a day the shop was closed — Poya, festival,
+   emergency closure, etc. Once marked:
+     • The Sales Entry Reminder skips that date (no sales were expected).
+     • The Daily Attendance Reminder skips that date if it's today (see
+       checkAttendanceReminder()).
+     • Optionally, every active employee gets a 🏪 Shop Closed attendance
+       record for that date in one go (asked via a confirm dialog), instead
+       of the manager having to mark each employee one-by-one as Leave. */
+function markHoliday(dateStr, dateLabel) {
+  if (!(isAdmin() || isManager())) { toast('⚠️ Not authorized', 'red'); return; }
+  if (!dateStr) return;
+  if (isHoliday(dateStr)) { toast('ℹ️ මේ දිනය දැනටමත් නිවාඩු දිනක් ලෙස සටහන් කර ඇත', 'yellow'); return; }
+  if (!confirm(`📅 ${dateLabel || dateStr} — ආයතනය වසා තිබූ නිවාඩු දිනක් ලෙස සටහන් කරන්නද?`)) return;
+
+  PDB.holidays = PDB.holidays || [];
+  PDB.holidays.push({
+    id: uid(), date: dateStr, note: '',
+    markedBy: DB.currentUsername, markedByName: DB.currentUser?.name || '',
+    markedAt: new Date().toISOString()
+  });
+  logActivity('MARK_HOLIDAY', dateStr);
+
+  const activeEmployees = (PDB.employees || []).filter(e => e.active !== false);
+  let markedCount = 0;
+  if (activeEmployees.length && confirm('🏖️ මේ දිනට සියලුම සක්‍රීය සේවකයන් "🏪 Shop Closed" ලෙස Attendance හි සටහන් කරන්නද?')) {
+    activeEmployees.forEach(emp => {
+      // Don't touch an employee who already has some other record for this
+      // date (e.g. was separately marked Absent/Leave already) — leave it.
+      const dup = PDB.attendance.find(a => a.empId === emp.empId && a.date === dateStr);
+      if (dup) return;
+      PDB.attendance.push({
+        id: uid(), empId: emp.empId, empName: emp.name || emp.empId, date: dateStr,
+        status: 'holiday', note: '🏪 Shop Closed Day',
+        markedBy: DB.currentUsername, markedByName: DB.currentUser?.name || '', markedAt: new Date().toISOString()
+      });
+      markedCount++;
+    });
+    if (markedCount) logActivity('MARK_HOLIDAY_ATTENDANCE', `${dateStr} · ${markedCount} employees`);
+  }
+
+  savePayrollDB();
+  closeModal('salesReminderModal');
+  if (document.querySelector('.section.show')?.id === 'payrollSection') renderAttendance();
+  renderOverview();
+  toast(markedCount ? `🏖️ නිවාඩු දිනය සටහන් විය — සේවකයන් ${markedCount} දෙනෙක් Attendance හි සටහන් විය` : '🏖️ නිවාඩු දිනය සටහන් විය', 'green');
 }
 
 /* ----- Cash Advances ----- */
