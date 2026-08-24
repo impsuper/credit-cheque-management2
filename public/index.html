@@ -2102,6 +2102,15 @@ th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
             </div>
           </div>
           <div id="backup-list-wrap"><div class="no-data"><span class="ico">⏳</span>Loading...</div></div>
+
+          <div class="card-head" style="margin-top:1.5rem;">
+            <div class="card-title">🗄️ Data Archiving</div>
+            <div class="card-actions">
+              <button class="btn btn-navy btn-sm" onclick="openArchivePreview()">🗄️ Check Archive</button>
+            </div>
+          </div>
+          <div class="backup-info-box">🗄️ Settled credit bills, settled cheques, sales entries, cash purchases, and reload entries older than 3 months move out to a separate archive — keeping the live app faster without deleting anything. P&amp;L and the Purchases chart automatically fetch archived months when you view them. <b>Unpaid credit/cheque bills are never archived</b>, no matter how old.</div>
+          <div id="archive-status-wrap"><div class="no-data"><span class="ico">🗄️</span>Click "Check Archive" to see what's eligible right now</div></div>
         </div>
 
         <!-- LOCAL BACKUP & RESTORE -->
@@ -2250,6 +2259,7 @@ th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
           </table>
         </div>
         <div id="reloadHistPagination" class="pg-bar-wrap"></div>
+        <div id="reloadHistArchiveWrap"></div>
       </div>
     </div>
 
@@ -2819,6 +2829,7 @@ th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
           </table>
         </div>
         <div id="cashHistPagination" class="pg-bar-wrap"></div>
+        <div id="cashHistArchiveWrap"></div>
       </div>
 
       <div class="card" id="cashPurchaseHistCard" style="margin-top:1.2rem;">
@@ -3876,6 +3887,7 @@ let fdb = null;
 let fauth = null;
 let ffun = null;
 let usersCol = null;
+let archivePeriodsCol = null;
 let liveUnsub = null;
 let supSelections = { cr: null, ch: null, clp: null, clc: null };
 
@@ -4655,6 +4667,7 @@ async function initFirebase() {
     fauth = firebase.auth();
     ffun = firebase.functions();
     usersCol = fdb.collection('cms_users');
+    archivePeriodsCol = fdb.collection('cms_archive_periods');
     payrollDocRef = fdb.collection('cms_payroll').doc('company');
     rolePermDocRef = fdb.collection('cms_settings').doc('dashboardPermissions');
     try { await fdb.enablePersistence({ synchronizeTabs: true }); } catch (e) {}
@@ -4732,6 +4745,7 @@ async function loadDB() {
 // updated immediately in the listener — only the (expensive) re-render
 // is delayed, so no data becomes stale, it's just drawn less redundantly.
 let _liveRefreshDebounceTimer = null;
+let _overviewPrefetchDone = false;
 function debouncedRefreshActiveSection() {
   if (_liveRefreshDebounceTimer) clearTimeout(_liveRefreshDebounceTimer);
   _liveRefreshDebounceTimer = setTimeout(() => {
@@ -4789,6 +4803,7 @@ function startLiveSync() {
     markSynced('cloud');
     try { saveDBLocal(); } catch (e) { console.error('live sync local mirror', e); }
     debouncedRefreshActiveSection();
+    if (!_overviewPrefetchDone) { _overviewPrefetchDone = true; prefetchOverviewArchiveWindow(); }
   }, async err => {
     console.error('live sync', err);
     setSyncStatus('offline');
@@ -5923,7 +5938,34 @@ function getSupplierAnalyticsData(ownerUsername, supplierId) {
   const credits = (owner.credits || []).filter(c => c.supplierId === supplierId);
   const cheques = (owner.cheques || []).filter(c => c.supplierId === supplierId);
   const cashPurchases = (owner.cashPurchases || []).filter(p => p.supplierId === supplierId);
+  // Merge in whatever this owner's archived periods are already cached (see
+  // "🗄️ Load Archived History" in the profile header, below) — until that's
+  // clicked, this supplier's history only goes back to the 3-month live window.
+  Object.keys(ArchiveCache).forEach(key => {
+    if (!key.startsWith(ownerUsername + '_')) return;
+    const arc = ArchiveCache[key];
+    if (!arc || arc === 'MISSING') return;
+    (arc.credits || []).filter(c => c.supplierId === supplierId).forEach(c => credits.push(c));
+    (arc.cheques || []).filter(c => c.supplierId === supplierId).forEach(c => cheques.push(c));
+    (arc.cashPurchases || []).filter(p => p.supplierId === supplierId).forEach(p => cashPurchases.push(p));
+  });
   return { owner, supplier, credits, cheques, cashPurchases };
+}
+
+// Fetches every archived period for this supplier's owner and re-renders the
+// profile once loaded, so its history tables/trend go back further than the
+// 3-month live window. A blanket "load everything archived" rather than a
+// scoped date-range fetch — simplest safe option at the data volumes this
+// app currently has (see the comment on the "All Years" case in
+// renderAnalytics for the same trade-off).
+let _supplierArchiveLoadedFor = new Set();
+async function loadSupplierArchivedHistory(ownerUsername) {
+  const btn = document.getElementById('sup-load-archive-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Loading…'; }
+  const allPeriods = [...(await getArchivedPeriodKeys())];
+  await ensureArchivePeriodsLoaded(allPeriods);
+  _supplierArchiveLoadedFor.add(ownerUsername);
+  renderSupplierAnalytics();
 }
 
 function renderBarChart(elId, items, valueLabel) {
@@ -6328,6 +6370,11 @@ function renderSupplierAnalytics() {
         ${supplier.notes ? `<div style="font-size:.78rem;color:var(--muted);margin-top:.2rem;font-style:italic;">📝 ${supplier.notes}</div>` : ''}
       </div>
       <div class="entry-id">${buildSupplierKey(owner.username, supplier.id)}</div>
+    </div>
+    <div style="margin-top:.6rem;">
+      ${_supplierArchiveLoadedFor.has(owner.username)
+        ? `<span class="badge badge-green" style="font-size:.75rem;">✅ Archived history included</span>`
+        : `<button id="sup-load-archive-btn" class="btn btn-ghost btn-sm" onclick="loadSupplierArchivedHistory('${owner.username}')">🗄️ Load Archived History (3mo+)</button>`}
     </div>
   `;
 
@@ -7431,10 +7478,11 @@ function ovRefreshChartVisibility2(idx) {
 // supplier records, credit-settlement-linked cheques/cash purchases).
 function computeTotalPurchases(monthKey) {
   const inMonth = d => (d || '').slice(0, 7) === monthKey;
-  const cashAmt = getCashPurchaseRowsRaw().filter(p => inMonth(p.date) && !isAdminOwnedRecord(p._owner) && !p.linkedCreditId).reduce((a, p) => a + (Number(p.amount) || 0), 0);
-  const creditsThisMonth = getAllCredits().filter(c => inMonth(c.date) && !isAdminOwnedRecord(c._owner));
+  const plData = getPLDataset();
+  const cashAmt = plData.cashPurchases.filter(p => inMonth(p.date) && !isAdminOwnedRecord(p._owner) && !p.linkedCreditId).reduce((a, p) => a + (Number(p.amount) || 0), 0);
+  const creditsThisMonth = plData.credits.filter(c => inMonth(c.date) && !isAdminOwnedRecord(c._owner));
   const creditAmt = creditsThisMonth.reduce((a, c) => a + getCreditPurchaseAmt(c), 0);
-  const chequeAmt = getAllCheques().filter(c => inMonth(c.date) && !isAdminOwnedRecord(c._owner) && !c.linkedCreditId).reduce((a, c) => a + (Number(c.amount) || 0), 0)
+  const chequeAmt = plData.cheques.filter(c => inMonth(c.date) && !isAdminOwnedRecord(c._owner) && !c.linkedCreditId).reduce((a, c) => a + (Number(c.amount) || 0), 0)
     + creditsThisMonth.reduce((a, c) => a + getCreditSettledByChequeAmt(c), 0);
   return { cashAmt, creditAmt, chequeAmt, total: cashAmt + creditAmt + chequeAmt };
 }
@@ -7445,13 +7493,17 @@ function computeTotalPurchases(monthKey) {
 // month. Mirrors the P&L's purchase calculation exactly (itemized cash purchases
 // incl. standalone Cash Log entries; admin-owned supplier records and credit-
 // settlement-linked cheques/cash purchases excluded).
-function renderPurchasesBreakdown() {
+async function renderPurchasesBreakdown() {
   const el = $('ov-purchases-breakdown');
   if (!el) return;
   const now = new Date();
   const curKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-  // Populate the month dropdown from actual purchase history, always including the current month
+  // Populate the month dropdown from actual purchase history, always including the current month.
+  // Note: a month fully covered by archiving (all its settled records moved
+  // out) and with no other live activity won't appear here since it's built
+  // from live data — pick the month from the full P&L page for guaranteed
+  // access to any past period regardless of archive status.
   const monthSel = $('ov-purch-month');
   if (monthSel) {
     const monthSet = new Set([curKey]);
@@ -7468,6 +7520,12 @@ function renderPurchasesBreakdown() {
     monthSel.value = (prevSel && sortedMonths.includes(prevSel)) ? prevSel : curKey;
   }
   const monthKey = monthSel?.value || curKey;
+  if (monthKey < getArchiveLiveWindowStart()) {
+    el.innerHTML = '<div class="no-data">🗄️ Loading archived records…</div>';
+    await ensureArchivePeriodsLoaded([monthKey]);
+    if (($('ov-purch-month')?.value || curKey) !== monthKey) return; // selection changed mid-fetch
+    if (!document.getElementById('ov-purchases-breakdown')) return;
+  }
 
   const { cashAmt, creditAmt, chequeAmt, total } = computeTotalPurchases(monthKey);
 
@@ -10345,6 +10403,49 @@ async function renderBackupsSection() {
   }).join('');
 }
 
+// ===== Data Archiving UI (Settings → Cloud Backup tab) =====
+function openArchivePreview() {
+  if (!isAdmin()) { toast('Admin only', 'red'); return; }
+  const wrap = $('archive-status-wrap');
+  if (!wrap) return;
+  const p = previewArchive();
+  if (!p.totalRecords) {
+    wrap.innerHTML = `<div class="no-data"><span class="ico">✅</span>Nothing eligible to archive right now — everything is within the last 3 months, or still unsettled.</div>`;
+    return;
+  }
+  wrap.innerHTML = `
+    <div class="backup-info-box" style="border-color:var(--yellow);">
+      ⚠️ <b>${p.totalRecords} records</b> across <b>${p.periodCount} month(s)</b> are eligible to archive right now:
+      <br>• ${p.credits} settled credit bills
+      <br>• ${p.cheques} settled cheques
+      <br>• ${p.cashEntries} sales entries
+      <br>• ${p.cashPurchases} cash purchases
+      <br>• ${p.reloadEntries} reload entries
+      <br><br>These move to a separate archive — nothing is deleted. P&amp;L and the Purchases chart will still fetch them automatically if you view one of those older months.
+    </div>
+    <button class="btn btn-accent btn-sm" onclick="confirmRunArchive()">🗄️ Confirm &amp; Archive Now</button>`;
+}
+
+async function confirmRunArchive() {
+  if (!isAdmin()) { toast('Admin only', 'red'); return; }
+  if (!confirm('මේකෙන් පරණ data ටික Firestore archive එකකට move වෙනවා (delete වෙන්නේ නෑ). ඉදිරියට යනවද?\n\nThis moves old records to a separate Firestore archive (nothing is deleted). Continue?')) return;
+  const wrap = $('archive-status-wrap');
+  if (wrap) wrap.innerHTML = `<div class="no-data"><span class="ico">⏳</span>Archiving… please don't close this tab.</div>`;
+  const result = await runArchiveMigration(progress => {
+    if (wrap) wrap.innerHTML = `<div class="no-data"><span class="ico">⏳</span>Archiving… ${progress.recordsArchived} records moved so far (${progress.usersProcessed} users done)</div>`;
+  });
+  if (!result) return; // toast already shown inside runArchiveMigration (admin/connection check)
+  ArchiveCache = {}; // old cache may now be stale/incomplete for periods this run touched
+  _archivePeriodKeysCache = null; // this run may have created new period docs
+  if (wrap) {
+    wrap.innerHTML = `<div class="backup-info-box" style="border-color:var(--green);">
+      ✅ Done — <b>${result.recordsArchived} records</b> archived across ${result.periodsWritten} period-doc(s), ${result.usersProcessed} user(s) updated.
+      ${result.errors.length ? `<br>⚠️ ${result.errors.length} error(s): ${result.errors.join('; ')}` : ''}
+    </div>`;
+  }
+  toast(result.errors.length ? '⚠️ Archive completed with errors — check details below' : '✅ Archive complete!');
+}
+
 async function downloadCloudBackup(backupId) {
   const col = getBackupsCol();
   if (!col) return;
@@ -10963,10 +11064,235 @@ function getAllCheques() {
   return rows;
 }
 
-function initAnalytics() {
-  // Populate year filter
-  const entries = getAllCashEntries();
-  const years = [...new Set(entries.map(e=>(e.date||'').slice(0,4)).filter(Boolean))].sort().reverse();
+// ============= DATA ARCHIVING =============
+// Keeps the live, always-synced user document lean by moving old records out
+// to a separate cms_archive_periods collection that is NOT part of the
+// real-time onSnapshot listener (so it doesn't grow the payload every admin/
+// manager syncs on every write). Only SETTLED credits/cheques are ever
+// archived — an unpaid bill stays live no matter how old, since it's still
+// something someone needs to act on. Sales (cashEntries), cash purchases and
+// reload entries have no "settled" concept, so they archive purely by age.
+//
+// IMPORTANT (deploy step): this needs a Firestore security rule for the new
+// 'cms_archive_periods' collection before it will work — see the rule
+// snippet in the accompanying notes. Without it, every read/write below will
+// fail with a permission-denied error.
+const ARCHIVE_CUTOFF_MONTHS = 3;
+let ArchiveCache = {}; // key: "username_YYYY-MM" -> { credits, cheques, cashEntries, cashPurchases, reloadEntries } | 'MISSING'
+
+// The oldest calendar month that should still live in the always-synced user
+// doc. e.g. today = 2026-08 → "2026-05", so May/Jun/Jul/Aug stay live and
+// anything from an earlier month is a candidate for archiving.
+function getArchiveLiveWindowStart() {
+  const d = new Date();
+  d.setMonth(d.getMonth() - ARCHIVE_CUTOFF_MONTHS);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+function periodKeyOf(dateStr) { return (dateStr || '').slice(0, 7); }
+function isPeriodArchivable(pk) { return !!pk && pk < getArchiveLiveWindowStart(); }
+
+// Splits one user's records into { keep, archive-by-period } for each
+// archivable data type, without mutating anything — shared by the dry-run
+// preview and the real migration below so they can never disagree.
+function planUserArchive(u) {
+  const plan = {
+    credits: { keep: [], archive: {} }, cheques: { keep: [], archive: {} },
+    cashEntries: { keep: [], archive: {} }, cashPurchases: { keep: [], archive: {} },
+    reloadEntries: { keep: [], archive: {} },
+  };
+  const bucket = (type, rec, eligible) => {
+    const pk = periodKeyOf(rec.date);
+    if (eligible && isPeriodArchivable(pk)) {
+      if (!plan[type].archive[pk]) plan[type].archive[pk] = [];
+      plan[type].archive[pk].push(rec);
+    } else {
+      plan[type].keep.push(rec);
+    }
+  };
+  (u.credits || []).forEach(c => bucket('credits', c, isCreditSettled(c)));
+  (u.cheques || []).forEach(c => bucket('cheques', c, isChequeSettled(c)));
+  (u.cashEntries || []).forEach(e => bucket('cashEntries', e, true));
+  (u.cashPurchases || []).forEach(p => bucket('cashPurchases', p, true));
+  (u.reloadEntries || []).forEach(e => bucket('reloadEntries', e, true));
+  return plan;
+}
+
+// Dry-run summary across all users — how many records of each type would
+// move, and how many Firestore period-docs that touches — WITHOUT writing
+// anything. Used to show the admin exactly what's about to happen before
+// they confirm.
+function previewArchive() {
+  const totals = { credits: 0, cheques: 0, cashEntries: 0, cashPurchases: 0, reloadEntries: 0 };
+  const periods = new Set();
+  DB.users.forEach(u => {
+    const plan = planUserArchive(u);
+    Object.keys(plan).forEach(type => {
+      Object.keys(plan[type].archive).forEach(pk => {
+        totals[type] += plan[type].archive[pk].length;
+        periods.add(`${u.username}_${pk}`);
+      });
+    });
+  });
+  const totalRecords = Object.values(totals).reduce((a, n) => a + n, 0);
+  return { ...totals, totalRecords, periodCount: periods.size };
+}
+
+// Runs the real migration. For every user, every archivable record is
+// written into its cms_archive_periods/{username}_{YYYY-MM} doc — merged
+// with anything already archived there (read-then-merge, not a blind
+// overwrite, so running this again later, e.g. next month, can't wipe out an
+// earlier run's records for the same period) — then removed from the live
+// user doc, which is pushed back to Firestore through the normal syncUser()
+// path (the same diff-based merge write used everywhere else, so this can't
+// clobber a payment someone else just recorded elsewhere).
+async function runArchiveMigration(onProgress) {
+  if (!isAdmin()) { toast('Admin only', 'red'); return null; }
+  if (!firebaseReady() || !archivePeriodsCol) { toast('⚠️ Not connected — archiving needs a live connection', 'red'); return null; }
+  const result = { usersProcessed: 0, periodsWritten: 0, recordsArchived: 0, errors: [] };
+  for (const u of DB.users) {
+    const plan = planUserArchive(u);
+    const periodKeys = new Set();
+    Object.values(plan).forEach(p => Object.keys(p.archive).forEach(pk => periodKeys.add(pk)));
+    if (!periodKeys.size) continue;
+    try {
+      for (const pk of periodKeys) {
+        const docId = `${u.username}_${pk}`;
+        const snap = await archivePeriodsCol.doc(docId).get();
+        const existing = snap.exists ? (snap.data() || {}) : {};
+        const docData = { username: u.username, period: pk, archivedAt: Date.now() };
+        let newCount = 0;
+        for (const type of Object.keys(plan)) {
+          const newRecs = plan[type].archive[pk] || [];
+          if (!newRecs.length) continue;
+          const existingRecs = existing[type] || [];
+          const existingIds = new Set(existingRecs.map(r => r.id));
+          docData[type] = [...existingRecs, ...newRecs.filter(r => !existingIds.has(r.id))];
+          newCount += newRecs.length;
+        }
+        await archivePeriodsCol.doc(docId).set(docData, { merge: true });
+        result.periodsWritten++;
+        result.recordsArchived += newCount;
+        if (onProgress) onProgress(result);
+      }
+      Object.keys(plan).forEach(type => { u[type] = plan[type].keep; });
+      syncUser(u);
+      result.usersProcessed++;
+    } catch (e) {
+      console.error('archive migration', u.username, e);
+      result.errors.push(`${u.username}: ${e.message || e}`);
+    }
+  }
+  return result;
+}
+
+// Fetches one user's one archived period (cached after the first fetch, and
+// cached as 'MISSING' if it doesn't exist, so a P&L view of a month with no
+// archived data for some user doesn't re-query Firestore every render).
+async function fetchArchivePeriod(username, period) {
+  const key = `${username}_${period}`;
+  if (ArchiveCache[key]) return ArchiveCache[key] === 'MISSING' ? null : ArchiveCache[key];
+  if (!archivePeriodsCol) return null;
+  try {
+    const snap = await archivePeriodsCol.doc(key).get();
+    if (snap.exists) { ArchiveCache[key] = snap.data(); return ArchiveCache[key]; }
+    ArchiveCache[key] = 'MISSING';
+    return null;
+  } catch (e) {
+    console.error('fetchArchivePeriod', key, e);
+    return null;
+  }
+}
+
+// Fetches (and caches) every archived period, for every user, that's needed
+// to cover the given list of "YYYY-MM" periods. Periods still inside the
+// live window are skipped (nothing archived there yet). Safe to call with
+// periods that are already cached — those resolve instantly.
+async function ensureArchivePeriodsLoaded(periods) {
+  const cutoff = getArchiveLiveWindowStart();
+  const need = (periods || []).filter(pk => pk && pk < cutoff);
+  if (!need.length) return;
+  const usernames = DB.users.map(u => u.username);
+  await Promise.all(usernames.flatMap(un => need.map(pk => fetchArchivePeriod(un, pk))));
+}
+
+// Combines whatever's still live in DB.users with whatever archived periods
+// are currently sitting in ArchiveCache — synchronous, uses the cache
+// opportunistically without triggering any new fetches. Callers that might
+// need a not-yet-cached period should `await ensureArchivePeriodsLoaded(...)`
+// first. This is the shared data source behind P&L and the Purchases
+// Breakdown / Overview trend charts, so archiving old records out of the
+// live doc doesn't quietly zero out a past month's figures in either place.
+function getPLDataset() {
+  const cashEntries = [], credits = [], cheques = [], cashPurchases = [];
+  DB.users.forEach(u => {
+    (u.cashEntries || []).forEach(e => cashEntries.push({ ...e, _owner: u.username }));
+    (u.credits || []).forEach(c => credits.push({ ...c, _owner: u.username }));
+    (u.cheques || []).forEach(c => cheques.push({ ...c, _owner: u.username }));
+    (u.cashPurchases || []).forEach(p => cashPurchases.push({ ...p, _owner: u.username }));
+  });
+  Object.keys(ArchiveCache).forEach(key => {
+    const arc = ArchiveCache[key];
+    if (!arc || arc === 'MISSING') return;
+    const username = arc.username;
+    (arc.cashEntries || []).forEach(e => cashEntries.push({ ...e, _owner: username }));
+    (arc.credits || []).forEach(c => credits.push({ ...c, _owner: username }));
+    (arc.cheques || []).forEach(c => cheques.push({ ...c, _owner: username }));
+    (arc.cashPurchases || []).forEach(p => cashPurchases.push({ ...p, _owner: username }));
+  });
+  return { cashEntries, credits, cheques, cashPurchases };
+}
+
+// Background warm-up: after every successful live sync, silently pre-fetch
+// the archived periods behind the Overview page's "last 6 months" sparklines
+// (months 4-6 back fall outside the 3-month live window once archiving is
+// turned on). Once the fetch resolves, if the Overview page happens to be
+// open, it's quietly re-rendered so those sparklines fill in — no spinner,
+// no visible loading state, since this runs in the background well before
+// most people look at the page.
+function lastNMonthKeysForPrefetch(n) {
+  const out = [];
+  const d = new Date();
+  for (let i = 0; i < n; i++) {
+    out.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    d.setMonth(d.getMonth() - 1);
+  }
+  return out;
+}
+function prefetchOverviewArchiveWindow() {
+  ensureArchivePeriodsLoaded(lastNMonthKeysForPrefetch(6)).then(() => {
+    const active = document.querySelector('.section.show');
+    if (active && active.id === 'overviewSection') debouncedRefreshActiveSection();
+  }).catch(e => console.error('prefetchOverviewArchiveWindow', e));
+}
+
+// All distinct "YYYY-MM" period keys that have at least one archive doc,
+// across every user — used to (a) let old, fully-archived years still show
+// up in the Sales Analytics year dropdown, and (b) know which periods to
+// pre-fetch for an "All Years" view. Cached for the session; invalidated
+// after a new archive run (see confirmRunArchive) since that can add periods.
+let _archivePeriodKeysCache = null;
+async function getArchivedPeriodKeys() {
+  if (_archivePeriodKeysCache) return _archivePeriodKeysCache;
+  if (!archivePeriodsCol) return new Set();
+  try {
+    const snap = await archivePeriodsCol.get();
+    const keys = new Set();
+    snap.forEach(doc => { const p = doc.data()?.period; if (p) keys.add(p); });
+    _archivePeriodKeysCache = keys;
+    return keys;
+  } catch (e) {
+    console.error('getArchivedPeriodKeys', e);
+    return new Set();
+  }
+}
+
+async function initAnalytics() {
+  // Populate year filter — includes years that exist only in the archive
+  // (fully-archived years would otherwise silently disappear from the list).
+  const liveYears = new Set(getAllCashEntries().map(e=>(e.date||'').slice(0,4)).filter(Boolean));
+  const archivedKeys = await getArchivedPeriodKeys();
+  archivedKeys.forEach(pk => liveYears.add(pk.slice(0,4)));
+  const years = [...liveYears].sort().reverse();
   const sel = $('sa-year');
   if (sel) {
     const cur = sel.value;
@@ -10976,18 +11302,24 @@ function initAnalytics() {
   renderAnalytics();
 }
 
-function resetAnalyticsFilter() {
-  const entries = getAllCashEntries();
-  const years = [...new Set(entries.map(e=>(e.date||'').slice(0,4)).filter(Boolean))].sort().reverse();
+async function resetAnalyticsFilter() {
+  const liveYears = new Set(getAllCashEntries().map(e=>(e.date||'').slice(0,4)).filter(Boolean));
+  const archivedKeys = await getArchivedPeriodKeys();
+  archivedKeys.forEach(pk => liveYears.add(pk.slice(0,4)));
+  const years = [...liveYears].sort().reverse();
   if($('sa-year')) $('sa-year').value = years[0]||'';
   if($('sa-month')) $('sa-month').value = '';
   renderAnalytics();
 }
 
+// Synchronous — reads live DB.users PLUS whatever archived periods are
+// already cached (via getPLDataset()). Callers that might need a
+// not-yet-cached period should ensureArchivePeriodsLoaded(...) first (see
+// renderAnalytics / renderMonthlySalesTable below).
 function getFilteredEntries() {
   const yr = $('sa-year')?.value||'';
   const mo = $('sa-month')?.value||'';
-  return getAllCashEntries().filter(e=>{
+  return getPLDataset().cashEntries.filter(e=>{
     const d = e.date||'';
     if (yr && !d.startsWith(yr)) return false;
     if (mo && d.slice(5,7)!==mo) return false;
@@ -10995,10 +11327,30 @@ function getFilteredEntries() {
   });
 }
 
-function renderAnalytics() {
-  const entries = getFilteredEntries();
+async function renderAnalytics() {
   const yr = $('sa-year')?.value||'';
   const mo = $('sa-month')?.value||'';
+
+  // Figure out which periods this view needs and pre-fetch any archived
+  // ones. "All Years" (no yr selected) needs every archived period there
+  // is — fine at the data volumes this app currently has; if that ever
+  // becomes slow for a long-running business, narrow this to a rolling
+  // window instead of the full archive.
+  let neededPeriods = [];
+  if (yr && mo) neededPeriods = [`${yr}-${mo}`];
+  else if (yr) { for (let m=1;m<=12;m++) neededPeriods.push(`${yr}-${String(m).padStart(2,'0')}`); }
+  else { neededPeriods = [...(await getArchivedPeriodKeys())]; }
+  const cutoff = getArchiveLiveWindowStart();
+  if (neededPeriods.some(pk => pk < cutoff)) {
+    ['sa-monthly-chart','sa-annual-chart','sa-payment-chart','sa-expenses-chart'].forEach(id=>{
+      if($(id))$(id).innerHTML=`<div class="sa-no-data"><span class="ico">🗄️</span>Loading archived records…</div>`;
+    });
+    await ensureArchivePeriodsLoaded(neededPeriods);
+    if (($('sa-year')?.value||'') !== yr || ($('sa-month')?.value||'') !== mo) return; // selection changed mid-fetch
+    if (!document.getElementById('sa-monthly-chart')) return; // navigated away
+  }
+
+  const entries = getFilteredEntries();
 
   // KPI tiles always reflect the current calendar month, regardless of the Year/Month filter below
   const curMonth = new Date().toISOString().slice(0,7);
@@ -11145,12 +11497,18 @@ function saTableSort(key) {
   renderMonthlySalesTable();
 }
 
-function renderMonthlySalesTable() {
+async function renderMonthlySalesTable() {
   if (!saTableMonth) saTableMonth = saTableDefaultMonth();
   const monthInput = $('sa-table-month');
   if (monthInput) monthInput.value = saTableMonth;
 
-  const monthEntries = getAllCashEntries().filter(e => (e.date||'').slice(0,7) === saTableMonth);
+  if (saTableMonth < getArchiveLiveWindowStart()) {
+    if ($('sa-top-body')) $('sa-top-body').innerHTML = `<tr><td colspan="10" class="sa-no-data"><span class="ico">🗄️</span>Loading archived records…</td></tr>`;
+    await ensureArchivePeriodsLoaded([saTableMonth]);
+    if (($('sa-table-month')?.value || saTableMonth) !== saTableMonth) return;
+    if (!document.getElementById('sa-top-body')) return;
+  }
+  const monthEntries = getPLDataset().cashEntries.filter(e => (e.date||'').slice(0,7) === saTableMonth);
 
   const dayMap=new Map();
   monthEntries.forEach(e=>{
@@ -11659,16 +12017,21 @@ function plMatchPeriod(p, yr, mo) {
 }
 
 function computePL(yr, mo) {
-  const cashEntries = getAllCashEntries().filter(e => plMatchDate(e.date, yr, mo));
+  // getPLDataset() combines live DB.users data with whatever archived
+  // periods are already cached, so P&L stays accurate for periods older than
+  // the live window as long as they were pre-fetched (renderPL below does
+  // this before calling computePL; see ensureArchivePeriodsLoaded).
+  const plData = getPLDataset();
+  const cashEntries = plData.cashEntries.filter(e => plMatchDate(e.date, yr, mo));
   // Exclude credit bills / cheques recorded against Admin-added suppliers — these are
   // administrative entries, not real business purchases, so they're left out of P&L.
-  const credits = getAllCredits().filter(c => plMatchDate(c.date, yr, mo) && !isAdminOwnedRecord(c._owner));
-  const cheques = getAllCheques().filter(c => plMatchDate(c.date, yr, mo) && !isAdminOwnedRecord(c._owner));
+  const credits = plData.credits.filter(c => plMatchDate(c.date, yr, mo) && !isAdminOwnedRecord(c._owner));
+  const cheques = plData.cheques.filter(c => plMatchDate(c.date, yr, mo) && !isAdminOwnedRecord(c._owner));
   // Use the itemized cash-purchase ledger (not cashEntries[].totalPurchases) — it's the
   // only source that also captures standalone "Cash Purchase" entries logged straight
   // from Cash-in-Hand (Cash Log), which aren't tied to any daily cash entry and were
   // previously missing from the P&L purchases total.
-  const cashPurchaseRecords = getCashPurchaseRowsRaw().filter(p => plMatchDate(p.date, yr, mo) && !isAdminOwnedRecord(p._owner) && !p.linkedCreditId);
+  const cashPurchaseRecords = plData.cashPurchases.filter(p => plMatchDate(p.date, yr, mo) && !isAdminOwnedRecord(p._owner) && !p.linkedCreditId);
   const payrolls = PDB.payrolls.filter(p => plMatchPeriod(p.period, yr, mo));
 
   const incCash = cashEntries.reduce((a, e) => a + (Number(e.totalCash) || 0), 0);
@@ -11784,10 +12147,30 @@ function plRow(label, value, opts) {
   return `<div class="pr-row${cls}"><span>${label}</span><span${styleAttr}>${fmt(value)}</span></div>`;
 }
 
-function renderPL() {
+async function renderPL() {
   if (!isAdmin()) return;
   const yr = $('pl-year')?.value || '';
   const mo = $('pl-month')?.value || '';
+
+  // Figure out which "YYYY-MM" periods this view needs (one month, or all 12
+  // for a full-year view + its monthly trend chart), and pre-fetch any of
+  // them that have been archived out of the live data. Cached periods
+  // resolve instantly, so this is a no-op once warm.
+  const neededPeriods = [];
+  if (yr && mo) neededPeriods.push(`${yr}-${mo}`);
+  else if (yr) { for (let m = 1; m <= 12; m++) neededPeriods.push(`${yr}-${String(m).padStart(2, '0')}`); }
+  const cutoff = getArchiveLiveWindowStart();
+  const needsArchiveFetch = neededPeriods.some(pk => pk < cutoff);
+  if (needsArchiveFetch) {
+    if ($('pl-statement-body')) $('pl-statement-body').innerHTML = '<div class="no-data">🗄️ Loading archived records…</div>';
+    if ($('pl-kpi-row')) $('pl-kpi-row').innerHTML = '';
+    await ensureArchivePeriodsLoaded(neededPeriods);
+    // The view may have changed (different year/month, or navigated away)
+    // while that fetch was in flight — bail out rather than render a stale answer.
+    if (($('pl-year')?.value || '') !== yr || ($('pl-month')?.value || '') !== mo) return;
+    if (!document.getElementById('pl-statement-body')) return;
+  }
+
   const r = computePL(yr, mo);
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const periodLabel = mo ? `· ${monthNames[Number(mo) - 1]} ${yr}` : (yr ? `· Full Year ${yr}` : '');
@@ -12035,6 +12418,15 @@ function getCashRowsRaw() {
   } else {
     rows = (DB.currentUser?.cashEntries||[]).map(e => ({...e, _owner:DB.currentUsername, _ownerName:DB.currentUser?.name||''}));
   }
+  // Merge in whatever archived periods are currently cached (see "🗄️ Load
+  // Archived Records" on the Sales History tab / report).
+  const wantAll = isAdmin() || isManager();
+  Object.keys(ArchiveCache).forEach(key => {
+    if (!wantAll && !key.startsWith(DB.currentUsername + '_')) return;
+    const arc = ArchiveCache[key];
+    if (!arc || arc === 'MISSING') return;
+    (arc.cashEntries || []).forEach(e => rows.push({ ...e, _owner: arc.username, _ownerName: getUserByUsername(arc.username)?.name || arc.username }));
+  });
   return rows;
 }
 
@@ -12988,6 +13380,7 @@ function renderSalesHistory() {
   const totalPages = Math.max(1, Math.ceil(allRows.length / CASH_PAGE_SIZE));
   if (cashHistPage > totalPages) cashHistPage = totalPages;
   if (cashHistPage < 1) cashHistPage = 1;
+  renderArchiveLoadWrap('cashHistArchiveWrap', 'renderSalesHistory');
   if (!allRows.length) {
     tbody.innerHTML='<tr><td colspan="13" class="no-data"><span class="ico">📜</span>No sales history yet</td></tr>';
     renderPagination('cashHistPagination', 0, cashHistPage, 'goCashHistPage');
@@ -12996,6 +13389,25 @@ function renderSalesHistory() {
   const pageRows = allRows.slice((cashHistPage-1)*CASH_PAGE_SIZE, cashHistPage*CASH_PAGE_SIZE);
   tbody.innerHTML = buildCashRowsHtml(pageRows, cashiers, {summaryRows: allRows});
   renderPagination('cashHistPagination', allRows.length, cashHistPage, 'goCashHistPage');
+}
+
+// Shared "🗄️ Load Archived Records" control used by Sales History and Reload
+// History (Suppliers profile has its own scoped version above, since that
+// one's naturally tied to a single supplier). Fetches every archived period
+// once, session-wide, then re-renders whichever list asked for it.
+let _archiveLoadedGlobal = false;
+async function loadAllArchivedThenRerender(rerenderFnName) {
+  const allPeriods = [...(await getArchivedPeriodKeys())];
+  await ensureArchivePeriodsLoaded(allPeriods);
+  _archiveLoadedGlobal = true;
+  if (typeof window[rerenderFnName] === 'function') window[rerenderFnName]();
+}
+function renderArchiveLoadWrap(containerId, rerenderFnName) {
+  const wrap = $(containerId);
+  if (!wrap) return;
+  wrap.innerHTML = _archiveLoadedGlobal
+    ? `<div class="no-data" style="padding:.5rem 0;font-size:.78rem;"><span class="ico">✅</span>Archived records (3mo+) included above</div>`
+    : `<button class="btn btn-ghost btn-sm" style="margin-top:.5rem;" onclick="loadAllArchivedThenRerender('${rerenderFnName}')">🗄️ Load Archived Records (3mo+)</button>`;
 }
 
 // ----- Cash Purchase History (Reports) — flat, per-supplier cash-purchase ledger -----
@@ -13126,6 +13538,17 @@ function getReloadEntries() {
   } else {
     entries = (DB.currentUser?.reloadEntries||[]).map(e=>({...e, _owner:DB.currentUsername}));
   }
+  // Merge in whatever archived periods are currently cached (see "🗄️ Load
+  // Archived Records" on the Reload History tab). Archived entries are
+  // always older than anything still live, so this never changes what shows
+  // up as the "latest" entry anywhere else in the app that reads this list.
+  const wantAll = isAdmin();
+  Object.keys(ArchiveCache).forEach(key => {
+    if (!wantAll && !key.startsWith(DB.currentUsername + '_')) return;
+    const arc = ArchiveCache[key];
+    if (!arc || arc === 'MISSING') return;
+    (arc.reloadEntries || []).forEach(e => entries.push({ ...e, _owner: arc.username }));
+  });
   return entries.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
 }
 
@@ -13321,6 +13744,7 @@ function renderReloadHistory() {
   const reloadTotalPages = Math.max(1, Math.ceil(entries.length / PROFILE_LIST_PAGE_SIZE));
   if (reloadHistPage > reloadTotalPages) reloadHistPage = reloadTotalPages;
   if (reloadHistPage < 1) reloadHistPage = 1;
+  renderArchiveLoadWrap('reloadHistArchiveWrap', 'renderReloadHistory');
   if (!entries.length){tbody.innerHTML='<tr><td colspan="9" class="no-data"><span class="ico">📱</span>No reload entries yet</td></tr>';renderPagination('reloadHistPagination',0,reloadHistPage,'goReloadHistPage',PROFILE_LIST_PAGE_SIZE);return;}
   const pageEntries = entries.slice((reloadHistPage-1)*PROFILE_LIST_PAGE_SIZE, reloadHistPage*PROFILE_LIST_PAGE_SIZE);
   renderPagination('reloadHistPagination', entries.length, reloadHistPage, 'goReloadHistPage', PROFILE_LIST_PAGE_SIZE);
