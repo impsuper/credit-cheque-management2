@@ -894,6 +894,9 @@ tr:hover td{background:var(--row-hover);}
 /* REPORTS */
 .report-card{cursor:pointer;}
 .report-card:hover{transform:translateY(-5px);box-shadow:0 14px 30px rgba(15,23,42,.14)!important;}
+/* OVERVIEW DASHBOARD TILES — clickable, jump to the section/tab behind the number */
+.ov-tile-link{cursor:pointer;}
+.ov-tile-link:hover{box-shadow:0 14px 30px rgba(15,23,42,.14)!important;}
 .reports-mobile-note{display:none;}
 @media(max-width:768px){
   #reportsSection .stats-grid{display:none;}
@@ -1509,39 +1512,39 @@ th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
         ⚠️ Data sync issue — some figures below (e.g. Cash in Managers Hand) may be incomplete right now. Check your internet connection and tap Refresh.
       </div>
       <div class="stats-grid">
-        <div class="stat-card yellow" id="tile-activeCheques">
+        <div class="stat-card yellow ov-tile-link" id="tile-activeCheques" onclick="goToDashboardTile('tile_activeCheques')" title="View Active Cheques">
           <div class="stat-label">💰 Active Cheques Amount</div>
           <div class="stat-val" id="ov-tc">LKR 0</div>
           <div class="stat-sub">✅ <span id="ov-chq">0</span> cheques active &nbsp;·&nbsp; ⚠️ <span id="ov-over">0</span> overdue</div>
         </div>
-        <div class="stat-card red" id="tile-outstanding">
+        <div class="stat-card red ov-tile-link" id="tile-outstanding" onclick="goToDashboardTile('tile_outstanding')" title="View Outstanding Credit Bills">
           <div class="stat-label">⏳ Outstanding</div>
           <div class="stat-val" id="ov-out">LKR 0</div>
           <div class="stat-sub">📋 <span id="ov-active-cr">0</span> active bills</div>
         </div>
-        <div class="stat-card hidden" id="avgSaleStat" style="border-top-color:var(--amber2,#fbbf24);">
+        <div class="stat-card hidden ov-tile-link" id="avgSaleStat" style="border-top-color:var(--amber2,#fbbf24);" onclick="goToDashboardTile('tile_avgDaySale')" title="View Daily Cash / Sales Entries">
           <div class="stat-label">📊 Average Day Sale</div>
           <div class="stat-val" id="ov-avg-day-month" style="font-size:1.1rem;">LKR 0</div>
           <div class="stat-sub">📆 This Month</div>
           <div class="stat-val" id="ov-avg-day-year" style="font-size:1.1rem;margin-top:.4rem;">LKR 0</div>
           <div class="stat-sub">🗓️ This Year</div>
         </div>
-        <div class="stat-card hidden" id="cashInHandStat" style="border-top:3px solid var(--navy3);">
+        <div class="stat-card hidden ov-tile-link" id="cashInHandStat" style="border-top:3px solid var(--navy3);" onclick="goToDashboardTile('tile_cashInHand')" title="View Cash Section">
           <div class="stat-label">💵 Cash in Managers Hand</div>
           <div class="stat-val" id="ov-cash-inhand">LKR 0</div>
         </div>
-        <div class="stat-card accent" id="rlStatTotal"><div class="stat-label">📱 Total Reload Balance</div><div class="stat-val" id="ov-rl-total">LKR 0</div></div>
-        <div class="stat-card green" id="rlStatCash"><div class="stat-label">💵 Reload Cash in Hand</div><div class="stat-val" id="ov-rl-cash">LKR 0</div></div>
-        <div class="stat-card hidden" id="tile-totalPurchasesMonth" style="border-top:3px solid #7c3aed;">
+        <div class="stat-card accent ov-tile-link" id="rlStatTotal" onclick="goToDashboardTile('tile_reloadTotal')" title="View Reload Section"><div class="stat-label">📱 Total Reload Balance</div><div class="stat-val" id="ov-rl-total">LKR 0</div></div>
+        <div class="stat-card green ov-tile-link" id="rlStatCash" onclick="goToDashboardTile('tile_reloadCash')" title="View Reload Section"><div class="stat-label">💵 Reload Cash in Hand</div><div class="stat-val" id="ov-rl-cash">LKR 0</div></div>
+        <div class="stat-card hidden ov-tile-link" id="tile-totalPurchasesMonth" style="border-top:3px solid #7c3aed;" onclick="goToDashboardTile('tile_totalPurchasesMonth')" title="View Monthly Purchase Report">
           <div class="stat-label">🛒 Total Purchases This Month</div>
           <div class="stat-val" id="ov-total-purch-month">LKR 0</div>
         </div>
-        <div class="stat-card hidden" id="tile-chequesDueWeek" style="border-top:3px solid #ea580c;">
+        <div class="stat-card hidden ov-tile-link" id="tile-chequesDueWeek" style="border-top:3px solid #ea580c;" onclick="goToDashboardTile('tile_chequesDueWeek')" title="View Cheques Due This Week">
           <div class="stat-label">📆 Cheques Due This Week</div>
           <div class="stat-val" id="ov-cheques-due-week">LKR 0</div>
           <div class="stat-sub">🔴 <span id="ov-cheques-due-overdue">0</span> overdue &nbsp;·&nbsp; 🟡 <span id="ov-cheques-due-soon">0</span> due soon</div>
         </div>
-        <div class="stat-card hidden" id="tile-netProfitMonth" style="border-top:3px solid var(--green,#15803d);">
+        <div class="stat-card hidden ov-tile-link" id="tile-netProfitMonth" style="border-top:3px solid var(--green,#15803d);" onclick="goToDashboardTile('tile_netProfitMonth')" title="View Profit &amp; Loss">
           <div class="stat-label">💰 Net Profit This Month</div>
           <div class="stat-val" id="ov-net-profit-month">LKR 0</div>
           <div class="stat-sub">🧾 Total Sale: <span id="ov-net-profit-month-sales">LKR 0</span></div>
@@ -2754,6 +2757,16 @@ th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
 
     <!-- REPORTS -->
     <div id="reportsSection" class="section">
+      <div class="tab-bar">
+        <div class="tab active" onclick="switchReportsTab('pdf')" id="rep-tab-pdf">📋 PDF Reports</div>
+        <div class="tab" onclick="switchReportsTab('ledger')" id="rep-tab-ledger">🏦 Manager Cash-in-Hand Ledger</div>
+        <div class="tab" onclick="switchReportsTab('sales')" id="rep-tab-sales">📜 Cash Sale History</div>
+        <div class="tab" onclick="switchReportsTab('purchases')" id="rep-tab-purchases">🛒 Cash Purchase History</div>
+        <div class="tab" onclick="switchReportsTab('disposal')" id="rep-tab-disposal">📤 Cash Disposal Log</div>
+        <div class="tab" onclick="switchReportsTab('monthly')" id="rep-tab-monthly">🧾 Monthly Purchase Report</div>
+      </div>
+
+      <div id="reports-tab-content-pdf" class="tab-content show">
       <div class="card">
         <div class="card-head"><div class="card-title">📋 PDF Reports</div><div style="font-size:.85rem;color:var(--muted);">Click a card to download</div></div>
         <div style="padding:1.5rem;">
@@ -2792,6 +2805,9 @@ th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
           </div>
         </div>
       </div>
+      </div>
+
+      <div id="reports-tab-content-ledger" class="tab-content">
 
       <div class="card" id="mgrCashLedgerCard" style="margin-top:1.2rem;">
         <div class="card-head">
@@ -2810,7 +2826,9 @@ th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
         <div class="mobile-cards" id="mgrLedgerMobile"></div>
         <div id="mgrLedgerPagination" class="pg-bar-wrap"></div>
       </div>
+      </div>
 
+      <div id="reports-tab-content-sales" class="tab-content">
       <div class="card" id="cashSaleHistCard" style="margin-top:1.2rem;">
         <div class="card-head">
           <div class="card-title">📜 Cash Sale History</div>
@@ -2831,7 +2849,9 @@ th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
         <div id="cashHistPagination" class="pg-bar-wrap"></div>
         <div id="cashHistArchiveWrap"></div>
       </div>
+      </div>
 
+      <div id="reports-tab-content-purchases" class="tab-content">
       <div class="card" id="cashPurchaseHistCard" style="margin-top:1.2rem;">
         <div class="card-head">
           <div class="card-title">🛒 Cash Purchase History</div>
@@ -2852,7 +2872,9 @@ th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
         </div>
         <div id="cashPurchaseHistPagination" class="pg-bar-wrap"></div>
       </div>
+      </div>
 
+      <div id="reports-tab-content-disposal" class="tab-content">
       <div class="card" id="cashLogHistCard" style="margin-top:1.2rem;">
         <div class="card-head">
           <div class="card-title">📤 Cash Disposal Log</div>
@@ -2864,6 +2886,56 @@ th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
           </table>
         </div>
         <div id="cashLogPagination" class="pg-bar-wrap"></div>
+      </div>
+      </div>
+
+      <div id="reports-tab-content-monthly" class="tab-content">
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">🧾 Monthly Purchase Report</div>
+          <div class="card-actions">
+            <button class="btn btn-ghost btn-sm" onclick="exportMonthlyPurchasePDF()">📄 PDF</button>
+          </div>
+        </div>
+        <div class="ds-mini-grid" id="mp-summary-grid">
+          <div class="ds-mini-stat"><span>🔴 Credit Total</span><b id="mp-sum-credit">LKR 0</b></div>
+          <div class="ds-mini-stat"><span>🟡 Cheque Total</span><b id="mp-sum-cheque">LKR 0</b></div>
+          <div class="ds-mini-stat"><span>🟢 Cash Total</span><b id="mp-sum-cash">LKR 0</b></div>
+          <div class="ds-mini-stat ds-highlight"><span>🧾 Total Monthly Purchases</span><b id="mp-sum-total">LKR 0</b></div>
+        </div>
+        <div style="padding:1rem 1.5rem 0;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+          <div style="display:flex;align-items:center;gap:.6rem;">
+            <button class="btn btn-ghost btn-sm" onclick="mpChangeMonth(-1)">◀</button>
+            <div id="mp-month-label" style="font-weight:700;min-width:150px;text-align:center;"></div>
+            <button class="btn btn-ghost btn-sm" onclick="mpChangeMonth(1)">▶</button>
+            <input type="month" id="mp-month-input" onchange="mpSetMonth(this.value)" style="padding:.4rem .6rem;border:1.5px solid var(--border);border-radius:7px;font-size:.82rem;">
+          </div>
+          <input type="text" id="mp-search" oninput="mpPage=1;renderMonthlyPurchaseReport()" placeholder="🔍 Search supplier or ID…" style="padding:.5rem .9rem;border:1.5px solid var(--border);border-radius:7px;font-size:.85rem;min-width:220px;">
+        </div>
+        <div style="padding:.8rem 1.5rem 0;display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;">
+          <select id="mp-type-filter" onchange="mpPage=1;renderMonthlyPurchaseReport()" style="padding:.5rem .9rem;border:1.5px solid var(--border);border-radius:7px;font-size:.85rem;">
+            <option value="all">📋 All Types</option>
+            <option value="Credit">🔴 Credit Bills</option>
+            <option value="Cash">🟢 Cash Bills</option>
+            <option value="Cheque">🟡 Cheque Bills</option>
+          </select>
+          <select id="mp-owner-filter" onchange="mpPage=1;renderMonthlyPurchaseReport()" style="padding:.5rem .9rem;border:1.5px solid var(--border);border-radius:7px;font-size:.85rem;"></select>
+        </div>
+        <div class="table-wrap" style="margin-top:.8rem;">
+          <table>
+            <thead><tr>
+              <th style="cursor:pointer;" onclick="mpSetSort('entryId')">🆔 ID ⇅</th>
+              <th style="cursor:pointer;" onclick="mpSetSort('date')">📅 Date ⇅</th>
+              <th style="cursor:pointer;" onclick="mpSetSort('supplier')">🏪 Supplier ⇅</th>
+              <th style="cursor:pointer;" onclick="mpSetSort('amount')">💰 Bill Amount ⇅<br><span id="mp-amount-col-total" style="font-weight:600;font-size:.72rem;color:var(--accent,#2563eb);">LKR 0</span></th>
+              <th style="cursor:pointer;" onclick="mpSetSort('method')">💳 Payment Method ⇅</th>
+              <th>📌 Status</th>
+            </tr></thead>
+            <tbody id="mpBody"></tbody>
+          </table>
+        </div>
+        <div id="mpPagination" class="pg-bar-wrap"></div>
+      </div>
       </div>
     </div>
 
@@ -5269,13 +5341,45 @@ function showSection(name) {
   if (name === 'activity') renderActivityLog();
   if (name === 'cash') { initCashSection(); if($('cl-date')&&!$('cl-date').value)$('cl-date').value=today(); renderCash(); }
   if (name === 'dailySummary') initDailySummarySection();
-  if (name === 'reports') { renderSalesHistory(); renderCashLog(); renderManagerCashLedger(); }
+  if (name === 'reports') initReportsSection();
   if (name === 'reload') { if($('rl-date')&&!$('rl-date').value)$('rl-date').value=today(); renderReloadSection(); }
   if (name === 'analytics') initAnalytics();
   if (name === 'aiinsights') renderAIInsights();
   if (name === 'settings') { if (!isAdmin()) { showSection('overview'); return; } initSettingsSection(); }
   if (name === 'pl') { if (!isAdmin()) { showSection('overview'); return; } initPLSection(); }
   if (name === 'payroll') { if (!canAccessPayroll()) { showSection('overview'); return; } initPayrollSection(); }
+}
+
+// ===== DASHBOARD TILE → SECTION NAVIGATION =====
+// Each Overview stat tile summarizes numbers that live in full detail
+// somewhere else in the app; tapping a tile jumps straight there instead of
+// making the user hunt for it in the sidebar. Keyed by the same
+// DASHBOARD_TILES `key` used for the Settings > Permissions show/hide toggle.
+function goToDashboardTile(key) {
+  switch (key) {
+    case 'tile_activeCheques':      // 💰 Active Cheques Amount
+    case 'tile_chequesDueWeek':     // 📆 Cheques Due This Week
+      showSection('cheques');
+      break;
+    case 'tile_outstanding':        // ⏳ Outstanding (unpaid credit bills)
+      showSection('credits');
+      break;
+    case 'tile_avgDaySale':         // 📊 Average Day Sale (built from daily cash/sales entries)
+    case 'tile_cashInHand':         // 💵 Cash in Managers Hand
+      showSection('cash');
+      break;
+    case 'tile_reloadTotal':        // 📱 Total Reload Balance
+    case 'tile_reloadCash':         // 💵 Reload Cash in Hand
+      showSection('reload');
+      break;
+    case 'tile_totalPurchasesMonth': // 🛒 Total Purchases This Month
+      showSection('reports');
+      switchReportsTab('monthly'); // showSection('reports') defaults to the last-used tab, so force Monthly Purchase Report
+      break;
+    case 'tile_netProfitMonth':     // 💰 Net Profit This Month (admin-only page; showSection() already
+      showSection('pl');           // safely bounces a non-admin back to Overview if they somehow see this tile)
+      break;
+  }
 }
 
 function refreshActiveSection() {
@@ -8425,6 +8529,23 @@ function switchSettingsTab(tab) {
 
 function initSettingsSection() {
   switchSettingsTab(DB.settingsTab || 'users');
+}
+
+function switchReportsTab(tab) {
+  document.querySelectorAll('#reportsSection .tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('#reportsSection .tab-content').forEach(t => t.classList.remove('show'));
+  $(`rep-tab-${tab}`)?.classList.add('active');
+  $(`reports-tab-content-${tab}`)?.classList.add('show');
+  DB.reportsTab = tab;
+  if (tab === 'ledger') renderManagerCashLedger();
+  else if (tab === 'sales') renderSalesHistory();
+  else if (tab === 'purchases') renderCashPurchaseHistory();
+  else if (tab === 'disposal') renderCashLog();
+  else if (tab === 'monthly') renderMonthlyPurchaseReport();
+}
+
+function initReportsSection() {
+  switchReportsTab(DB.reportsTab || 'pdf');
 }
 
 /* ===== SORT PILLS (mobile) ===== */
@@ -13456,6 +13577,287 @@ function populateCashPurchaseSupplierFilter() {
 }
 
 function goCashPurchaseHistPage(p) { cashPurchaseHistPage = p; renderCashPurchaseHistory(); }
+
+// ===== MONTHLY PURCHASE REPORT (Reports tab) =====
+// Itemized listing of every purchase "bill" — credit bills (all, regardless
+// of settled status), plus standalone cheque and cash purchases (i.e. NOT
+// ones used to settle a credit bill — same double-counting-avoidance rule as
+// computeTotalPurchases/P&L: a credit bill later paid off by cash or cheque
+// shows ONCE, as a Credit bill, and is never also added to the Cash or
+// Cheque totals). Filterable by payment type (Credit/Cash/Cheque) and by who
+// entered it (a specific manager, all managers, or everyone incl. Admin).
+let mpMonth = null;      // 'YYYY-MM'
+let mpPage = 1;
+let mpSortKey = 'date';
+let mpSortDir = 'desc';
+
+function mpDefaultMonth() { return new Date().toISOString().slice(0,7); }
+
+// ownerFilter: 'managers' (default — every real manager/user account, Admin's
+// own internal entries excluded, same convention as isAdminOwnedRecord/P&L),
+// 'all' (literally everyone incl. Admin), or a specific username.
+function mpFilterRowsByOwner(rows, ownerFilter) {
+  const f = ownerFilter || 'managers';
+  if (f === 'all') return rows;
+  if (f === 'managers') return rows.filter(r => !isAdminOwnedRecord(r._owner));
+  return rows.filter(r => r._owner === f);
+}
+
+function getMonthlyPurchaseRows(monthKey, ownerFilter) {
+  const plData = getPLDataset(); // archive-aware — see ensureArchivePeriodsLoaded in renderMonthlyPurchaseReport
+  const rows = [];
+  plData.credits.filter(c => (c.date||'').slice(0,7) === monthKey).forEach(c => {
+    // A credit settled via a linked cheque (see autoSettleLinkedCredit) is marked
+    // paid the moment that cheque is recorded, not when it actually clears. So
+    // find that linked cheque here too — if it's still pending (or bounced), the
+    // status column below should show ITS real-world state/due date instead of a
+    // "Settled by Cheque" label for money that hasn't actually landed yet. If more
+    // than one cheque has settled this bill over time, prefer one that hasn't
+    // cleared yet; otherwise fall back to the most recent one.
+    const linkedCheques = plData.cheques.filter(ch => ch.linkedCreditId === c.id && ch._owner === c._owner);
+    const settlingCheque = linkedCheques.find(ch => ch.status !== 'cleared') || linkedCheques[linkedCheques.length - 1];
+    rows.push({ id: c.entryId || '—', date: c.date, supplier: getSupplierName(c.supplierId, c._owner), amount: Number(c.amount)||0, method: 'Credit', _owner: c._owner,
+      settled: isCreditSettled(c), balance: getCreditBalance(c),
+      settledByCheque: getCreditSettledByChequeAmt(c) > 0, settledDate: getCreditSettledDate(c),
+      settlingChequeStatus: settlingCheque?.status || null, settlingChequeDueDate: settlingCheque?.dueDate || '' });
+  });
+  // Cheques/cash purchases that carry a linkedCreditId are settlements of a
+  // credit bill above, not standalone purchases — excluded here so that bill
+  // is counted once (as Credit), never twice.
+  plData.cheques.filter(c => (c.date||'').slice(0,7) === monthKey && !c.linkedCreditId).forEach(c => {
+    rows.push({ id: c.entryId || '—', date: c.date, supplier: getSupplierName(c.supplierId, c._owner), amount: Number(c.amount)||0, method: 'Cheque', _owner: c._owner,
+      chequeStatus: c.status || 'pending', dueDate: c.dueDate || '' });
+  });
+  plData.cashPurchases.filter(p => (p.date||'').slice(0,7) === monthKey && !p.linkedCreditId).forEach(p => {
+    const idShort = 'CB-' + String(p.id||'').slice(-6).toUpperCase();
+    rows.push({ id: idShort, date: p.date, supplier: p.supplierName || getSupplierName(p.supplierId, p._owner), amount: Number(p.amount)||0, method: 'Cash', _owner: p._owner });
+  });
+  return mpFilterRowsByOwner(rows, ownerFilter);
+}
+
+// Status column shown after Payment Method: a Cash bill is settled the
+// moment it's paid (no balance/due concept); a Credit bill shows its
+// remaining Balance until fully paid — once settled it shows "Settled by
+// Cheque" if a linked cheque paid it off, otherwise the actual date it was
+// settled (cash/direct payment). However, a credit auto-settled by a linked
+// cheque is only settled ON PAPER at the moment that cheque is recorded — the
+// cheque itself can still bounce or sit pending — so in that case this checks
+// the linked cheque's real status: still pending → shows ITS Due Date (same
+// as a standalone Cheque row would); bounced → flags it; only once that
+// cheque has actually cleared does it show "Settled by Cheque". A Cheque
+// (standalone, not linked to a credit) shows its Due Date while still
+// pending, "Settled" once cleared, or "Bounced" if it bounced (a bounced
+// cheque isn't actually paid, so it's never labeled Settled). forPdf returns
+// plain text instead of colored HTML.
+function mpStatusDisplay(r, forPdf) {
+  if (r.method === 'Cash') {
+    return forPdf ? 'Settled' : '<span style="color:#16a34a;font-weight:600;">✅ Settled</span>';
+  }
+  if (r.method === 'Credit') {
+    if (r.settled) {
+      if (r.settledByCheque) {
+        // Settled-on-paper isn't the same as settled-in-reality: the linked
+        // cheque only actually pays the supplier once it clears. So while that
+        // cheque is still pending, show its due date instead of "Settled by
+        // Cheque" — and flag it if the cheque bounced, since that money never
+        // actually landed despite the credit being recorded as paid.
+        if (r.settlingChequeStatus === 'bounced') return forPdf ? 'Bounced (linked cheque)' : '<span style="color:#dc2626;font-weight:600;">⚠️ Bounced (cheque)</span>';
+        if (r.settlingChequeStatus && r.settlingChequeStatus !== 'cleared') {
+          return forPdf ? ('Due: '+(r.settlingChequeDueDate||'—')) : `<span style="color:#d97706;font-weight:600;">📅 Due: ${r.settlingChequeDueDate||'—'}</span>`;
+        }
+        return forPdf ? 'Settled by Cheque' : '<span style="color:#16a34a;font-weight:600;">✅ Settled by Cheque</span>';
+      }
+      return forPdf ? ('Settled: '+(r.settledDate||'—')) : `<span style="color:#16a34a;font-weight:600;">✅ Settled: ${r.settledDate||'—'}</span>`;
+    }
+    return forPdf ? ('Balance: '+fmt(r.balance)) : `<span style="color:#dc2626;font-weight:600;">Bal: ${fmt(r.balance)}</span>`;
+  }
+  if (r.method === 'Cheque') {
+    if (r.chequeStatus === 'bounced') return forPdf ? 'Bounced' : '<span style="color:#dc2626;font-weight:600;">⚠️ Bounced</span>';
+    if (r.chequeStatus && r.chequeStatus !== 'pending') return forPdf ? 'Settled' : '<span style="color:#16a34a;font-weight:600;">✅ Settled</span>';
+    return forPdf ? ('Due: '+(r.dueDate||'—')) : `<span style="color:#d97706;font-weight:600;">📅 Due: ${r.dueDate||'—'}</span>`;
+  }
+  return '—';
+}
+
+// Populates the "Entered By" dropdown: All Managers (default, excludes
+// Admin's internal entries), each individual manager/user account, then All
+// (incl. Admin). Preserves the current selection across re-renders.
+function populateMonthlyPurchaseOwnerFilter() {
+  const el = $('mp-owner-filter');
+  if (!el) return;
+  const val = el.value || 'managers';
+  const managers = getManagerUsers();
+  let html = '<option value="managers">🧑‍💼 All Managers</option>';
+  html += managers.map(u => `<option value="${u.username}">👤 ${escHtml(u.name || u.business || u.username)}</option>`).join('');
+  html += '<option value="all">👥 All (incl. Admin)</option>';
+  el.innerHTML = html;
+  const validValues = ['managers','all', ...managers.map(u=>u.username)];
+  el.value = validValues.includes(val) ? val : 'managers';
+}
+
+function getMonthlyPurchaseFilters() {
+  return {
+    ownerFilter: $('mp-owner-filter')?.value || 'managers',
+    typeFilter: $('mp-type-filter')?.value || 'all'
+  };
+}
+
+// Summary always reflects ALL three payment types for the chosen owner scope
+// (it's the month's full breakdown) — it is not narrowed by the type filter,
+// which only controls which rows the table below is browsing.
+function getMonthlyPurchaseSummary(monthKey, ownerFilter) {
+  const rows = getMonthlyPurchaseRows(monthKey, ownerFilter);
+  const sum = { credit: 0, cheque: 0, cash: 0, total: 0 };
+  rows.forEach(r => {
+    const amt = Number(r.amount) || 0;
+    if (r.method === 'Credit') sum.credit += amt;
+    else if (r.method === 'Cheque') sum.cheque += amt;
+    else if (r.method === 'Cash') sum.cash += amt;
+    sum.total += amt;
+  });
+  return sum;
+}
+
+function renderMonthlyPurchaseSummary(monthKey, ownerFilter) {
+  const sum = getMonthlyPurchaseSummary(monthKey, ownerFilter);
+  if ($('mp-sum-credit')) $('mp-sum-credit').textContent = fmt(sum.credit);
+  if ($('mp-sum-cheque')) $('mp-sum-cheque').textContent = fmt(sum.cheque);
+  if ($('mp-sum-cash')) $('mp-sum-cash').textContent = fmt(sum.cash);
+  if ($('mp-sum-total')) $('mp-sum-total').textContent = fmt(sum.total);
+  return sum;
+}
+
+function mpSetSort(key) {
+  if (mpSortKey === key) mpSortDir = mpSortDir === 'asc' ? 'desc' : 'asc';
+  else { mpSortKey = key; mpSortDir = key === 'date' ? 'desc' : 'asc'; }
+  renderMonthlyPurchaseReport();
+}
+
+function mpChangeMonth(delta) {
+  if (!mpMonth) mpMonth = mpDefaultMonth();
+  const [y,m] = mpMonth.split('-').map(Number);
+  const d = new Date(y, (m-1)+delta, 1);
+  mpMonth = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  mpPage = 1;
+  renderMonthlyPurchaseReport();
+}
+function mpSetMonth(val) {
+  if (!val) return;
+  mpMonth = val;
+  mpPage = 1;
+  renderMonthlyPurchaseReport();
+}
+function goMonthlyPurchasePage(p) { mpPage = p; renderMonthlyPurchaseReport(); }
+
+async function renderMonthlyPurchaseReport() {
+  const tbody = $('mpBody');
+  if (!tbody) return;
+  if (!mpMonth) mpMonth = mpDefaultMonth();
+  if ($('mp-month-input')) $('mp-month-input').value = mpMonth;
+  const [y,m] = mpMonth.split('-');
+  if ($('mp-month-label')) $('mp-month-label').textContent = new Date(y, m-1).toLocaleDateString('en-US', { month:'long', year:'numeric' });
+
+  populateMonthlyPurchaseOwnerFilter();
+
+  if (mpMonth < getArchiveLiveWindowStart()) {
+    tbody.innerHTML = `<tr><td colspan="6" class="no-data"><span class="ico">🗄️</span>Loading archived records…</td></tr>`;
+    await ensureArchivePeriodsLoaded([mpMonth]);
+    if (($('mp-month-input')?.value || mpMonth) !== mpMonth) return; // month changed mid-fetch
+    if (!document.getElementById('mpBody')) return; // navigated away
+  }
+
+  const { ownerFilter, typeFilter } = getMonthlyPurchaseFilters();
+  renderMonthlyPurchaseSummary(mpMonth, ownerFilter);
+
+  let rows = getMonthlyPurchaseRows(mpMonth, ownerFilter);
+  if (typeFilter !== 'all') rows = rows.filter(r => r.method === typeFilter);
+  const q = ($('mp-search')?.value || '').toLowerCase().trim();
+  if (q) rows = rows.filter(r => r.supplier.toLowerCase().includes(q) || String(r.id).toLowerCase().includes(q));
+
+  // Bill Amount column total, shown in its header — reflects every row that
+  // matches the CURRENT filters (type / entered-by / search), not just the
+  // page on screen. E.g. searching a supplier's name here shows exactly what
+  // was purchased from that supplier this month, before paging kicks in.
+  const filteredAmountTotal = rows.reduce((a,r) => a + (Number(r.amount)||0), 0);
+  if ($('mp-amount-col-total')) $('mp-amount-col-total').textContent = fmt(filteredAmountTotal);
+
+  rows.sort((a,b) => {
+    let av = a[mpSortKey], bv = b[mpSortKey];
+    if (mpSortKey === 'amount') { av = Number(av); bv = Number(bv); }
+    else { av = String(av||'').toLowerCase(); bv = String(bv||'').toLowerCase(); }
+    if (av < bv) return mpSortDir === 'asc' ? -1 : 1;
+    if (av > bv) return mpSortDir === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const totalPages = Math.max(1, Math.ceil(rows.length / LIST_PAGE_SIZE));
+  if (mpPage > totalPages) mpPage = totalPages;
+  if (mpPage < 1) mpPage = 1;
+
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="6" class="no-data"><span class="ico">🧾</span>No purchases for this month</td></tr>`;
+    renderPagination('mpPagination', 0, mpPage, 'goMonthlyPurchasePage', LIST_PAGE_SIZE);
+    return;
+  }
+
+  const pageRows = rows.slice((mpPage-1)*LIST_PAGE_SIZE, mpPage*LIST_PAGE_SIZE);
+  const methodColor = { Credit:'#dc2626', Cheque:'#d97706', Cash:'#16a34a' };
+  let html = '';
+  pageRows.forEach(r => {
+    html += `<tr>
+      <td>${r.id}</td>
+      <td>${r.date}</td>
+      <td>🏪 ${r.supplier}${isAdmin() && r._owner ? ` <span class="user-data-badge">${r._owner}</span>` : ''}</td>
+      <td class="fw700">${fmt(r.amount)}</td>
+      <td><span style="color:${methodColor[r.method]||'#333'};font-weight:600;">${r.method}</span></td>
+      <td>${mpStatusDisplay(r, false)}</td>
+    </tr>`;
+  });
+  tbody.innerHTML = html;
+  renderPagination('mpPagination', rows.length, mpPage, 'goMonthlyPurchasePage', LIST_PAGE_SIZE);
+}
+
+async function exportMonthlyPurchasePDF() {
+  if (!window.jspdf) { toast('PDF library loading… try again in a moment', 'yellow'); return; }
+  if (!mpMonth) mpMonth = mpDefaultMonth();
+  if (mpMonth < getArchiveLiveWindowStart()) {
+    toast('🗄️ Loading archived records…', 'yellow');
+    await ensureArchivePeriodsLoaded([mpMonth]);
+  }
+  const { ownerFilter, typeFilter } = getMonthlyPurchaseFilters();
+  let rows = getMonthlyPurchaseRows(mpMonth, ownerFilter);
+  if (typeFilter !== 'all') rows = rows.filter(r => r.method === typeFilter);
+  rows = rows.sort((a,b) => (a.date||'').localeCompare(b.date||'') || a.supplier.localeCompare(b.supplier));
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const biz = DB.currentUser?.business || 'Report';
+  const [y,m] = mpMonth.split('-');
+  const monthLabel = new Date(y, m-1).toLocaleDateString('en-US', { month:'long', year:'numeric' });
+  const ownerLabel = ownerFilter === 'all' ? 'All (incl. Admin)' : ownerFilter === 'managers' ? 'All Managers' : (getUserByUsername(ownerFilter)?.name || ownerFilter);
+  const typeLabel = typeFilter === 'all' ? 'All Types' : typeFilter;
+  doc.setFontSize(14); doc.text(biz, 14, 16);
+  doc.setFontSize(9); doc.setTextColor(120);
+  doc.text('Generated: '+new Date().toLocaleDateString()+' · User: '+DB.currentUsername, 14, 23);
+  doc.text('Entered By: '+ownerLabel+' · Type: '+typeLabel, 14, 28);
+  doc.setTextColor(0);
+  doc.setFontSize(12); doc.text('Monthly Purchase Report — '+monthLabel, 14, 36);
+
+  const sum = getMonthlyPurchaseSummary(mpMonth, ownerFilter);
+  doc.autoTable({ startY:41, styles:{fontSize:8.5, halign:'center'}, theme:'grid',
+    headStyles:{fillColor:[15,23,42]},
+    head:[['Credit Total','Cheque Total','Cash Total','Total Monthly Purchases']],
+    body:[[fmt(sum.credit), fmt(sum.cheque), fmt(sum.cash), fmt(sum.total)]],
+    bodyStyles:{fontStyle:'bold'}
+  });
+
+  const tot = rows.reduce((a,r)=>a+r.amount,0);
+  doc.autoTable({ startY: doc.lastAutoTable.finalY + 8, styles:{fontSize:8}, headStyles:{fillColor:[15,23,42]},
+    head:[['ID','Date','Supplier','Bill Amount','Payment Method','Status']],
+    body: rows.map(r => [r.id, r.date, r.supplier, fmt(r.amount), r.method, mpStatusDisplay(r, true)]),
+    foot:[[`Total (${rows.length})`,'','',fmt(tot),'','']]
+  });
+  doc.save('monthly_purchase_report_'+mpMonth+'.pdf');
+}
 
 function renderCashPurchaseHistory() {
   const tbody = $('cashPurchaseHistBody');
