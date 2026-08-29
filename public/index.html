@@ -4452,6 +4452,81 @@ async function applyCreditPaymentsChange(owner, creditId, mutateFn, supplierId) 
   }
 }
 
+// Safely rewrites ONE credit bill's own fields (amount/date/supplierId/notes)
+// without the same-document race condition applyCreditPaymentsChange() above
+// already fixes for `payments`. Before this, editCredit()/saveCredit() edited
+// an existing bill by mutating the LOCAL in-memory copy of the owner's
+// `credits` array and handing the whole thing to syncUser() -> saveUserDoc(),
+// which -- even with its diff/merge logic -- still sends this tab's own
+// (possibly momentarily stale) copy of the ENTIRE `credits` array as soon as
+// this one item inside it changes. If the owner's live `usersCol.onSnapshot`
+// listener happens to refresh DB.users from ANOTHER unrelated write (any
+// other user's doc changing is enough, since it's a collection-level
+// listener) in the gap between "type new amount" and "click Save", or the
+// admin edits the same bill twice in quick succession, this tab's local
+// baseline can lag one write behind the server. The next Save then computes
+// its diff against that stale baseline and pushes a `credits` array that's
+// missing the previous edit -- exactly how a reduced bill amount can
+// silently revert back toward its original value (the CR0094 bug: repeated
+// edits landed as 526,134 -> 374,134 -> 184,669 -> 526,134, each one erasing
+// the one before it instead of compounding).
+//
+// Fix: same shape as applyCreditPaymentsChange() -- read the bill fresh from
+// the server inside a transaction, patch just this bill's fields, and write
+// back only `credits` (+ `suppliers`, if touching one). Firestore re-runs the
+// transaction automatically if another write lands on this doc in between,
+// so an edit can no longer be silently lost or overwritten that way.
+async function applyCreditFieldsChange(owner, creditId, fields, supplierId) {
+  if (!owner) return false;
+
+  if (!firebaseReady() || !usersCol) {
+    // Local-only mode: nothing to race against.
+    const c = (owner.credits || []).find(x => x.id === creditId);
+    if (!c) return false;
+    Object.assign(c, fields);
+    if (supplierId) touchSupplier(owner, supplierId);
+    syncUser(owner);
+    return true;
+  }
+
+  setSyncStatus('syncing');
+  try {
+    await fdb.runTransaction(async tx => {
+      const ref = usersCol.doc(owner.username);
+      const snap = await tx.get(ref);
+      if (!snap.exists) throw new Error('USER_NOT_FOUND');
+      const freshData = snap.data();
+      const freshCredits = Array.isArray(freshData.credits) ? freshData.credits.slice() : [];
+      const idx = freshCredits.findIndex(x => x.id === creditId);
+      if (idx === -1) throw new Error('CREDIT_NOT_FOUND');
+      freshCredits[idx] = { ...freshCredits[idx], ...fields };
+      const update = { credits: freshCredits };
+      if (supplierId) {
+        const freshSuppliers = Array.isArray(freshData.suppliers) ? freshData.suppliers.slice() : [];
+        const sIdx = freshSuppliers.findIndex(s => s.id === supplierId);
+        if (sIdx !== -1) {
+          freshSuppliers[sIdx] = { ...freshSuppliers[sIdx], updatedAt: new Date().toISOString() };
+          update.suppliers = freshSuppliers;
+        }
+      }
+      tx.update(ref, update);
+    });
+    // Server write confirmed — mirror it into local memory so the UI (and
+    // this tab's own next diff baseline) matches exactly what the server has.
+    const c = (owner.credits || []).find(x => x.id === creditId);
+    if (c) Object.assign(c, fields);
+    if (supplierId) touchSupplier(owner, supplierId);
+    try { saveDBLocal(); } catch (e) { console.error('applyCreditFieldsChange local mirror', e); }
+    markSynced('cloud');
+    return true;
+  } catch (e) {
+    console.error('applyCreditFieldsChange transaction', e);
+    setSyncStatus('offline');
+    toast('⚠️ Credit save failed — try again', 'red');
+    return false;
+  }
+}
+
 function saveDBLocal() {
   localStorage.setItem('cms_users', JSON.stringify(DB.users));
 }
@@ -9292,7 +9367,7 @@ function delSupplier(id, ownerUsername) {
   return true;
 }
 
-function saveCredit() {
+async function saveCredit() {
   const supId = $('cr-sup-id').value;
   const amount = parseFloat($('cr-amount').value) || 0;
   if (!$('cr-date').value || !supId || !amount) {
@@ -9323,15 +9398,21 @@ function saveCredit() {
     return;
   }
   if (editId) {
-    const idx = (owner.credits || []).findIndex(c => c.id === editId);
-    if (idx !== -1) {
-      const existing = owner.credits[idx];
-      existing.date = $('cr-date').value;
-      existing.supplierId = supId;
-      existing.amount = amount;
-      existing.notes = $('cr-notes').value || '';
-      owner.credits[idx] = existing;
-    }
+    // Goes through a transaction (reads the bill fresh from the server,
+    // patches just its fields, writes back) instead of a blind local-copy
+    // overwrite — see applyCreditFieldsChange() for why: an amount reduction
+    // saved the old way could be silently reverted by a near-simultaneous
+    // write from this same tab's live listener or a second edit in quick
+    // succession (this is what caused CR0094 to keep bouncing back to its
+    // original amount instead of staying reduced).
+    const fields = {
+      date: $('cr-date').value,
+      supplierId: supId,
+      amount,
+      notes: $('cr-notes').value || ''
+    };
+    const ok = await applyCreditFieldsChange(owner, editId, fields, supId);
+    if (!ok) return;
   } else {
     const entryId = nextEntryId(owner, 'credit');
     const rec = {
@@ -9351,13 +9432,13 @@ function saveCredit() {
     };
     if (!owner.credits) owner.credits = [];
     owner.credits.push(rec);
+    touchSupplier(owner, supId);
+    syncUser(owner);
   }
   logActivity(editId ? 'EDIT_CREDIT' : 'ADD_CREDIT', `Credit · ${fmt(amount)}`);
   if (!editId && isManager()) {
     queuePushEvent('credit', '💳 New Credit Bill', `${DB.currentUser?.name||DB.currentUsername} · ${getSupplierName(supId, owner)} · ${fmt(amount)}`);
   }
-  touchSupplier(owner, supId);
-  syncUser(owner);
   closeModal('creditModal');
   renderCredits();
   renderOverview();
