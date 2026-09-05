@@ -1529,6 +1529,13 @@ th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
           <div class="stat-val" id="ov-avg-day-year" style="font-size:1.1rem;margin-top:.4rem;">LKR 0</div>
           <div class="stat-sub">🗓️ This Year</div>
         </div>
+        <div class="stat-card hidden ov-tile-link" id="lastMonthAvgSaleStat" style="border-top-color:var(--amber2,#fbbf24);" onclick="goToDashboardTile('tile_lastMonthAvgSale')" title="View Daily Cash / Sales Entries">
+          <div class="stat-label">📊 Last Month Average Sale</div>
+          <div class="stat-val" id="ov-avg-day-lastmonth" style="font-size:1.1rem;">LKR 0</div>
+          <div class="stat-sub" id="ov-avg-day-lastmonth-sub">📆 Full Month</div>
+          <div class="stat-val" id="ov-avg-day-lastmonth-today" style="font-size:1.1rem;margin-top:.4rem;">LKR 0</div>
+          <div class="stat-sub" id="ov-avg-day-lastmonth-today-sub">📆 As of Today</div>
+        </div>
         <div class="stat-card hidden ov-tile-link" id="cashInHandStat" style="border-top:3px solid var(--navy3);" onclick="goToDashboardTile('tile_cashInHand')" title="View Cash Section">
           <div class="stat-label">💵 Cash in Managers Hand</div>
           <div class="stat-val" id="ov-cash-inhand">LKR 0</div>
@@ -3895,6 +3902,7 @@ const DEFAULT_MANAGER_PERMS = {
   dailySummary: true,
   // Dashboard stat tiles
   tile_activeCheques: true, tile_outstanding: true, tile_avgDaySale: true,
+  tile_lastMonthAvgSale: true,
   tile_cashInHand: true, tile_reloadTotal: true, tile_reloadCash: true,
   tile_totalPurchasesMonth: true, tile_chequesDueWeek: true, tile_netProfitMonth: true,
   // Dashboard charts (both mini-chart carousels)
@@ -3927,6 +3935,7 @@ const DASHBOARD_TILES = [
   { key: 'tile_activeCheques', elId: 'tile-activeCheques', label: '💰 Active Cheques Amount' },
   { key: 'tile_outstanding',   elId: 'tile-outstanding',   label: '⏳ Outstanding' },
   { key: 'tile_avgDaySale',    elId: 'avgSaleStat',        label: '📊 Average Day Sale' },
+  { key: 'tile_lastMonthAvgSale',       elId: 'lastMonthAvgSaleStat',      label: '📊 Last Month Average Sale' },
   { key: 'tile_cashInHand',    elId: 'cashInHandStat',     label: '💵 Cash in Managers Hand' },
   { key: 'tile_reloadTotal',   elId: 'rlStatTotal',        label: '📱 Total Reload Balance' },
   { key: 'tile_reloadCash',    elId: 'rlStatCash',         label: '💵 Reload Cash in Hand' },
@@ -5440,6 +5449,7 @@ function goToDashboardTile(key) {
       showSection('credits');
       break;
     case 'tile_avgDaySale':         // 📊 Average Day Sale (built from daily cash/sales entries)
+    case 'tile_lastMonthAvgSale':        // 📊 Last Month Average Sale (full month + as-of-today)
     case 'tile_cashInHand':         // 💵 Cash in Managers Hand
       showSection('cash');
       break;
@@ -7248,6 +7258,36 @@ function renderOverview() {
   const avgDayYear = yearDays.size ? yearSalesTotal / yearDays.size : 0;
   if ($('ov-avg-day-month')) $('ov-avg-day-month').textContent = fmt(avgDayMonth);
   if ($('ov-avg-day-year')) $('ov-avg-day-year').textContent = fmt(avgDayYear);
+
+  // Last Month Average Sale tiles — same "average per logged day" approach as
+  // above, but for the previous calendar month. Shown as two separate tiles:
+  // (1) the full last-month average (all days logged in that month), and
+  // (2) a like-for-like average using only last month's day-of-month 1..today
+  // (e.g. if today is the 5th, only last month's 1st–5th) — this is the fair
+  // comparison figure to hold up against "This Month" while the current
+  // month is still only partially through.
+  const todayDayNum = nowD.getDate();
+  const lastMonthDateObj = new Date(nowD.getFullYear(), nowD.getMonth() - 1, 1);
+  const lastMonthKey = `${lastMonthDateObj.getFullYear()}-${String(lastMonthDateObj.getMonth() + 1).padStart(2, '0')}`;
+  const lastMonthDaysFull = new Set(), lastMonthDaysToDate = new Set();
+  let lastMonthSalesFull = 0, lastMonthSalesToDate = 0;
+  allCashForAvg.forEach(e => {
+    if (!e.date || e.date.slice(0, 7) !== lastMonthKey) return;
+    const amt = Number(e.totalSales) || 0;
+    lastMonthDaysFull.add(e.date);
+    lastMonthSalesFull += amt;
+    if (Number(e.date.slice(8, 10)) <= todayDayNum) {
+      lastMonthDaysToDate.add(e.date);
+      lastMonthSalesToDate += amt;
+    }
+  });
+  const avgDayLastMonthFull = lastMonthDaysFull.size ? lastMonthSalesFull / lastMonthDaysFull.size : 0;
+  const avgDayLastMonthToDate = lastMonthDaysToDate.size ? lastMonthSalesToDate / lastMonthDaysToDate.size : 0;
+  if ($('ov-avg-day-lastmonth')) $('ov-avg-day-lastmonth').textContent = fmt(avgDayLastMonthFull);
+  if ($('ov-avg-day-lastmonth-today')) $('ov-avg-day-lastmonth-today').textContent = fmt(avgDayLastMonthToDate);
+  const lastMonthLabelShort = lastMonthDateObj.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  if ($('ov-avg-day-lastmonth-sub')) $('ov-avg-day-lastmonth-sub').textContent = `📆 ${lastMonthLabelShort} · Full Month`;
+  if ($('ov-avg-day-lastmonth-today-sub')) $('ov-avg-day-lastmonth-today-sub').textContent = `📆 ${lastMonthLabelShort} · Day 1–${todayDayNum}`;
   const cih=calcCashInHand();
   if($('ov-cash-inhand'))$('ov-cash-inhand').textContent=cashInHandDisplayText();
   const rlEntries = getReloadEntries();
