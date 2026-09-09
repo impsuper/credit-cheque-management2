@@ -3573,6 +3573,18 @@ th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
         <div class="notif-pref-label"><span class="npi">⏰</span><div><strong>Cheque Due Reminder</strong><div class="npd">6 AM reminder — Friday due dates remind on Monday, Sat/Sun due dates remind on Tuesday, other days remind the next day</div></div></div>
         <label class="np-switch"><input type="checkbox" id="np-chequeDue" onchange="saveNotifPref('chequeDue', this.checked)"><span class="np-slider"></span></label>
       </div>
+      <div class="notif-pref-row">
+        <div class="notif-pref-label"><span class="npi">📶</span><div><strong>Reload Entry Added</strong><div class="npd">Manager records a new daily reload entry</div></div></div>
+        <label class="np-switch"><input type="checkbox" id="np-reload" onchange="saveNotifPref('reload', this.checked)"><span class="np-slider"></span></label>
+      </div>
+      <div class="notif-pref-row">
+        <div class="notif-pref-label"><span class="npi">💵</span><div><strong>Cash Advance Given</strong><div class="npd">Manager gives a cash advance to an employee</div></div></div>
+        <label class="np-switch"><input type="checkbox" id="np-advance" onchange="saveNotifPref('advance', this.checked)"><span class="np-slider"></span></label>
+      </div>
+      <div class="notif-pref-row">
+        <div class="notif-pref-label"><span class="npi">🏬</span><div><strong>New Supplier Added</strong><div class="npd">Manager adds a new supplier</div></div></div>
+        <label class="np-switch"><input type="checkbox" id="np-supplier" onchange="saveNotifPref('supplier', this.checked)"><span class="np-slider"></span></label>
+      </div>
 
       <div id="notifSettingsHint" class="hidden" style="margin-top:1rem;padding:.8rem 1rem;background:#fef3c7;border-radius:10px;border-left:4px solid var(--yellow);font-size:.82rem;color:#78350f;">
         ⚠️ තාම push notifications enable කරලා නෑ — "🔕 Enable Alerts" button එකෙන් මුලින් enable කරන්න, එතකොට මේ settings apply වෙනවා.
@@ -4623,8 +4635,9 @@ function clearSession() {
    Flow:
    1. Admin taps "Enable Alerts" → browser permission → FCM token saved to
       Firestore `push_tokens/{username}`.
-   2. When a manager adds a cash entry / cheque / credit payment, the app
-      writes a small doc to `push_events` (queuePushEvent below).
+   2. When a manager adds a cash entry / cheque / credit bill / credit
+      payment / reload entry / cash advance / supplier, the app writes a
+      small doc to `push_events` (queuePushEvent below).
    3. A Cloud Function (sendQueuedPush) picks up that doc, sends the push
       to every saved token, then deletes the doc.
    4. A separate scheduled Cloud Function (chequeDueReminder) runs every day
@@ -4782,7 +4795,7 @@ async function queuePushEvent(type, title, body) {
   } catch (e) { console.error('queuePushEvent', e); }
 }
 
-const NOTIF_PREF_KEYS = ['cash', 'cheque', 'credit', 'payment', 'chequeDue'];
+const NOTIF_PREF_KEYS = ['cash', 'cheque', 'credit', 'payment', 'chequeDue', 'reload', 'advance', 'supplier'];
 
 async function openNotifSettings() {
   if (!isAdmin()) { toast('⚠️ Admin only', 'red'); return; }
@@ -9603,6 +9616,9 @@ function saveSupplier() {
   }
   syncUser(owner);
   logActivity(editId ? 'EDIT_SUPPLIER' : 'ADD_SUPPLIER', `${name}${isAdmin() && owner.username !== DB.currentUsername ? ' (' + owner.username + ')' : ''}`);
+  if (!editId && isManager()) {
+    queuePushEvent('supplier', '🏬 New Supplier Added', `${DB.currentUser?.name||DB.currentUsername} · ${name}${rec.phone ? ' · ☎ ' + rec.phone : ''}`);
+  }
   closeModal('supplierModal');
   renderSuppliers();
   renderOverview();
@@ -12931,15 +12947,33 @@ async function saveCashEntry(handoverTarget) {
   }
   logActivity(editId?'EDIT_CASH':'ADD_CASH', `${date} · Net: ${fmt(netCash)}`);
   if (!editId && isManager()) {
+    const salesParts = [];
+    if (cash) salesParts.push(`💵Cash ${fmt(cash)}`);
+    if (card) salesParts.push(`💳Card ${fmt(card)}`);
+    if (qr) salesParts.push(`📱QR ${fmt(qr)}`);
+    if (credit) salesParts.push(`📝Credit ${fmt(credit)}`);
+    if (cheque) salesParts.push(`🏦Cheque ${fmt(cheque)}`);
+    const salesText = salesParts.length ? salesParts.join(' · ') : '—';
+
     const breakdownParts = [];
-    if (totalAdv > 0) breakdownParts.push(`💸 Advances: ${fmt(totalAdv)}`);
-    if (totalPurchase > 0) breakdownParts.push(`🛒 Purchases: ${fmt(totalPurchase)}`);
-    if (totalCreditPay > 0) breakdownParts.push(`🧾 Credit Bill Pay: ${fmt(totalCreditPay)}`);
+    if (totalAdv > 0) {
+      const advNames = advSlots.map(a => `${getEmployee(a.empId)?.name || a.empId} ${fmt(a.amount)}`).join(', ');
+      breakdownParts.push(`💸 Advances (${fmt(totalAdv)}): ${advNames}`);
+    }
+    if (totalPurchase > 0) {
+      const purNames = purchaseRows.map(p => `${p.supplierName} ${fmt(p.amount)}`).join(', ');
+      breakdownParts.push(`🛒 Purchases (${fmt(totalPurchase)}): ${purNames}`);
+    }
+    if (totalCreditPay > 0) {
+      const creditNames = creditPayRows.map(p => `${p.supplierName} ${fmt(p.amount)}`).join(', ');
+      breakdownParts.push(`🧾 Credit Bill Pay (${fmt(totalCreditPay)}): ${creditNames}`);
+    }
     const banked = exp1 + exp2;
     if (banked > 0) breakdownParts.push(`🏦 Banked: ${fmt(banked)}`);
-    if (exp3 > 0) breakdownParts.push(`📉 Other Exp: ${fmt(exp3)}`);
-    const breakdownText = breakdownParts.length ? ' · ' + breakdownParts.join(' · ') : '';
-    queuePushEvent('cash', '💵 Cash Entry Added', `${DB.currentUser?.name||DB.currentUsername} · ${date} · Sales: ${fmt(totalSales)} · Net: ${fmt(netCash)}${breakdownText}`);
+    if (exp3 > 0) breakdownParts.push(`📉 Other Exp: ${fmt(exp3)}${$('cm-expr3')?.value ? ' (' + $('cm-expr3').value + ')' : ''}`);
+
+    const breakdownText = breakdownParts.length ? '\n' + breakdownParts.join('\n') : '';
+    queuePushEvent('cash', '💵 Cash Entry Added', `${DB.currentUser?.name||DB.currentUsername} · ${date}\nSales: ${salesText} (Total ${fmt(totalSales)})\nNet Cash: ${fmt(netCash)}${breakdownText}`);
   }
 
   // Sync cash purchases into this business's own supplier-linked ledger
@@ -14114,6 +14148,15 @@ async function saveReloadEntry() {
     } else { owner.reloadEntries.push(rec); }
   }
   logActivity(editId?'EDIT_RELOAD':'ADD_RELOAD', `${date} · Total: ${fmt(total)}`);
+  if (!editId && isManager()) {
+    const parts = [];
+    if (dialog) parts.push(`Dialog ${fmt(dialog)}`);
+    if (mobitel) parts.push(`Mobitel ${fmt(mobitel)}`);
+    if (hutch) parts.push(`Hutch ${fmt(hutch)}`);
+    if (airtel) parts.push(`Airtel ${fmt(airtel)}`);
+    if (cash) parts.push(`Cash ${fmt(cash)}`);
+    queuePushEvent('reload', '📶 Reload Entry Added', `${DB.currentUser?.name||DB.currentUsername} · ${date} · Total: ${fmt(total)}${parts.length ? ' (' + parts.join(' · ') + ')' : ''}${notes ? ' · ' + notes : ''}`);
+  }
   syncUser(owner);
   resetReloadForm();
   renderReloadSection();
@@ -15494,6 +15537,9 @@ function saveAdvance() {
     source: 'manual', cashEntryId: null
   });
   logActivity('ADD_ADVANCE', `${fmt(amount)} to ${emp ? emp.name : empId}`);
+  if (isManager()) {
+    queuePushEvent('advance', '💵 Cash Advance Given', `${DB.currentUser?.name||DB.currentUsername} · ${emp ? emp.name : empId} · ${fmt(amount)} · ${date}${note ? ' · ' + note : ''}`);
+  }
   savePayrollDB();
   $('adv-amount').value = '';
   $('adv-note').value = '';
