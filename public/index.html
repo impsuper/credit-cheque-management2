@@ -3585,6 +3585,10 @@ th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
         <div class="notif-pref-label"><span class="npi">🏬</span><div><strong>New Supplier Added</strong><div class="npd">Manager adds a new supplier</div></div></div>
         <label class="np-switch"><input type="checkbox" id="np-supplier" onchange="saveNotifPref('supplier', this.checked)"><span class="np-slider"></span></label>
       </div>
+      <div class="notif-pref-row">
+        <div class="notif-pref-label"><span class="npi">📤</span><div><strong>Cash Disposal Log</strong><div class="npd">Cash-in-Hand reduces — banked, handed to owner, cash purchase, credit bill payment, salary, other</div></div></div>
+        <label class="np-switch"><input type="checkbox" id="np-disposal" onchange="saveNotifPref('disposal', this.checked)"><span class="np-slider"></span></label>
+      </div>
 
       <div id="notifSettingsHint" class="hidden" style="margin-top:1rem;padding:.8rem 1rem;background:#fef3c7;border-radius:10px;border-left:4px solid var(--yellow);font-size:.82rem;color:#78350f;">
         ⚠️ තාම push notifications enable කරලා නෑ — "🔕 Enable Alerts" button එකෙන් මුලින් enable කරන්න, එතකොට මේ settings apply වෙනවා.
@@ -4795,7 +4799,7 @@ async function queuePushEvent(type, title, body) {
   } catch (e) { console.error('queuePushEvent', e); }
 }
 
-const NOTIF_PREF_KEYS = ['cash', 'cheque', 'credit', 'payment', 'chequeDue', 'reload', 'advance', 'supplier'];
+const NOTIF_PREF_KEYS = ['cash', 'cheque', 'credit', 'payment', 'chequeDue', 'reload', 'advance', 'supplier', 'disposal'];
 
 async function openNotifSettings() {
   if (!isAdmin()) { toast('⚠️ Admin only', 'red'); return; }
@@ -11195,6 +11199,18 @@ async function saveCashLogEntry() {
       toast('⚠️ Credit Bill එකට payment එක link කිරීමට නොහැකි විය — Log entry එක save කළේ නැත. නැවත උත්සාහ කරන්න.', 'red');
       return;
     }
+  }
+
+  // Push notification: every Cash Disposal Log entry that REDUCES Cash-in-Hand
+  // (i.e. every type except 'owner_topup', which adds cash and already sends its
+  // own "Cash Added by Owner" push below, under the separate 'cash' type) fires
+  // an alert so the Owner/Admin knows money just went out, even without opening
+  // the app. Uses its own 'disposal' notif-pref key (see NOTIF_PREF_KEYS) so it
+  // can be toggled on/off independently from "Cash Entry Added" in Notification
+  // Settings, instead of the two sharing a single switch.
+  if (!editId && type !== 'owner_topup') {
+    const disposalPushLabels = { banked: '🏦 Banked', handed_owner: '🤝 Handed to Owner', cash_purchase: '🛒 Cash Purchase', credit_payment: '🧾 Credit Bill Payment', salary: '💼 Salary', other1: '📝 Other Reason 1', other2: '📝 Other Reason 2', other3: '📝 Other Reason 3' };
+    queuePushEvent('disposal', '📤 Cash Disposal Log', `${DB.currentUser?.name||DB.currentUsername} · ${disposalPushLabels[type]||type} · ${date} · ${fmt(amount)}${desc ? ' · '+desc : ''}`);
   }
 
   // If Manager hands to Owner — create confirmation notification for Admin
