@@ -11131,73 +11131,160 @@ async function saveCashLogEntry() {
   }
 
   let logId = editId;
-  // Snapshot the entry's PRE-edit fields so a failed credit-bill link below can be rolled
-  // back cleanly (see the credit_payment block further down) instead of leaving the log
-  // entry saved with new values while the linked credit bill never actually got the payment.
-  const prevEntrySnapshot = (editId && existingEntry) ? { ...existingEntry } : null;
-  if (editId && existingEntry) {
-    Object.assign(existingEntry, {
-      date, type, amount, description: desc,
-      supplierId: supplierId||undefined, supplierName: supplierName||undefined, supplierOwnerUsername: supplierOwnerUsername||undefined,
-      creditId: creditId||undefined, creditOwnerUsername: creditOwnerUsername||undefined,
-      updatedAt: new Date().toISOString(), updatedBy: DB.currentUsername, updatedByName: DB.currentUser?.name||''
-    });
-  } else {
-    logId = uid();
-    admin.cashLog.unshift({
-      id:logId, date, type, amount, description:desc,
-      supplierId: supplierId||undefined, supplierName: supplierName||undefined, supplierOwnerUsername: supplierOwnerUsername||undefined,
-      creditId: creditId||undefined, creditOwnerUsername: creditOwnerUsername||undefined,
-      actor:DB.currentUsername, actorName:DB.currentUser?.name||''
-    });
-  }
-  syncUser(admin);
-  logActivity(editId ? 'EDIT_CASH_LOG' : 'CASH_LOG', `${type} · ${fmt(amount)}`);
 
-  // Mirror this purchase into the supplier's own business ledger so it also shows on the Supplier Profile
-  if (type === 'cash_purchase' && supplierId) {
-    const supOwner = getUserByUsername(supplierOwnerUsername);
-    if (supOwner) {
-      if (!supOwner.cashPurchases) supOwner.cashPurchases=[];
-      supOwner.cashPurchases.push({
-        id: uid(), date, supplierId, supplierName, amount,
-        cashierIdx: null, cashEntryId: null, cashLogId: logId, source:'cashLog',
-        createdBy: DB.currentUsername, createdByName: DB.currentUser?.name || ''
-      });
-      touchSupplier(supOwner, supplierId);
-      syncUser(supOwner);
-    }
-  }
+  // Shared "log entry fields" patch, used whether we're creating a new cashLog row or
+  // updating an existing one, by both branches below.
+  const logFieldsPatch = {
+    date, type, amount, description: desc,
+    supplierId: supplierId||undefined, supplierName: supplierName||undefined, supplierOwnerUsername: supplierOwnerUsername||undefined,
+    creditId: creditId||undefined, creditOwnerUsername: creditOwnerUsername||undefined,
+  };
 
-  // Record this as a payment against the linked credit bill — the bill's balance drops as
-  // if it had been paid off directly, and the amount already left Cash-in-Hand via cashLog.
-  //
-  // IMPORTANT: this is a SEPARATE write from the syncUser(admin) above, so it can fail on
-  // its own (network hiccup, stale doc, etc) even though the log entry itself already saved
-  // successfully. If that happens we MUST roll the log entry back — otherwise Cash-in-Hand
-  // shows the money as gone (paid to the supplier) while the credit bill still shows the
-  // full amount outstanding, with nothing on screen telling anyone the two disagree. This is
-  // exactly the bug that let bill CR0049 sit "active" after its cash-disposal payment was
-  // logged: the log entry saved, this call below failed silently, and nothing undid the log.
   if (type === 'credit_payment' && creditId) {
+    // ATOMIC FIX for the CR0117 incident (IMP Stores Hulandawa, 2026-09-09): a ₨98,410
+    // Cash Disposal Log payment against that bill saved successfully, but the credit bill's
+    // `payments` array stayed empty — Cash-in-Hand showed the money as gone while the bill
+    // still showed the full ₨202,360 outstanding, with nothing on screen flagging the two had
+    // drifted apart.
+    //
+    // Root cause: this used to be TWO separate writes — the cashLog entry saved on its own
+    // first, THEN a second, separate Firestore transaction linked the payment to the credit
+    // bill, with a rollback attempted if that second write failed. That rollback only runs if
+    // the browser is still alive and online long enough to run it. If the connection dropped
+    // or the tab was closed in the gap between the two writes, the cashLog entry was already
+    // permanently saved with nothing left running to undo it — that's exactly what happened.
+    //
+    // Fix: both writes now go into ONE Firestore transaction, spanning both documents (or one
+    // document, when the same user owns both the cashLog and the credit bill). Firestore
+    // guarantees a transaction's writes land together or not at all, so there is no longer any
+    // "in between" moment left for a dropped connection or closed tab to strand.
     const creditOwner = getUserByUsername(creditOwnerUsername);
-    let linkOk = false;
-    if (creditOwner) {
-      const newPayment = { id: uid(), amount, date, note: '💰 Paid via Cash Disposal Log (Cash-in-Hand)', cashLogId: logId };
-      linkOk = await applyCreditPaymentsChange(creditOwner, creditId, payments => [...payments, newPayment], supplierId);
-    }
-    if (!linkOk) {
-      // Roll back the log entry to whatever it was before this save, so the disposal log
-      // and the credit bill can never end up disagreeing about whether this was paid.
-      if (editId && prevEntrySnapshot) {
-        Object.assign(existingEntry, prevEntrySnapshot);
+    if (!creditOwner) { toast('⚠️ Credit bill owner not found', 'red'); return; }
+    const sameDoc = creditOwner.username === admin.username;
+    const finalLogId = editId || uid();
+    let newPayment = null;
+
+    if (!firebaseReady() || !usersCol) {
+      // Local-only mode (no cloud sync configured) — nothing to race against.
+      if (editId && existingEntry) {
+        Object.assign(existingEntry, logFieldsPatch, { updatedAt: new Date().toISOString(), updatedBy: DB.currentUsername, updatedByName: DB.currentUser?.name||'' });
       } else {
-        admin.cashLog = admin.cashLog.filter(e => e.id !== logId);
+        admin.cashLog.unshift({ id: finalLogId, ...logFieldsPatch, actor: DB.currentUsername, actorName: DB.currentUser?.name||'' });
+      }
+      const c = (creditOwner.credits||[]).find(x => x.id === creditId);
+      if (c) {
+        newPayment = { id: uid(), amount, date, note: '💰 Paid via Cash Disposal Log (Cash-in-Hand)', cashLogId: finalLogId };
+        c.payments = Array.isArray(c.payments) ? [...c.payments, newPayment] : [newPayment];
+        touchSupplier(creditOwner, supplierId);
       }
       syncUser(admin);
-      renderCashLog(); renderOverview(); renderCredits();
-      toast('⚠️ Credit Bill එකට payment එක link කිරීමට නොහැකි විය — Log entry එක save කළේ නැත. නැවත උත්සාහ කරන්න.', 'red');
-      return;
+      if (!sameDoc) syncUser(creditOwner);
+    } else {
+      setSyncStatus('syncing');
+      try {
+        await fdb.runTransaction(async tx => {
+          const adminRef = usersCol.doc(admin.username);
+          const creditRef = usersCol.doc(creditOwner.username);
+          const adminSnap = await tx.get(adminRef);
+          if (!adminSnap.exists) throw new Error('ADMIN_NOT_FOUND');
+          const creditSnap = sameDoc ? adminSnap : await tx.get(creditRef);
+          if (!creditSnap.exists) throw new Error('CREDIT_OWNER_NOT_FOUND');
+
+          const adminData = adminSnap.data();
+          const freshCashLog = Array.isArray(adminData.cashLog) ? adminData.cashLog.slice() : [];
+          if (editId) {
+            const idx = freshCashLog.findIndex(e => e.id === editId);
+            if (idx === -1) throw new Error('LOG_NOT_FOUND');
+            freshCashLog[idx] = { ...freshCashLog[idx], ...logFieldsPatch, updatedAt: new Date().toISOString(), updatedBy: DB.currentUsername, updatedByName: DB.currentUser?.name||'' };
+          } else {
+            freshCashLog.unshift({ id: finalLogId, ...logFieldsPatch, actor: DB.currentUsername, actorName: DB.currentUser?.name||'' });
+          }
+
+          const creditData = sameDoc ? adminData : creditSnap.data();
+          const freshCredits = Array.isArray(creditData.credits) ? creditData.credits.slice() : [];
+          const cIdx = freshCredits.findIndex(x => x.id === creditId);
+          if (cIdx === -1) throw new Error('CREDIT_NOT_FOUND');
+          const freshCredit = { ...freshCredits[cIdx] };
+          const freshBal = getCreditBalance(freshCredit);
+          if (amount > freshBal + 0.001) throw new Error('BALANCE_EXCEEDED');
+          newPayment = { id: uid(), amount, date, note: '💰 Paid via Cash Disposal Log (Cash-in-Hand)', cashLogId: finalLogId };
+          freshCredit.payments = Array.isArray(freshCredit.payments) ? [...freshCredit.payments, newPayment] : [newPayment];
+          freshCredits[cIdx] = freshCredit;
+
+          if (sameDoc) {
+            // Same document — one write carries both fields.
+            const update = { cashLog: freshCashLog, credits: freshCredits };
+            if (supplierId) {
+              const freshSuppliers = Array.isArray(adminData.suppliers) ? adminData.suppliers.slice() : [];
+              const sIdx = freshSuppliers.findIndex(s => s.id === supplierId);
+              if (sIdx !== -1) { freshSuppliers[sIdx] = { ...freshSuppliers[sIdx], updatedAt: new Date().toISOString() }; update.suppliers = freshSuppliers; }
+            }
+            tx.update(adminRef, update);
+          } else {
+            // Two different documents — each write only ever touches fields that document's
+            // owner is actually allowed to touch (admin's doc only gets `cashLog`, matching
+            // the manager-writing-admin Firestore rule; the credit owner's own doc gets
+            // `credits`/`suppliers`), and Firestore commits both together or not at all.
+            tx.update(adminRef, { cashLog: freshCashLog });
+            const creditUpdate = { credits: freshCredits };
+            if (supplierId) {
+              const freshSuppliers = Array.isArray(creditData.suppliers) ? creditData.suppliers.slice() : [];
+              const sIdx = freshSuppliers.findIndex(s => s.id === supplierId);
+              if (sIdx !== -1) { freshSuppliers[sIdx] = { ...freshSuppliers[sIdx], updatedAt: new Date().toISOString() }; creditUpdate.suppliers = freshSuppliers; }
+            }
+            tx.update(creditRef, creditUpdate);
+          }
+        });
+
+        // Server write confirmed for BOTH docs together — mirror into local memory so the
+        // UI (Cash-in-Hand, Credit Bills list, etc.) matches right away.
+        if (editId && existingEntry) {
+          Object.assign(existingEntry, logFieldsPatch, { updatedAt: new Date().toISOString(), updatedBy: DB.currentUsername, updatedByName: DB.currentUser?.name||'' });
+        } else {
+          admin.cashLog.unshift({ id: finalLogId, ...logFieldsPatch, actor: DB.currentUsername, actorName: DB.currentUser?.name||'' });
+        }
+        const c = (creditOwner.credits||[]).find(x => x.id === creditId);
+        if (c && newPayment) c.payments = Array.isArray(c.payments) ? [...c.payments, newPayment] : [newPayment];
+        touchSupplier(creditOwner, supplierId);
+        try { saveDBLocal(); } catch (e) { console.error('saveCashLogEntry local mirror', e); }
+        markSynced('cloud');
+      } catch (e) {
+        console.error('saveCashLogEntry credit_payment transaction', e);
+        setSyncStatus('offline');
+        if (e.message === 'BALANCE_EXCEEDED') toast('⚠️ මුදල ක්‍රෙඩිට් බිල් ශේෂයට වඩා වැඩියි!', 'red');
+        else if (['CREDIT_NOT_FOUND','CREDIT_OWNER_NOT_FOUND','ADMIN_NOT_FOUND','LOG_NOT_FOUND'].includes(e.message)) toast('⚠️ Record not found on server — try refreshing', 'red');
+        else toast('⚠️ Save failed — try again', 'red');
+        return; // Nothing was written to either document — safe to just stop, no rollback needed.
+      }
+    }
+    logId = finalLogId;
+    logActivity(editId ? 'EDIT_CASH_LOG' : 'CASH_LOG', `${type} · ${fmt(amount)}`);
+  } else {
+    // Every other cash-log type (banked, handed_owner, owner_topup, cash_purchase, salary,
+    // other1/2/3) only ever touches admin's own cashLog array — no second document is ever
+    // involved, so the original single-write save is fine as-is.
+    if (editId && existingEntry) {
+      Object.assign(existingEntry, logFieldsPatch, { updatedAt: new Date().toISOString(), updatedBy: DB.currentUsername, updatedByName: DB.currentUser?.name||'' });
+    } else {
+      logId = uid();
+      admin.cashLog.unshift({ id: logId, ...logFieldsPatch, actor: DB.currentUsername, actorName: DB.currentUser?.name||'' });
+    }
+    syncUser(admin);
+    logActivity(editId ? 'EDIT_CASH_LOG' : 'CASH_LOG', `${type} · ${fmt(amount)}`);
+
+    // Mirror this purchase into the supplier's own business ledger so it also shows on the Supplier Profile
+    if (type === 'cash_purchase' && supplierId) {
+      const supOwner = getUserByUsername(supplierOwnerUsername);
+      if (supOwner) {
+        if (!supOwner.cashPurchases) supOwner.cashPurchases=[];
+        supOwner.cashPurchases.push({
+          id: uid(), date, supplierId, supplierName, amount,
+          cashierIdx: null, cashEntryId: null, cashLogId: logId, source:'cashLog',
+          createdBy: DB.currentUsername, createdByName: DB.currentUser?.name || ''
+        });
+        touchSupplier(supOwner, supplierId);
+        syncUser(supOwner);
+      }
     }
   }
 
