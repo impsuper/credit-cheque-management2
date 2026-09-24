@@ -4625,13 +4625,61 @@ async function applyCreditFieldsChange(owner, creditId, fields, supplierId) {
 //
 // scanCreditPaymentGaps() re-derives fact (2) from fact (1) for every cash
 // entry and cash-log row currently in the data and reports any place they've
-// drifted apart. fixCreditPaymentGap() closes one gap the same safe way a
-// manual Payment History entry would — through applyCreditPaymentsChange(),
-// so it can't race with anything else touching the same bill — and is
-// idempotent (checked by the linking id), so running it twice on the same gap
-// never double-pays a bill.
+// drifted apart. Two things it must NOT do naively, because admins already
+// fix these by hand the moment they spot a wrong balance (long before this
+// tool existed to catch it for them):
+//
+//   1. Flag a gap that was already closed by hand. A manual fix adds a plain
+//      payment for the missing amount but has no way to also stamp it with
+//      the original cashEntryId/cashLogId (the admin is looking at a balance,
+//      not at that internal id), so a naive scan keeps seeing "no payment
+//      carries this link" forever and would tell fixCreditPaymentGap() to add
+//      a SECOND payment on top of the one already there. Before reporting a
+//      gap as open, this function first looks for an existing payment on the
+//      same bill with no cashEntryId/cashLogId of its own (i.e. entered by
+//      hand) whose amount matches the missing amount — if one is there, this
+//      gap is marked resolvedManually and excluded from anything fixable.
+//      Each such manual payment can only resolve ONE gap (tracked via
+//      usedManualPaymentIds) so two genuinely separate missing amounts that
+//      happen to equal each other can't hide behind a single manual fix.
+//   2. Add a payment that would push a bill's total paid past its amount.
+//      If every gap on a bill has already been accounted for (by the above,
+//      or otherwise) but one cash record still doesn't carry a matching
+//      link, adding it anyway would overpay the bill rather than explain a
+//      real shortfall — a sign the same real-world payment was probably
+//      entered into the cash books twice. These are marked wouldOverpay and
+//      also excluded from anything fixable; a human needs to look at them.
+//
+// fixCreditPaymentGap() closes one real gap the same safe way a manual
+// Payment History entry would — through applyCreditPaymentsChange(), so it
+// can't race with anything else touching the same bill — and re-checks the
+// overpay condition against the server's live data inside that same
+// transaction as a last-moment guard, on top of the idempotency check (a
+// payment for this exact link already existing) that stops it from ever
+// double-paying a bill it's asked to fix twice.
 async function scanCreditPaymentGaps() {
   const gaps = [];
+  const usedManualPaymentIds = new Set();
+
+  function findManualMatch(credit, amount) {
+    if (!credit) return null;
+    return (credit.payments || []).find(p =>
+      !p.cashEntryId && !p.cashLogId && !usedManualPaymentIds.has(p.id) &&
+      Math.abs((Number(p.amount) || 0) - amount) <= 0.01
+    ) || null;
+  }
+
+  function pushGap(base, credit, missing) {
+    const manualMatch = findManualMatch(credit, missing);
+    if (manualMatch) {
+      usedManualPaymentIds.add(manualMatch.id);
+      gaps.push(Object.assign({}, base, { credit, missing, resolvedManually: true, manualMatch }));
+      return;
+    }
+    const wouldOverpay = missing > getCreditBalance(credit) + 0.01;
+    gaps.push(Object.assign({}, base, { credit, missing, wouldOverpay }));
+  }
+
   for (const owner of DB.users) {
     for (const e of (owner.cashEntries || [])) {
       for (const row of (e.creditPayments || [])) {
@@ -4645,7 +4693,7 @@ async function scanCreditPaymentGaps() {
         }
         const linkedAmt = (credit.payments || []).filter(p => p.cashEntryId === e.id).reduce((s, p) => s + (Number(p.amount) || 0), 0);
         if (Math.abs(linkedAmt - amt) > 0.01) {
-          gaps.push({ kind: 'cashEntry', entry: e, row, creditOwner, credit, missing: amt - linkedAmt });
+          pushGap({ kind: 'cashEntry', entry: e, row, creditOwner }, credit, amt - linkedAmt);
         }
       }
     }
@@ -4663,14 +4711,14 @@ async function scanCreditPaymentGaps() {
     }
     const linkedAmt = (credit.payments || []).filter(p => p.cashLogId === e.id).reduce((s, p) => s + (Number(p.amount) || 0), 0);
     if (Math.abs(linkedAmt - amt) > 0.01) {
-      gaps.push({ kind: 'cashLog', entry: e, row: e, creditOwner, credit, missing: amt - linkedAmt });
+      pushGap({ kind: 'cashLog', entry: e, row: e, creditOwner }, credit, amt - linkedAmt);
     }
   }
   return gaps;
 }
 
 async function fixCreditPaymentGap(gap) {
-  if (!gap.credit || !gap.creditOwner || !(gap.missing > 0.001)) return false;
+  if (!gap.credit || !gap.creditOwner || gap.resolvedManually || gap.wouldOverpay || !(gap.missing > 0.001)) return false;
   const linkField = gap.kind === 'cashEntry' ? 'cashEntryId' : 'cashLogId';
   const linkId = gap.entry.id;
   const note = gap.kind === 'cashEntry'
@@ -4682,6 +4730,12 @@ async function fixCreditPaymentGap(gap) {
     // the time this transaction actually runs (e.g. Fix clicked twice, or a
     // retried attempt from earlier already landed), don't add it again.
     if (payments.some(p => p[linkField] === linkId)) return payments;
+    // Last-moment overpay guard against the server's LIVE payments (not the
+    // possibly-stale snapshot the scan ran against) — e.g. someone else fixed
+    // or paid this same bill a moment ago. Refuse rather than push the bill
+    // past its own amount.
+    const paidSoFar = payments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+    if (paidSoFar + gap.missing > (Number(gap.credit.amount) || 0) + 0.01) return payments;
     return [...payments, newPayment];
   }, gap.row.supplierId);
 }
@@ -8330,32 +8384,53 @@ function renderReconcileResults() {
     listEl.innerHTML = '';
     return;
   }
-  const pending = _reconcileGaps.filter(g => !g.fixed);
-  statusEl.innerHTML = pending.length
-    ? `⚠️ ${pending.length} credit bill payment(s) bill එකට link වී නැත:`
-    : `✅ සියල්ල Fix කර ඇත.`;
-  fixAllBtn.style.display = pending.some(g => g.credit) ? '' : 'none';
-  listEl.innerHTML = _reconcileGaps.map(g => {
+  const alreadyOk = _reconcileGaps.filter(g => g.resolvedManually);
+  const visible = _reconcileGaps.filter(g => !g.resolvedManually);
+  const fixablePending = visible.filter(g => !g.fixed && g.credit && !g.wouldOverpay);
+  const needsReview = visible.filter(g => !g.fixed && (g.wouldOverpay || g.reason === 'CREDIT_NOT_FOUND'));
+
+  let statusHtml = '';
+  if (alreadyOk.length) statusHtml += `✅ ${alreadyOk.length} ට දැනටමත් manually fix කර ඇත — action අවශ්‍ය නැත.<br>`;
+  statusHtml += fixablePending.length
+    ? `⚠️ ${fixablePending.length} ට "Fix" කිරීම සුරක්ෂිතයි (missing amount එකම record කරලා නෑ):`
+    : (visible.length ? `✅ Fix කළ හැකි ඒවා ඉවරයි.` : '');
+  if (needsReview.length) statusHtml += `<br>🛑 ${needsReview.length} ට ඔබේ අවධානය අවශ්‍යයි (පහළ බලන්න — auto-fix කර නෑ).`;
+  statusEl.innerHTML = statusHtml || '✅ සියල්ල Sync වී ඇත.';
+  fixAllBtn.style.display = fixablePending.length ? '' : 'none';
+
+  listEl.innerHTML = visible.map(g => {
     const supplierName = g.row.supplierName || (g.credit ? getSupplierName(g.credit.supplierId, g.creditOwner) : '—');
     const billLabel = g.credit ? g.credit.entryId : '⚠️ Bill not found';
     const sourceLabel = g.kind === 'cashEntry' ? 'Cash Management' : 'Cash Disposal Log';
+    let actionHtml;
+    if (g.fixed) {
+      actionHtml = `<span style="color:var(--green);font-weight:700;white-space:nowrap;">✅ Fixed</span>`;
+    } else if (g.reason === 'CREDIT_NOT_FOUND') {
+      actionHtml = `<span style="color:var(--red);font-size:.8rem;white-space:nowrap;">🛑 Bill not found — check manually</span>`;
+    } else if (g.wouldOverpay) {
+      actionHtml = `<span style="color:var(--red);font-size:.8rem;white-space:nowrap;">🛑 Would overpay bill — check manually</span>`;
+    } else if (g.credit) {
+      actionHtml = `<button class="btn btn-green btn-sm" onclick="fixOneCreditPaymentGap(${g._rid})">Fix</button>`;
+    } else {
+      actionHtml = `<span style="color:var(--muted);font-size:.8rem;white-space:nowrap;">Manual check</span>`;
+    }
+    const warnNote = g.wouldOverpay
+      ? `<div style="color:var(--red);">⚠️ Bill balance එක දැනටමත් මේ මුදල ආවරණය කරනවා විය හැක — cash books වල duplicate entry එකක් ද කියලා පරීක්ෂා කරන්න.</div>`
+      : '';
     return `<div style="display:flex;justify-content:space-between;align-items:center;gap:.6rem;padding:.6rem .2rem;border-bottom:1px solid var(--border);${g.fixed ? 'opacity:.55;' : ''}">
       <div style="font-size:.85rem;">
         <div><strong>${billLabel}</strong> · ${supplierName}</div>
         <div style="color:var(--muted);">${g.entry.date || ''} · ${sourceLabel} · Missing: <strong style="color:var(--red);">${fmt(g.missing)}</strong></div>
+        ${warnNote}
       </div>
-      ${g.fixed
-        ? `<span style="color:var(--green);font-weight:700;white-space:nowrap;">✅ Fixed</span>`
-        : (g.credit
-            ? `<button class="btn btn-green btn-sm" onclick="fixOneCreditPaymentGap(${g._rid})">Fix</button>`
-            : `<span style="color:var(--muted);font-size:.8rem;white-space:nowrap;">Manual check</span>`)}
+      ${actionHtml}
     </div>`;
   }).join('');
 }
 
 async function fixOneCreditPaymentGap(rid) {
   const g = _reconcileGaps.find(x => x._rid === rid);
-  if (!g || g.fixed || !g.credit) return;
+  if (!g || g.fixed || !g.credit || g.resolvedManually || g.wouldOverpay) return;
   const ok = await fixCreditPaymentGap(g);
   if (ok) {
     g.fixed = true;
@@ -8369,7 +8444,7 @@ async function fixOneCreditPaymentGap(rid) {
 }
 
 async function fixAllCreditPaymentGaps() {
-  const pending = _reconcileGaps.filter(g => !g.fixed && g.credit);
+  const pending = _reconcileGaps.filter(g => !g.fixed && g.credit && !g.resolvedManually && !g.wouldOverpay);
   let fixedCount = 0;
   for (const g of pending) {
     const ok = await fixCreditPaymentGap(g);
