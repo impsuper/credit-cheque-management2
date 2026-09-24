@@ -1741,6 +1741,7 @@ th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
           <div class="card-title">💳 Credits Management</div>
           <div class="card-actions">
             <button class="btn btn-navy btn-sm" onclick="openModal('creditModal')">➕ Add Credit</button>
+            <button class="btn btn-ghost btn-sm" onclick="openReconcileModal()" title="Cash Management / Cash Disposal Log වලින් credit bills වලට link වුනු payments, actual bill records එක්ක match වෙනවද කියලා check කරන්න">🔧 Sync Check</button>
           </div>
         </div>
         <div id="cr-total-bar" style="margin:1rem 1.5rem 0;padding:.75rem 1.1rem;background:var(--hover-tint);border:1.5px solid var(--accent);border-radius:10px;display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">
@@ -3187,6 +3188,28 @@ th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
 </div>
 
 
+<!-- ===== CREDIT PAYMENT SYNC-CHECK / RECONCILE MODAL ===== -->
+<div id="reconcileModal" class="overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>🔧 Credit Payment Sync Check</h3>
+      <button class="modal-close" onclick="closeModal('reconcileModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--muted);font-size:.85rem;margin-bottom:1rem;">
+        Cash Management (Daily Cash) හෝ Cash Disposal Log හරහා credit bill payments ලෙස record කරපු ඒවා, ඒ bill එකේම Payment History එකට හරියටම link වී තියෙනවද කියලා මෙතනින් check කරනවා. Cash record කරලා තිබුනත් bill එකේ balance එකට එකතු නොවුනු ඒවා පහළ පෙන්නනවා — "Fix" click කරලා ඒවා නිවැරදි කරගන්න පුළුවන්.
+      </p>
+      <div id="reconcile-status" style="font-weight:700;margin-bottom:.8rem;">🔎 Checking...</div>
+      <div id="reconcile-list"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('reconcileModal')">Close</button>
+      <button class="btn btn-green" id="reconcile-fixall-btn" onclick="fixAllCreditPaymentGaps()" style="display:none;">✅ Fix All</button>
+    </div>
+  </div>
+</div>
+
+
 <!-- ===== CHEQUE MODAL ===== -->
 <div id="chequeModal" class="overlay">
   <div class="modal">
@@ -4399,6 +4422,39 @@ async function deleteUserDoc(username) {
   }
 }
 
+// Re-runs an async operation a few times, with a short growing pause between
+// tries, before finally giving up. Firestore's own runTransaction() already
+// retries automatically when it detects another write landed on the same
+// document at the same instant (contention), but it does NOT retry a plain
+// transient failure — a brief wifi/mobile-data drop, a request that times out
+// mid-flight, the tab briefly losing connectivity — those just throw once and
+// stop. That gap is exactly how a Cash Management "Pay Credit Bills (Cash)"
+// row (or any other applyCreditPaymentsChange()/applyCreditFieldsChange()
+// caller) can end up recording cash as already paid while the linked credit
+// bill's own balance never actually moves: the single attempt to update the
+// bill happened to fail at that exact moment, so nothing else automatically
+// tries again, and the mismatch just sits there until someone happens to
+// notice the balance looks wrong and fixes it by hand. Wrapping the
+// transaction in a few automatic retries closes most of those gaps before
+// they ever reach the user. See scanCreditPaymentGaps()/fixCreditPaymentGap()
+// further below for a tool that finds and repairs any that still slip
+// through (e.g. from before this fix existed).
+function _retryWait(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+async function withRetry(fn, attempts, baseDelayMs) {
+  attempts = attempts || 3;
+  baseDelayMs = baseDelayMs || 500;
+  let lastErr;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (e) {
+      lastErr = e;
+      if (i < attempts - 1) await _retryWait(baseDelayMs * (i + 1));
+    }
+  }
+  throw lastErr;
+}
+
 // Safely rewrites ONE credit bill's `payments` array without the same-document
 // race condition that used to bite addPayment()/deletePayment(): mutating the
 // local copy of `owner` and then calling syncUser(owner) does a full-document
@@ -4440,7 +4496,7 @@ async function applyCreditPaymentsChange(owner, creditId, mutateFn, supplierId) 
 
   setSyncStatus('syncing');
   try {
-    await fdb.runTransaction(async tx => {
+    await withRetry(() => fdb.runTransaction(async tx => {
       const ref = usersCol.doc(owner.username);
       const snap = await tx.get(ref);
       if (!snap.exists) throw new Error('USER_NOT_FOUND');
@@ -4461,7 +4517,7 @@ async function applyCreditPaymentsChange(owner, creditId, mutateFn, supplierId) 
         }
       }
       tx.update(ref, update);
-    });
+    }));
     // Server write confirmed — mirror it into local memory so the UI (and
     // anything else reading DB.users, like Cash-in-Hand) matches.
     c.payments = mutateFn(Array.isArray(c.payments) ? c.payments.slice() : []);
@@ -4516,7 +4572,7 @@ async function applyCreditFieldsChange(owner, creditId, fields, supplierId) {
 
   setSyncStatus('syncing');
   try {
-    await fdb.runTransaction(async tx => {
+    await withRetry(() => fdb.runTransaction(async tx => {
       const ref = usersCol.doc(owner.username);
       const snap = await tx.get(ref);
       if (!snap.exists) throw new Error('USER_NOT_FOUND');
@@ -4535,7 +4591,7 @@ async function applyCreditFieldsChange(owner, creditId, fields, supplierId) {
         }
       }
       tx.update(ref, update);
-    });
+    }));
     // Server write confirmed — mirror it into local memory so the UI (and
     // this tab's own next diff baseline) matches exactly what the server has.
     const c = (owner.credits || []).find(x => x.id === creditId);
@@ -4550,6 +4606,84 @@ async function applyCreditFieldsChange(owner, creditId, fields, supplierId) {
     toast('⚠️ Credit save failed — try again', 'red');
     return false;
   }
+}
+
+// ===== CREDIT PAYMENT RECONCILE TOOL =====
+// A "Pay Credit Bills (Cash)" row on a Cash Management daily entry, or a
+// "Pay Credit Bill (Cash)" row on the Cash Disposal Log, is really TWO facts
+// that need to stay in agreement: (1) the cash entry / log row says "₨X was
+// paid toward Bill Y", and (2) Bill Y's own `payments` array should contain a
+// payment carrying that entry's id for that same ₨X. Every write path that
+// creates fact (1) already goes on to write fact (2) via
+// applyCreditPaymentsChange() in the same action — but if that second write
+// ever fails (see the withRetry() comment above; retries now catch most of
+// these going forward) fact (1) is already saved and fact (2) just never
+// happens, and nothing keeps checking afterward. The bill's balance then sits
+// permanently too high until someone happens to compare it against the cash
+// records and notices — exactly the "reduces cash but the bill doesn't budge,
+// has to be fixed manually" symptom this tool is for.
+//
+// scanCreditPaymentGaps() re-derives fact (2) from fact (1) for every cash
+// entry and cash-log row currently in the data and reports any place they've
+// drifted apart. fixCreditPaymentGap() closes one gap the same safe way a
+// manual Payment History entry would — through applyCreditPaymentsChange(),
+// so it can't race with anything else touching the same bill — and is
+// idempotent (checked by the linking id), so running it twice on the same gap
+// never double-pays a bill.
+async function scanCreditPaymentGaps() {
+  const gaps = [];
+  for (const owner of DB.users) {
+    for (const e of (owner.cashEntries || [])) {
+      for (const row of (e.creditPayments || [])) {
+        const amt = Number(row.amount) || 0;
+        if (amt <= 0 || !row.creditId) continue;
+        const creditOwner = getUserByUsername(row.ownerUsername) || owner;
+        const credit = (creditOwner.credits || []).find(x => x.id === row.creditId);
+        if (!credit) {
+          gaps.push({ kind: 'cashEntry', entry: e, row, creditOwner: null, credit: null, missing: amt, reason: 'CREDIT_NOT_FOUND' });
+          continue;
+        }
+        const linkedAmt = (credit.payments || []).filter(p => p.cashEntryId === e.id).reduce((s, p) => s + (Number(p.amount) || 0), 0);
+        if (Math.abs(linkedAmt - amt) > 0.01) {
+          gaps.push({ kind: 'cashEntry', entry: e, row, creditOwner, credit, missing: amt - linkedAmt });
+        }
+      }
+    }
+  }
+  const admin = getUserByUsername('admin');
+  for (const e of (admin?.cashLog || [])) {
+    if (e.type !== 'credit_payment' || !e.creditId) continue;
+    const amt = Number(e.amount) || 0;
+    if (amt <= 0) continue;
+    const creditOwner = getUserByUsername(e.creditOwnerUsername);
+    const credit = creditOwner && (creditOwner.credits || []).find(x => x.id === e.creditId);
+    if (!credit) {
+      gaps.push({ kind: 'cashLog', entry: e, row: e, creditOwner: null, credit: null, missing: amt, reason: 'CREDIT_NOT_FOUND' });
+      continue;
+    }
+    const linkedAmt = (credit.payments || []).filter(p => p.cashLogId === e.id).reduce((s, p) => s + (Number(p.amount) || 0), 0);
+    if (Math.abs(linkedAmt - amt) > 0.01) {
+      gaps.push({ kind: 'cashLog', entry: e, row: e, creditOwner, credit, missing: amt - linkedAmt });
+    }
+  }
+  return gaps;
+}
+
+async function fixCreditPaymentGap(gap) {
+  if (!gap.credit || !gap.creditOwner || !(gap.missing > 0.001)) return false;
+  const linkField = gap.kind === 'cashEntry' ? 'cashEntryId' : 'cashLogId';
+  const linkId = gap.entry.id;
+  const note = gap.kind === 'cashEntry'
+    ? '💰 Paid via Cash Management (Daily Cash) — reconciled'
+    : '💰 Paid via Cash Disposal Log (Cash-in-Hand) — reconciled';
+  const newPayment = { id: uid(), amount: gap.missing, date: gap.entry.date || today(), note, [linkField]: linkId };
+  return applyCreditPaymentsChange(gap.creditOwner, gap.credit.id, payments => {
+    // Idempotency guard: if a payment for this exact link already exists by
+    // the time this transaction actually runs (e.g. Fix clicked twice, or a
+    // retried attempt from earlier already landed), don't add it again.
+    if (payments.some(p => p[linkField] === linkId)) return payments;
+    return [...payments, newPayment];
+  }, gap.row.supplierId);
 }
 
 function saveDBLocal() {
@@ -8171,6 +8305,80 @@ function resolveHandover(id, status) {
 function closeModal(id) {
   $(id)?.classList.remove('show');
   if (id === 'supplierAnalyticsModal') DB.analyticsOpen = null;
+}
+
+/* ===== CREDIT PAYMENT SYNC-CHECK / RECONCILE MODAL ===== */
+let _reconcileGaps = [];
+
+async function openReconcileModal() {
+  if (!isAdmin()) { toast('Admin only', 'red'); return; }
+  openModal('reconcileModal');
+  $('reconcile-status').textContent = '🔎 Checking...';
+  $('reconcile-list').innerHTML = '';
+  $('reconcile-fixall-btn').style.display = 'none';
+  const gaps = await scanCreditPaymentGaps();
+  _reconcileGaps = gaps.map((g, i) => Object.assign({}, g, { _rid: i, fixed: false }));
+  renderReconcileResults();
+}
+
+function renderReconcileResults() {
+  const statusEl = $('reconcile-status'), listEl = $('reconcile-list'), fixAllBtn = $('reconcile-fixall-btn');
+  if (!statusEl || !listEl) return;
+  if (!_reconcileGaps.length) {
+    statusEl.innerHTML = '✅ සියල්ල Sync වී ඇත — කිසිම ගැටළුවක් හමු නොවුනි.';
+    fixAllBtn.style.display = 'none';
+    listEl.innerHTML = '';
+    return;
+  }
+  const pending = _reconcileGaps.filter(g => !g.fixed);
+  statusEl.innerHTML = pending.length
+    ? `⚠️ ${pending.length} credit bill payment(s) bill එකට link වී නැත:`
+    : `✅ සියල්ල Fix කර ඇත.`;
+  fixAllBtn.style.display = pending.some(g => g.credit) ? '' : 'none';
+  listEl.innerHTML = _reconcileGaps.map(g => {
+    const supplierName = g.row.supplierName || (g.credit ? getSupplierName(g.credit.supplierId, g.creditOwner) : '—');
+    const billLabel = g.credit ? g.credit.entryId : '⚠️ Bill not found';
+    const sourceLabel = g.kind === 'cashEntry' ? 'Cash Management' : 'Cash Disposal Log';
+    return `<div style="display:flex;justify-content:space-between;align-items:center;gap:.6rem;padding:.6rem .2rem;border-bottom:1px solid var(--border);${g.fixed ? 'opacity:.55;' : ''}">
+      <div style="font-size:.85rem;">
+        <div><strong>${billLabel}</strong> · ${supplierName}</div>
+        <div style="color:var(--muted);">${g.entry.date || ''} · ${sourceLabel} · Missing: <strong style="color:var(--red);">${fmt(g.missing)}</strong></div>
+      </div>
+      ${g.fixed
+        ? `<span style="color:var(--green);font-weight:700;white-space:nowrap;">✅ Fixed</span>`
+        : (g.credit
+            ? `<button class="btn btn-green btn-sm" onclick="fixOneCreditPaymentGap(${g._rid})">Fix</button>`
+            : `<span style="color:var(--muted);font-size:.8rem;white-space:nowrap;">Manual check</span>`)}
+    </div>`;
+  }).join('');
+}
+
+async function fixOneCreditPaymentGap(rid) {
+  const g = _reconcileGaps.find(x => x._rid === rid);
+  if (!g || g.fixed || !g.credit) return;
+  const ok = await fixCreditPaymentGap(g);
+  if (ok) {
+    g.fixed = true;
+    toast('✅ Fixed');
+    renderCredits(); renderOverview();
+    if (DB.analyticsOpen) renderSupplierAnalytics();
+  } else {
+    toast('⚠️ Fix failed — try again', 'red');
+  }
+  renderReconcileResults();
+}
+
+async function fixAllCreditPaymentGaps() {
+  const pending = _reconcileGaps.filter(g => !g.fixed && g.credit);
+  let fixedCount = 0;
+  for (const g of pending) {
+    const ok = await fixCreditPaymentGap(g);
+    if (ok) { g.fixed = true; fixedCount++; }
+  }
+  renderCredits(); renderOverview();
+  if (DB.analyticsOpen) renderSupplierAnalytics();
+  renderReconcileResults();
+  toast(fixedCount === pending.length ? `✅ ${fixedCount} fixed` : `⚠️ ${fixedCount}/${pending.length} fixed — remaining ones failed, try again`, fixedCount === pending.length ? 'green' : 'red');
 }
 
 /* ===== PENDING HANDOVERS — inline card in Cash tab ===== */
