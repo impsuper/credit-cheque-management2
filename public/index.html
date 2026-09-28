@@ -1079,6 +1079,26 @@ tr:hover td{background:var(--row-hover);}
 #supplierAnalyticsModal .stat-val{font-size:1.15rem;}
 #supplierAnalyticsModal .stat-sub{font-size:.68rem;margin-top:.15rem;}
 
+/* ===== SUPPLIER PURCHASE HISTORY MODAL ===== */
+#purchaseHistoryModal{z-index:530;}
+#purchaseHistoryModal .ph-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.6rem;margin-bottom:1rem;}
+#purchaseHistoryModal .ph-sum-card{background:var(--surface-2);border-radius:10px;padding:.6rem .8rem;border-left:4px solid var(--navy3);}
+#purchaseHistoryModal .ph-sum-card.red{border-left-color:var(--red);}
+#purchaseHistoryModal .ph-sum-card.green{border-left-color:var(--green);}
+#purchaseHistoryModal .ph-sum-label{font-size:.7rem;color:var(--muted);font-weight:600;}
+#purchaseHistoryModal .ph-sum-val{font-size:1.05rem;font-weight:800;color:var(--navy);margin-top:.1rem;}
+#purchaseHistoryModal th{cursor:pointer;user-select:none;white-space:nowrap;}
+#purchaseHistoryModal th.asc .sort-ico,#purchaseHistoryModal th.desc .sort-ico{opacity:1;color:var(--navy3);}
+#purchaseHistoryModal .ph-first td{background:var(--hover-tint2);}
+.pbt{display:inline-block;padding:.25rem .7rem;border-radius:20px;font-size:.75rem;font-weight:700;white-space:nowrap;}
+.pbt-cash{background:#f1e9fd;color:#7c3aed;}
+.pbt-credit{background:var(--hover-tint2);color:var(--navy3);}
+.pbt-cheque{background:#e6f7fb;color:var(--accent);}
+.pbt-mix{background:linear-gradient(90deg,#e6f7fb,#f1e9fd);color:#6d28d9;border:1px solid var(--accent);}
+.pbt-bank{background:#fff4e5;color:#b45309;}
+.pay-method-tag{display:inline-block;font-size:.68rem;font-weight:700;padding:.05rem .45rem;border-radius:10px;background:var(--hover-tint2);color:var(--navy3);margin-left:.4rem;}
+.ph-newest-tag{display:inline-block;margin-left:.4rem;font-size:.62rem;font-weight:800;padding:.1rem .4rem;border-radius:6px;background:var(--navy3);color:#fff;vertical-align:middle;}
+
 /* ===== CASHIER MODE — no sidebar ===== */
 body.cashier-mode .sidebar{display:none!important;}
 body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;padding:0!important;}
@@ -3498,6 +3518,15 @@ th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
           <input type="date" id="ph-date">
         </div>
         <div class="pay-row">
+          <label>💳 Method</label>
+          <select id="ph-method">
+            <option value="cash">💵 Cash</option>
+            <option value="cheque">📝 Cheque</option>
+            <option value="bank">🏦 Bank Transfer</option>
+            <option value="other">❔ Other</option>
+          </select>
+        </div>
+        <div class="pay-row">
           <label>📝 Note</label>
           <input type="text" id="ph-note" placeholder="Optional note...">
           <button class="btn btn-green btn-sm" onclick="addPayment()">💾 Add</button>
@@ -3822,6 +3851,37 @@ th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
   </div>
 </div>
 
+<!-- SUPPLIER PURCHASE HISTORY -->
+<div id="purchaseHistoryModal" class="overlay">
+  <div class="modal modal-lg">
+    <div class="modal-head">
+      <h3>📜 Purchase History</h3>
+      <button class="modal-close" onclick="closeModal('purchaseHistoryModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="ph-header" style="margin-bottom:.8rem;padding:.8rem 1rem;background:var(--surface-2);border-radius:10px;border-left:4px solid var(--navy3);"></div>
+      <div class="ph-summary" id="ph-summary"></div>
+      <div class="card analytics-card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th onclick="sortPurchaseHistory('date')" data-col="date">📅 Date<span class="sort-ico"></span></th>
+              <th onclick="sortPurchaseHistory('amount')" data-col="amount">💵 Amount<span class="sort-ico"></span></th>
+              <th onclick="sortPurchaseHistory('billType')" data-col="billType">🏷️ Bill Type<span class="sort-ico"></span></th>
+              <th onclick="sortPurchaseHistory('status')" data-col="status">🚦 Status<span class="sort-ico"></span></th>
+            </tr></thead>
+            <tbody id="ph-list"></tbody>
+          </table>
+        </div>
+        <div id="purchaseHistPagination" class="pg-bar-wrap"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('purchaseHistoryModal')">Close</button>
+    </div>
+  </div>
+</div>
+
 <!-- AI ASK BOT (Local Smart Assistant) -->
 <div id="aiAskModal" class="overlay">
   <div class="modal ai-ask-modal">
@@ -3889,7 +3949,8 @@ let DB = {
   sortState: {
     credits: { col: 'date', dir: 'desc' },
     cheques: { col: 'date', dir: 'desc' },
-    suppliers: { col: null, dir: 'desc' }
+    suppliers: { col: null, dir: 'desc' },
+    purchaseHistory: { col: 'date', dir: 'desc' }
   },
   creditTab: 'active',
   chequeTab: 'active',
@@ -5700,6 +5761,7 @@ function refreshActiveSection() {
   }
   if (DB.activePayHistCreditId && $('payHistModal')?.classList.contains('show')) renderPayHist();
   if (DB.analyticsOpen) renderSupplierAnalytics();
+  if (DB.purchaseHistoryOpen) renderSupplierPurchaseHistory();
   if (id === 'payroll') renderPayrollTab();
   if (id === 'pl' && isAdmin()) renderPL();
 }
@@ -6678,6 +6740,175 @@ function openSupplierAnalytics(ownerUsername, supplierId) {
   renderSupplierAnalytics();
 }
 
+// ===== SUPPLIER PURCHASE HISTORY (unified list: Cash + Credit + Cheque) =====
+// Every purchase from this supplier in ONE sortable, paginated (50/page) list.
+// "Count each purchase once" rule (same as invoice counts elsewhere): a cheque
+// linked to a credit bill is that bill's settlement, not a separate purchase,
+// so it is folded into the credit bill and shown as "Credit + Cheque".
+let purchaseHistPage = 1;
+
+// ===== PAYMENT METHOD (Cash / Cheque / Bank Transfer) =====
+// New payments store an explicit `method`. Older payments (and the backup data)
+// have none, so it is inferred: cash-management / cash-log links => cash,
+// "Auto: Cheque ..." or "chq" notes => cheque, bank/online/transfer notes => bank.
+// Anything still unclear returns '' (unspecified) and adds nothing to Bill Type.
+const PAY_METHOD_META = {
+  cash:   { icon: '💵', label: 'Cash' },
+  cheque: { icon: '📝', label: 'Cheque' },
+  bank:   { icon: '🏦', label: 'Bank' },
+  other:  { icon: '❔', label: 'Other' }
+};
+const PAY_METHOD_ORDER = ['cash', 'cheque', 'bank'];
+function getPaymentMethod(p) {
+  if (!p) return '';
+  if (p.method && PAY_METHOD_META[p.method]) return p.method;
+  if (p.cashEntryId || p.cashLogId) return 'cash';
+  const n = String(p.note || '');
+  if (/^Auto: Cheque /.test(n) || /\b(chq|cheque|check)\b/i.test(n)) return 'cheque';
+  if (/cash/i.test(n)) return 'cash';
+  if (/bank|online|transfer|hnb|boc|commercial|sampath|slip|deposit/i.test(n)) return 'bank';
+  return '';
+}
+
+function openSupplierPurchaseHistory(ownerUsername, supplierId) {
+  DB.purchaseHistoryOpen = { ownerUsername, supplierId };
+  DB.sortState.purchaseHistory = { col: 'date', dir: 'desc' }; // newest purchase on top
+  purchaseHistPage = 1;
+  $('purchaseHistoryModal').classList.add('show');
+  renderSupplierPurchaseHistory();
+}
+
+function sortPurchaseHistory(col) {
+  const st = DB.sortState.purchaseHistory;
+  if (st.col === col) st.dir = st.dir === 'asc' ? 'desc' : 'asc';
+  else { st.col = col; st.dir = (col === 'date' || col === 'amount') ? 'desc' : 'asc'; }
+  purchaseHistPage = 1;
+  renderSupplierPurchaseHistory();
+}
+
+function goPurchaseHistPage(p) { purchaseHistPage = p; renderSupplierPurchaseHistory(); }
+
+function buildSupplierPurchaseHistoryItems(data) {
+  const { credits, cheques, cashPurchases } = data;
+  const items = [];
+  const SETTLED = `<span class="badge badge-green">✅ Settled</span>`;
+
+  credits.forEach(c => {
+    // Bill type = Credit + every payment method that actually settled part of it.
+    const used = new Set((c.payments || []).map(getPaymentMethod).filter(m => PAY_METHOD_ORDER.includes(m)));
+    const parts = PAY_METHOD_ORDER.filter(m => used.has(m)).map(m => PAY_METHOD_META[m].label);
+    const icons = PAY_METHOD_ORDER.filter(m => used.has(m)).map(m => PAY_METHOD_META[m].icon);
+    const label = ['Credit', ...parts].join(' + ');
+    const settled = isCreditSettled(c);
+    const bal = Math.max(0, getCreditBalance(c));
+    // A cheque linked to this bill reduces the balance the moment it is added,
+    // even while still pending. Show its due date until it actually clears.
+    const pendingChq = cheques.filter(ch => ch.linkedCreditId === c.id && ch.status === 'pending' && ch.dueDate)
+      .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+    let statusHtml, statusSort;
+    if (pendingChq.length) {
+      const due = pendingChq[0].dueDate, over = due < today();
+      const badge = `<span class="badge ${over ? 'badge-red' : 'badge-yellow'}">${over ? '⚠️ Overdue ' : '📅 Cheque Due '}${due}</span>`;
+      statusHtml = bal > 0.001 ? `<span class="badge badge-red">💰 Balance ${fmt(bal)}</span> ${badge}` : badge;
+      statusSort = bal > 0.001 ? '1-Balance-' + String(Math.round(bal)).padStart(12, '0') : '2-Due-' + due;
+    } else if (settled) { statusHtml = SETTLED; statusSort = '0-Settled'; }
+    else { statusHtml = `<span class="badge badge-red">💰 Balance ${fmt(bal)}</span>`; statusSort = '1-Balance-' + String(Math.round(bal)).padStart(12, '0'); }
+    items.push({
+      date: c.date || '',
+      amount: Number(c.amount) || 0,
+      billTypeHtml: parts.length
+        ? `<span class="pbt pbt-mix">🧾 ${icons.join(' ')} ${label}</span>`
+        : `<span class="pbt pbt-credit">🧾 Credit</span>`,
+      billTypeSort: label,
+      statusHtml, statusSort
+    });
+  });
+
+  cheques.filter(c => !c.linkedCreditId).forEach(c => {
+    let statusHtml, statusSort;
+    if (c.status === 'cleared') { statusHtml = SETTLED; statusSort = '0-Settled'; }
+    else if (c.status === 'bounced') { statusHtml = `<span class="badge badge-red">❌ Bounced</span>`; statusSort = '1-Bounced'; }
+    else {
+      const over = isOverdue(c);
+      statusHtml = `<span class="badge ${over ? 'badge-red' : 'badge-yellow'}">${over ? '⚠️ Overdue ' : '📅 Due '}${c.dueDate || '—'}</span>`;
+      statusSort = '2-Due-' + (c.dueDate || '9999-99-99');
+    }
+    items.push({
+      date: c.date || '',
+      amount: Number(c.amount) || 0,
+      billTypeHtml: `<span class="pbt pbt-cheque">📝 Cheque</span>`,
+      billTypeSort: 'Cheque',
+      statusHtml, statusSort
+    });
+  });
+
+  cashPurchases.forEach(p => {
+    items.push({
+      date: p.date || '',
+      amount: Number(p.amount) || 0,
+      billTypeHtml: `<span class="pbt pbt-cash">💵 Cash</span>`,
+      billTypeSort: 'Cash',
+      statusHtml: SETTLED,
+      statusSort: '0-Settled'
+    });
+  });
+
+  return items;
+}
+
+function renderSupplierPurchaseHistory() {
+  const cfg = DB.purchaseHistoryOpen;
+  if (!cfg) return;
+  const data = getSupplierAnalyticsData(cfg.ownerUsername, cfg.supplierId);
+  if (!data) return;
+  const { owner, supplier } = data;
+
+  $('ph-header').innerHTML = `
+    <div class="fw700" style="font-size:1.05rem;">🏪 ${supplier.name}${isAdmin() ? ` <span class="user-data-badge">${owner.username}</span>` : ''}</div>
+    ${supplier.phone ? `<div style="font-size:.8rem;color:var(--muted);margin-top:.15rem;">📱 ${supplier.phone}</div>` : ''}`;
+
+  let items = buildSupplierPurchaseHistoryItems(data);
+
+  // Summary chips
+  const totalVal = items.reduce((a, i) => a + i.amount, 0);
+  const outstanding = data.credits.reduce((a, c) => a + Math.max(0, getCreditBalance(c)), 0);
+  const dueCheq = data.cheques.filter(c => c.status === 'pending').reduce((a, c) => a + (Number(c.amount) || 0), 0);
+  $('ph-summary').innerHTML = `
+    <div class="ph-sum-card"><div class="ph-sum-label">🧾 Purchases</div><div class="ph-sum-val">${items.length}</div></div>
+    <div class="ph-sum-card green"><div class="ph-sum-label">💵 Total Value</div><div class="ph-sum-val">${fmt(totalVal)}</div></div>
+    <div class="ph-sum-card red"><div class="ph-sum-label">⚖️ Credit Balance</div><div class="ph-sum-val">${fmt(outstanding)}</div></div>
+    <div class="ph-sum-card"><div class="ph-sum-label">📅 Cheques Due</div><div class="ph-sum-val">${fmt(dueCheq)}</div></div>`;
+
+  const { col, dir } = DB.sortState.purchaseHistory;
+  items = sortData(items, col, dir, (it, key) => ({
+    date: it.date,
+    amount: it.amount,
+    billType: it.billTypeSort,
+    status: it.statusSort
+  }[key] ?? ''));
+
+  const totalPages = Math.max(1, Math.ceil(items.length / PROFILE_LIST_PAGE_SIZE));
+  if (purchaseHistPage > totalPages) purchaseHistPage = totalPages;
+  if (purchaseHistPage < 1) purchaseHistPage = 1;
+  const start = (purchaseHistPage - 1) * PROFILE_LIST_PAGE_SIZE;
+  const pageRows = items.slice(start, start + PROFILE_LIST_PAGE_SIZE);
+  renderPagination('purchaseHistPagination', items.length, purchaseHistPage, 'goPurchaseHistPage', PROFILE_LIST_PAGE_SIZE);
+
+  const newestTag = (col === 'date' && dir === 'desc' && purchaseHistPage === 1);
+  $('ph-list').innerHTML = pageRows.length ? pageRows.map((it, i) => `
+    <tr${newestTag && i === 0 ? ' class="ph-first"' : ''}>
+      <td>${it.date || '—'}${newestTag && i === 0 ? '<span class="ph-newest-tag">NEWEST</span>' : ''}</td>
+      <td class="fw700">${fmt(it.amount)}</td>
+      <td>${it.billTypeHtml}</td>
+      <td>${it.statusHtml}</td>
+    </tr>`).join('') : `<tr><td colspan="4" class="no-data"><span class="ico">📜</span>No purchases yet</td></tr>`;
+
+  document.querySelectorAll('#purchaseHistoryModal th[data-col]').forEach(th => {
+    th.classList.remove('asc', 'desc');
+    if (th.dataset.col === col) th.classList.add(dir);
+  });
+}
+
 function setSupplierTrendRange(months) {
   DB.analyticsTrendMonths = months;
   renderSupplierAnalytics();
@@ -7028,6 +7259,7 @@ function renderSuppliers() {
       <td>
         <div class="sup-table-actions">
           <button class="btn btn-accent btn-sm" onclick="openSupplierAnalytics('${s.ownerUsername}','${s.id}')">👤 Profile</button>
+          <button class="btn btn-navy btn-sm" onclick="openSupplierPurchaseHistory('${s.ownerUsername}','${s.id}')">📜 Purchase History</button>
         </div>
       </td>
     </tr>`).join('');
@@ -8359,6 +8591,7 @@ function resolveHandover(id, status) {
 function closeModal(id) {
   $(id)?.classList.remove('show');
   if (id === 'supplierAnalyticsModal') DB.analyticsOpen = null;
+  if (id === 'purchaseHistoryModal') DB.purchaseHistoryOpen = null;
 }
 
 /* ===== CREDIT PAYMENT SYNC-CHECK / RECONCILE MODAL ===== */
@@ -8437,6 +8670,7 @@ async function fixOneCreditPaymentGap(rid) {
     toast('✅ Fixed');
     renderCredits(); renderOverview();
     if (DB.analyticsOpen) renderSupplierAnalytics();
+    if (DB.purchaseHistoryOpen) renderSupplierPurchaseHistory();
   } else {
     toast('⚠️ Fix failed — try again', 'red');
   }
@@ -8452,6 +8686,7 @@ async function fixAllCreditPaymentGaps() {
   }
   renderCredits(); renderOverview();
   if (DB.analyticsOpen) renderSupplierAnalytics();
+  if (DB.purchaseHistoryOpen) renderSupplierPurchaseHistory();
   renderReconcileResults();
   toast(fixedCount === pending.length ? `✅ ${fixedCount} fixed` : `⚠️ ${fixedCount}/${pending.length} fixed — remaining ones failed, try again`, fixedCount === pending.length ? 'green' : 'red');
 }
@@ -9025,11 +9260,11 @@ function renderPayHist() {
   if (c.pay1) allPays.push({ label: 'Pay 1', amount: c.pay1, date: c.pay1date || '', note: '', isLegacy: true, idx: 1 });
   if (c.pay2) allPays.push({ label: 'Pay 2', amount: c.pay2, date: c.pay2date || '', note: '', isLegacy: true, idx: 2 });
   if (c.pay3) allPays.push({ label: 'Pay 3', amount: c.pay3, date: c.pay3date || '', note: '', isLegacy: true, idx: 3 });
-  (c.payments || []).forEach((p, i) => allPays.push({ label: `Payment ${i + 1}`, amount: p.amount, date: p.date || '', note: p.note || '', isLegacy: false, pid: p.id }));
+  (c.payments || []).forEach((p, i) => allPays.push({ label: `Payment ${i + 1}`, amount: p.amount, date: p.date || '', note: p.note || '', isLegacy: false, pid: p.id, method: getPaymentMethod(p) }));
   $('payHistList').innerHTML = allPays.length ? allPays.map(p => `
     <div class="pay-hist-row">
       <div>
-        <div class="ph-type">${p.label}</div>
+        <div class="ph-type">${p.label}${p.method ? `<span class="pay-method-tag">${PAY_METHOD_META[p.method].icon} ${PAY_METHOD_META[p.method].label}</span>` : ''}</div>
         ${p.note ? `<div class="ph-date">${p.note}</div>` : ''}
       </div>
       <div style="text-align:right;">
@@ -9065,7 +9300,7 @@ async function addPayment() {
     toast('Payment exceeds remaining balance!', 'red');
     return;
   }
-  const newPayment = { id: uid(), amount, date: $('ph-date').value || today(), note: $('ph-note').value || '' };
+  const newPayment = { id: uid(), amount, date: $('ph-date').value || today(), note: $('ph-note').value || '', method: $('ph-method')?.value || 'cash' };
 
   // NOTE: this used to mutate the local copy of `owner` and fire off
   // syncUser(owner) -> a full-document .set(clean(user)) overwrite. If this
@@ -9125,6 +9360,7 @@ async function addPayment() {
   renderCredits();
   renderOverview();
   if (DB.analyticsOpen) renderSupplierAnalytics();
+  if (DB.purchaseHistoryOpen) renderSupplierPurchaseHistory();
   $('ph-amount').value = '';
   $('ph-note').value = '';
   logActivity('ADD_PAYMENT', `${fmt(amount)} payment added`);
@@ -9183,6 +9419,7 @@ async function deletePayment(pid) {
   renderCredits();
   renderOverview();
   if (DB.analyticsOpen) renderSupplierAnalytics();
+  if (DB.purchaseHistoryOpen) renderSupplierPurchaseHistory();
   toast('🗑️ Payment deleted', 'red');
 }
 
@@ -9334,6 +9571,7 @@ async function payCreditWithCheque() {
   renderCheques();
   renderOverview();
   if (DB.analyticsOpen) renderSupplierAnalytics();
+  if (DB.purchaseHistoryOpen) renderSupplierPurchaseHistory();
   toast('✅ Credit paid with cheque!');
 }
 
@@ -9373,6 +9611,7 @@ function delCredit(id, ownerUsername) {
   renderCredits();
   renderOverview();
   if (DB.analyticsOpen) renderSupplierAnalytics();
+  if (DB.purchaseHistoryOpen) renderSupplierPurchaseHistory();
   toast('🗑️ Credit deleted', 'red');
 }
 
@@ -9437,6 +9676,7 @@ async function delCheque(id, ownerUsername) {
   renderCheques();
   renderOverview();
   if (DB.analyticsOpen) renderSupplierAnalytics();
+  if (DB.purchaseHistoryOpen) renderSupplierPurchaseHistory();
   toast('🗑️ Cheque deleted', 'red');
 }
 
@@ -9460,6 +9700,7 @@ function quickClearCheque(id, ownerUsername) {
   renderCheques();
   renderOverview();
   if (DB.analyticsOpen) renderSupplierAnalytics();
+  if (DB.purchaseHistoryOpen) renderSupplierPurchaseHistory();
   toast('✅ Cheque marked as Cleared!');
 }
 
@@ -9783,6 +10024,7 @@ async function saveCredit() {
   renderCredits();
   renderOverview();
   if (DB.analyticsOpen) renderSupplierAnalytics();
+  if (DB.purchaseHistoryOpen) renderSupplierPurchaseHistory();
   toast(editId ? '✅ Credit updated!' : '✅ Credit added!');
 }
 
@@ -9859,6 +10101,7 @@ async function saveCheque() {
   renderCheques();
   renderOverview();
   if (DB.analyticsOpen) renderSupplierAnalytics();
+  if (DB.purchaseHistoryOpen) renderSupplierPurchaseHistory();
   toast(editId ? '✅ Cheque updated!' : '✅ Cheque added!');
 }
 
@@ -9910,6 +10153,7 @@ function saveSupplier() {
   renderSuppliers();
   renderOverview();
   if (DB.analyticsOpen) renderSupplierAnalytics();
+  if (DB.purchaseHistoryOpen) renderSupplierPurchaseHistory();
   toast(editId ? '✅ Supplier updated!' : '✅ Supplier added!');
 }
 
@@ -11456,7 +11700,7 @@ async function saveCashLogEntry() {
       }
       const c = (creditOwner.credits||[]).find(x => x.id === creditId);
       if (c) {
-        newPayment = { id: uid(), amount, date, note: '💰 Paid via Cash Disposal Log (Cash-in-Hand)', cashLogId: finalLogId };
+        newPayment = { id: uid(), amount, date, note: '💰 Paid via Cash Disposal Log (Cash-in-Hand)', cashLogId: finalLogId, method: 'cash' };
         c.payments = Array.isArray(c.payments) ? [...c.payments, newPayment] : [newPayment];
         touchSupplier(creditOwner, supplierId);
       }
@@ -11490,7 +11734,7 @@ async function saveCashLogEntry() {
           const freshCredit = { ...freshCredits[cIdx] };
           const freshBal = getCreditBalance(freshCredit);
           if (amount > freshBal + 0.001) throw new Error('BALANCE_EXCEEDED');
-          newPayment = { id: uid(), amount, date, note: '💰 Paid via Cash Disposal Log (Cash-in-Hand)', cashLogId: finalLogId };
+          newPayment = { id: uid(), amount, date, note: '💰 Paid via Cash Disposal Log (Cash-in-Hand)', cashLogId: finalLogId, method: 'cash' };
           freshCredit.payments = Array.isArray(freshCredit.payments) ? [...freshCredit.payments, newPayment] : [newPayment];
           freshCredits[cIdx] = freshCredit;
 
@@ -11603,6 +11847,7 @@ async function saveCashLogEntry() {
   renderCashLog(); renderOverview(); renderCredits();
   if (typeof renderCashPurchaseHistory === 'function') renderCashPurchaseHistory();
   if (DB.analyticsOpen) renderSupplierAnalytics();
+  if (DB.purchaseHistoryOpen) renderSupplierPurchaseHistory();
 }
 
 async function deleteCashLogEntry(id) {
@@ -11645,6 +11890,7 @@ async function deleteCashLogEntry(id) {
   renderCashLog(); renderOverview(); renderCredits();
   if (typeof renderCashPurchaseHistory === 'function') renderCashPurchaseHistory();
   if (DB.analyticsOpen) renderSupplierAnalytics();
+  if (DB.purchaseHistoryOpen) renderSupplierPurchaseHistory();
   toast('🗑️ Log entry deleted','red');
 }
 
@@ -13409,7 +13655,7 @@ async function saveCashEntry(handoverTarget) {
     const creditOwner = getTargetUser(p.ownerUsername) || owner;
     const credit = (creditOwner.credits||[]).find(c => c.id === p.creditId);
     if (credit) {
-      const newPayment = { id: uid(), amount: p.amount, date, note: '💰 Paid via Cash Management (Daily Cash)', cashEntryId: recId };
+      const newPayment = { id: uid(), amount: p.amount, date, note: '💰 Paid via Cash Management (Daily Cash)', cashEntryId: recId, method: 'cash' };
       const ok = await applyCreditPaymentsChange(creditOwner, credit.id, payments => [...payments, newPayment], p.supplierId);
       if (!ok) failedCreditLinks.push(credit.entryId || credit.id);
     }
@@ -14981,7 +15227,7 @@ async function autoSettleLinkedCredit(cheque, owner) {
   const bal = getCreditBalance(credit);
   if (bal <= 0.001) return;
   const payAmt = Math.min(Number(cheque.amount)||0, bal);
-  const newPayment = { id: uid(), amount: payAmt, date: cheque.dueDate||today(), note: `Auto: Cheque ${cheque.number||cheque.entryId} cleared` };
+  const newPayment = { id: uid(), amount: payAmt, date: cheque.dueDate||today(), note: `Auto: Cheque ${cheque.number||cheque.entryId} cleared`, method: 'cheque' };
   const ok = await applyCreditPaymentsChange(owner, credit.id, payments => [...payments, newPayment]);
   if (!ok) return;
   logActivity('CHEQUE_LINK', `Credit ${credit.entryId} auto-settled by Cheque ${cheque.entryId}`);
@@ -16430,6 +16676,7 @@ document.querySelectorAll('.overlay').forEach(o => {
     if (e.target === o) {
       o.classList.remove('show');
       if (o.id === 'supplierAnalyticsModal') DB.analyticsOpen = null;
+      if (o.id === 'purchaseHistoryModal') DB.purchaseHistoryOpen = null;
     }
   });
 });
