@@ -1196,10 +1196,50 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
    on the right of every slide's first header so its range <select> wraps
    to its own line instead of rendering underneath — and getting hidden
    behind — the lock icon on narrow/mobile screens. */
-.ov-carousel-slide>.card-head:first-child{padding-right:3.4rem;}
+.ov-carousel-slide>.card-head:first-child{padding-right:6.2rem;}
 @media(max-width:768px){
   .ov-lock-btn{width:26px;height:26px;top:.55rem;right:.6rem;font-size:.8rem;}
-  .ov-carousel-slide>.card-head:first-child{padding-right:3rem;}
+  .ov-carousel-slide>.card-head:first-child{padding-right:5.6rem;}
+}
+/* ⛶ Zoom button — sits just left of the 🔓 lock button */
+.ov-zoom-btn{position:absolute;top:.65rem;right:3.1rem;z-index:5;width:30px;height:30px;border-radius:50%;border:1.5px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;font-size:.95rem;line-height:1;display:flex;align-items:center;justify-content:center;transition:transform .15s ease;}
+.ov-zoom-btn:hover{transform:scale(1.1);}
+.ov-zoom-btn.on{border-color:#fff;background:#dc2626;color:#fff;font-size:1.15rem;font-weight:900;box-shadow:0 2px 10px rgba(0,0,0,.45);}
+.ov-zoom-btn.on:hover{background:#b91c1c;}
+/* While zoomed, pin the close button to the screen corner of the zoomed card so it
+   can never scroll out of view and is always on top of the backdrop. */
+.ov-carousel.ov-zoomed .ov-zoom-btn{position:fixed;top:calc(3vh + .65rem);right:calc(3vw + 3.1rem);z-index:9100;width:34px;height:34px;}
+@media(max-width:768px){.ov-carousel.ov-zoomed .ov-zoom-btn{top:calc(3vh + .55rem);right:calc(3vw + 2.7rem);width:30px;height:30px;}}
+@media(max-width:768px){.ov-zoom-btn{width:26px;height:26px;top:.55rem;right:2.7rem;font-size:.8rem;}}
+/* Zoomed state: the carousel card fills most of the screen over a dim backdrop */
+.ov-zoom-backdrop{display:none;position:fixed;inset:0;background:rgba(15,23,42,.65);z-index:8990;}
+body.ov-zoom-open{overflow:hidden;}
+body.ov-zoom-open .ov-zoom-backdrop{display:block;}
+.ov-carousel.ov-zoomed{position:fixed!important;inset:3vh 3vw;z-index:9000;margin:0!important;animation:none!important;transform:none!important;overflow:auto;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.45);}
+.ov-carousel.ov-zoomed .ov-carousel-slides{flex:1 1 auto;min-height:0;}
+.ov-carousel.ov-zoomed .mini-chartjs-wrap{height:calc(94vh - 190px);min-height:300px;}
+.ov-carousel.ov-zoomed .mini-apex-wrap{min-height:calc(94vh - 230px);}
+
+/* ===== DESKTOP: both chart carousels side by side in ONE row, and each
+   carousel's ‹ dots › strip moved up beside its 🔓 lock button =====
+   Mobile / tablet (<1100px) keeps the original stacked layout with the
+   dots strip at the bottom of each card. */
+.ov-carousels-row{display:flex;flex-direction:column;gap:1.2rem;margin-top:.6rem;}
+.ov-carousels-row>.ov-carousel{margin:0;}
+@media(min-width:1100px){
+  .ov-carousels-row{flex-direction:row;align-items:stretch;gap:1rem;margin-bottom:1.2rem;}
+  .ov-carousels-row>.ov-carousel{flex:1 1 0;min-width:0;margin:0;}
+  .ov-carousel{padding-top:2.9rem;}
+  /* top bar: dots strip sits just left of the lock button */
+  .ov-carousel .ov-carousel-dots{
+    position:absolute;top:.65rem;right:5.7rem;z-index:5;height:30px;
+    padding:0 .35rem;gap:.35rem;border-top:none;border-radius:15px;
+    background:var(--surface);border:1.5px solid var(--border);
+    max-width:calc(100% - 6.8rem);
+  }
+  .ov-carousel .ov-carousel-dots .ov-arrow-btn{padding:.05rem .4rem;font-size:1rem;}
+  /* lock no longer overlaps a slide header, so drop the reserved room */
+  .ov-carousel-slide>.card-head:first-child{padding-right:1.5rem;}
 }
 
 /* ===== Chart.js / ApexCharts dashboard chart containers ===== */
@@ -1493,7 +1533,7 @@ th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
     <div class="sb-link hidden" id="cashNavLink" title="Cash" onclick="showSection('cash')"><span class="ico">💰</span><span>Cash</span></div>
     <div class="sb-link hidden" id="dailySummaryNavLink" title="Daily Summary" onclick="showSection('dailySummary')"><span class="ico">📅</span><span>Daily Summary</span></div>
     <div class="sb-link" id="navLink-suppliers" title="Suppliers" onclick="showSection('suppliers')"><span class="ico">🏪</span><span>Suppliers</span></div>
-    <div class="sb-link hidden" id="payrollNavLink" title="Payroll" onclick="showSection('payroll')"><span class="ico">🧑‍💼</span><span>Payroll</span></div>
+    <div class="sb-link hidden" id="payrollNavLink" title="Payroll" onclick="showSection('payroll')"><span class="ico">💼</span><span>Payroll</span></div>
     <div class="sb-link" id="navLink-reload" title="Reload" onclick="showSection('reload')"><span class="ico">📱</span><span>Reload</span></div>
     <div class="sb-link" id="navLink-aiinsights" title="AI Insights" onclick="showSection('aiinsights')"><span class="ico">🤖</span><span>AI Insights</span></div>
     <div class="sb-link" id="navLink-reports" title="Reports" onclick="showSection('reports')"><span class="ico">📋</span><span>Reports</span></div>
@@ -1586,8 +1626,11 @@ th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
            this month vs the 15th of last month is a quick glance away; This Month vs Past
            Months overlays each month's daily totals as lines on one chart, in its own slide
            so it's not cramped underneath Daily Total Sales anymore. -->
-      <div class="card ov-carousel hidden" id="ov-carousel2-card" style="margin-top:.6rem;margin-bottom:1.2rem;">
+      <div class="ov-zoom-backdrop" id="ov-zoom-backdrop" onclick="ovCloseZoom()"></div>
+      <div class="ov-carousels-row" id="ov-carousels-row">
+      <div class="card ov-carousel hidden" id="ov-carousel2-card">
         <button type="button" class="ov-lock-btn" id="ov-carousel2-lock-btn" onclick="ovToggleLock2()" title="Lock — stop this carousel changing automatically">🔓</button>
+        <button type="button" class="ov-zoom-btn" id="ov-carousel2-zoom-btn" onclick="ovToggleZoom('ov-carousel2-card')" title="Zoom — view this chart enlarged">⛶</button>
         <div class="ov-carousel-slides" id="ov-carousel2-slides">
           <div class="ov-carousel-slide active" data-slide="0" id="ov-slide-salesGrowth">
             <div class="card-head">
@@ -1664,8 +1707,9 @@ th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
         </div>
       </div>
       <!-- Rotating carousel: cycles the 5 dashboard mini-charts, one at a time, every 4s -->
-      <div class="card ov-carousel" id="ov-carousel-card" style="margin-top:.6rem;">
+      <div class="card ov-carousel" id="ov-carousel-card">
         <button type="button" class="ov-lock-btn" id="ov-carousel-lock-btn" onclick="ovToggleLock()" title="Lock — stop this carousel changing automatically">🔓</button>
+        <button type="button" class="ov-zoom-btn" id="ov-carousel-zoom-btn" onclick="ovToggleZoom('ov-carousel-card')" title="Zoom — view this chart enlarged">⛶</button>
         <div class="ov-carousel-slides" id="ov-carousel-slides">
           <div class="ov-carousel-slide active" data-slide="0" id="ov-slide-creditTrend">
             <div class="card-head">
@@ -1752,6 +1796,7 @@ th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
           <button type="button" class="ov-arrow-btn" onclick="ovNextSlide()" title="Next chart">›</button>
         </div>
       </div>
+      </div><!-- /ov-carousels-row -->
     </div>
 
 
@@ -2551,7 +2596,7 @@ th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
     <div id="payrollSection" class="section">
       <div class="card" style="margin-bottom:1.2rem;">
         <div class="card-head">
-          <div class="card-title">🧑‍💼 Payroll Management</div>
+          <div class="card-title">💼 Payroll Management</div>
           <div style="font-size:.8rem;color:var(--muted);">🏢 IMP Super City</div>
         </div>
         <div class="tab-bar">
@@ -3642,6 +3687,14 @@ th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
         <div class="notif-pref-label"><span class="npi">📤</span><div><strong>Cash Disposal Log</strong><div class="npd">Cash-in-Hand reduces — banked, handed to owner, cash purchase, credit bill payment, salary, other</div></div></div>
         <label class="np-switch"><input type="checkbox" id="np-disposal" onchange="saveNotifPref('disposal', this.checked)"><span class="np-slider"></span></label>
       </div>
+      <div class="notif-pref-row">
+        <div class="notif-pref-label"><span class="npi">🖐️</span><div><strong>Cheques Low in Manager's Hand</strong><div class="npd">Manager's Hand එකේ ඉතිරි cheques හරියටම 5ක් සහ 0ක් වූ විට</div></div></div>
+        <label class="np-switch"><input type="checkbox" id="np-chequeLow" onchange="saveNotifPref('chequeLow', this.checked)"><span class="np-slider"></span></label>
+      </div>
+      <div class="notif-pref-row">
+        <div class="notif-pref-label"><span class="npi">💼</span><div><strong>Salary Processed</strong><div class="npd">Manager employee කෙනෙකුගේ salary එකක් process කළ විට</div></div></div>
+        <label class="np-switch"><input type="checkbox" id="np-salary" onchange="saveNotifPref('salary', this.checked)"><span class="np-slider"></span></label>
+      </div>
 
       <div id="notifSettingsHint" class="hidden" style="margin-top:1rem;padding:.8rem 1rem;background:#fef3c7;border-radius:10px;border-left:4px solid var(--yellow);font-size:.82rem;color:#78350f;">
         ⚠️ තාම push notifications enable කරලා නෑ — "🔕 Enable Alerts" button එකෙන් මුලින් enable කරන්න, එතකොට මේ settings apply වෙනවා.
@@ -4028,7 +4081,7 @@ const DASHBOARD_SECTIONS = [
   { key: 'reload',     navId: 'navLink-reload',     label: '📱 Reload' },
   { key: 'cash',       navId: 'cashNavLink',        label: '💰 Cash' },
   { key: 'dailySummary', navId: 'dailySummaryNavLink', label: '📅 Daily Summary' },
-  { key: 'payroll',    navId: 'payrollNavLink',     label: '🧑\u200d💼 Payroll' }
+  { key: 'payroll',    navId: 'payrollNavLink',     label: '💼 Payroll' }
 ];
 // Dashboard stat tiles (the small cards at the top of the Dashboard/Overview
 // page). elId = the tile's own DOM id, toggled with a plain hidden class.
@@ -5049,7 +5102,22 @@ async function queuePushEvent(type, title, body) {
   } catch (e) { console.error('queuePushEvent', e); }
 }
 
-const NOTIF_PREF_KEYS = ['cash', 'cheque', 'credit', 'payment', 'chequeDue', 'reload', 'advance', 'supplier', 'disposal'];
+// Fires when a manager uses up a cheque from their hand: pushes to Admin once the
+// remaining available count hits exactly 5 and exactly 0. Respects the 'chequeLow'
+// toggle in Notification Settings (filtered server-side by prefs, same as other types).
+function notifyChequeHandLevel(owner) {
+  if (!isManager() || !owner) return;
+  const left = (owner.chequeBook || []).filter(e => e.status === 'available').length;
+  if (left !== 5 && left !== 0) return;
+  const who = owner.name || owner.username;
+  if (left === 0) {
+    queuePushEvent('chequeLow', '🚨 No Cheques Left in Manager\'s Hand', `${who} · 0 cheques remaining — please register more cheque numbers`);
+  } else {
+    queuePushEvent('chequeLow', '🖐️ Only 5 Cheques Left in Manager\'s Hand', `${who} · 5 cheques remaining`);
+  }
+}
+
+const NOTIF_PREF_KEYS = ['cash', 'cheque', 'credit', 'payment', 'chequeDue', 'reload', 'advance', 'supplier', 'disposal', 'chequeLow', 'salary'];
 
 async function openNotifSettings() {
   if (!isAdmin()) { toast('⚠️ Admin only', 'red'); return; }
@@ -5641,7 +5709,7 @@ const sectionTitles = {
   cash: '💰 Cash Management',
   dailySummary: '📅 Daily Summary',
   reload: '📱 Reload Management',
-  payroll: '🧑\u200d💼 Payroll',
+  payroll: '💼 Payroll',
   settings: '⚙️ Settings'
 };
 
@@ -5664,6 +5732,7 @@ function showSection(name) {
   // here (and letting ovInitCarousel/2 restart cleanly next time Overview
   // is shown, via the *Started flags below) fixes that at the source.
   if (name !== 'overview') {
+    if (typeof ovCloseZoom === 'function') ovCloseZoom(); // don't leave a zoomed chart / locked page scroll behind
     if (ovCarouselTimer)  { clearInterval(ovCarouselTimer);  ovCarouselTimer  = null; }
     if (ovCarousel2Timer) { clearInterval(ovCarousel2Timer); ovCarousel2Timer = null; }
     ovCarouselStarted = false;
@@ -6594,7 +6663,7 @@ function renderDonutApex(elId, items) {
   const colors = items.map(i => i.color || '#2563eb');
   const dark = isDarkChartTheme();
   __ovApex[elId] = new ApexCharts(el, {
-    chart: { type: 'donut', height: 230, fontFamily: 'inherit', foreColor: tc.muted, animations: { speed: 400, easing: 'easeinout' }, dropShadow: { enabled: true, top: 2, left: 0, blur: 6, opacity: dark ? .35 : .12 } },
+    chart: { type: 'donut', height: ovChartH(230), fontFamily: 'inherit', foreColor: tc.muted, animations: { speed: 400, easing: 'easeinout' }, dropShadow: { enabled: true, top: 2, left: 0, blur: 6, opacity: dark ? .35 : .12 } },
     theme: { mode: dark ? 'dark' : 'light' },
     series, labels, colors,
     legend: { position: 'bottom', fontSize: '12px', labels: { colors: tc.text }, markers: { radius: 4 } },
@@ -6636,7 +6705,7 @@ function renderAreaApex(elId, items, valueLabel) {
   const tc = chartTextColors();
   const dark = isDarkChartTheme();
   __ovApex[elId] = new ApexCharts(el, {
-    chart: { type: 'area', height: 230, toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'inherit', foreColor: tc.muted, animations: { speed: 350, easing: 'easeinout' } },
+    chart: { type: 'area', height: ovChartH(230), toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'inherit', foreColor: tc.muted, animations: { speed: 350, easing: 'easeinout' } },
     theme: { mode: dark ? 'dark' : 'light' },
     series: [{ name: 'Total Sales', data: items.map(i => i.value) }],
     xaxis: { categories: items.map(i => i.label), labels: { style: { fontSize: '10px', colors: tc.muted }, rotate: -45 } },
@@ -6667,7 +6736,7 @@ function renderMultiLineApex(elId, series, categories, valueLabel) {
   const tc = chartTextColors();
   const dark = isDarkChartTheme();
   __ovApex[elId] = new ApexCharts(el, {
-    chart: { type: 'line', height: 260, toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'inherit', foreColor: tc.muted, animations: { speed: 350, easing: 'easeinout' } },
+    chart: { type: 'line', height: ovChartH(260), toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'inherit', foreColor: tc.muted, animations: { speed: 350, easing: 'easeinout' } },
     theme: { mode: dark ? 'dark' : 'light' },
     series: series.map(s => ({ name: s.name, data: s.data })),
     xaxis: { categories, labels: { style: { fontSize: '10px', colors: tc.muted } }, title: { text: 'Day of Month', style: { fontSize: '10px', color: tc.muted } } },
@@ -6699,7 +6768,7 @@ function renderMultiBarApex(elId, series, categories, valueLabel) {
   const tc = chartTextColors();
   const dark = isDarkChartTheme();
   __ovApex[elId] = new ApexCharts(el, {
-    chart: { type: 'bar', height: 260, toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'inherit', foreColor: tc.muted, animations: { speed: 350, easing: 'easeinout' } },
+    chart: { type: 'bar', height: ovChartH(260), toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'inherit', foreColor: tc.muted, animations: { speed: 350, easing: 'easeinout' } },
     theme: { mode: dark ? 'dark' : 'light' },
     series: series.map(s => ({ name: s.name, data: s.data })),
     xaxis: { categories, labels: { style: { fontSize: '10px', colors: tc.muted } }, title: { text: 'Day of Month', style: { fontSize: '10px', color: tc.muted } } },
@@ -7915,6 +7984,108 @@ function renderOverview() {
   try { ovInitCarousel2(); } catch (e) { console.error('ovInitCarousel2 failed:', e); }
 }
 
+// ===== ⛶ Zoom: enlarge one dashboard chart carousel to (almost) full screen =====
+// The carousel card itself is switched to position:fixed (no chart is cloned or
+// moved), auto-rotation is paused while it's open, and the ApexCharts / Chart.js
+// instances inside are resized to the bigger box. ‹ dots › still work while zoomed.
+let ovZoomedCardId = null;
+let ovZoomPlaceholder = null;
+
+// Height for ApexCharts: base size normally, tall when a card is zoomed.
+function ovChartH(base) {
+  return document.body.classList.contains('ov-zoom-open')
+    ? Math.max(base, Math.round(window.innerHeight * 0.94 - 250))
+    : base;
+}
+
+// Base (un-zoomed) height of an Apex chart, by chart type.
+function ovApexBaseH(inst) {
+  const t = inst?.w?.config?.chart?.type;
+  return (t === 'donut' || t === 'area') ? 230 : 260;
+}
+
+// Resize every VISIBLE Apex chart in the zoomed card to the tall size.
+// (Hidden slides are skipped — touching a 0-width container makes ApexCharts
+// throw NaN SVG errors; they're flagged and fixed when they next show.)
+function ovZoomFitCharts() {
+  const card = ovZoomedCardId && $(ovZoomedCardId);
+  if (!card) return;
+  Object.keys(__ovApex).forEach(id => {
+    const inst = __ovApex[id], el = $(id);
+    if (!inst || !el || !card.contains(el)) return;
+    if (!el.dataset.baseH) el.dataset.baseH = String(ovApexBaseH(inst));
+    el.dataset.needRestore = '1';
+    if (!el.closest('.ov-carousel-slide.active')) return;
+    try { inst.updateOptions({ chart: { height: ovChartH(Number(el.dataset.baseH)) } }, false, false); } catch (e) {}
+  });
+  Object.keys(__ovChartJS).forEach(id => {
+    try { __ovChartJS[id] && __ovChartJS[id].resize(); } catch (e) {}
+  });
+}
+
+// After zoom closes: put any Apex chart that is on screen back to its normal
+// height. Called on close and each time a slide is shown while not zoomed, so
+// charts that were hidden at close time get fixed as soon as they reappear.
+function ovRestoreStaleApex() {
+  if (document.body.classList.contains('ov-zoom-open')) return;
+  if (!$('overviewSection')?.classList.contains('show')) return; // hidden → fixed when slides next show
+  Object.keys(__ovApex).forEach(id => {
+    const inst = __ovApex[id], el = $(id);
+    if (!inst || !el || el.dataset.needRestore !== '1') return;
+    if (!el.closest('.ov-carousel-slide.active')) return;
+    try { inst.updateOptions({ chart: { height: Number(el.dataset.baseH) || ovApexBaseH(inst) } }, false, false); } catch (e) {}
+    el.dataset.needRestore = '0';
+  });
+  Object.keys(__ovChartJS).forEach(id => {
+    try { __ovChartJS[id] && __ovChartJS[id].resize(); } catch (e) {}
+  });
+}
+
+function ovOpenZoom(cardId) {
+  const card = $(cardId);
+  if (!card) return;
+  if (ovZoomedCardId) ovCloseZoom();
+  // Hold the card's place in the layout so the other carousel doesn't jump.
+  const r = card.getBoundingClientRect();
+  ovZoomPlaceholder = document.createElement('div');
+  const rowDir = getComputedStyle(card.parentNode).flexDirection.startsWith('row');
+  ovZoomPlaceholder.style.cssText = rowDir
+    ? `flex:1 1 0;min-width:0;height:${Math.round(r.height)}px;`
+    : `flex:0 0 auto;height:${Math.round(r.height)}px;`;
+  card.parentNode.insertBefore(ovZoomPlaceholder, card);
+  ovZoomedCardId = cardId;
+  card.classList.add('ov-zoomed');
+  document.body.classList.add('ov-zoom-open');
+  const btn = card.querySelector('.ov-zoom-btn');
+  if (btn) { btn.textContent = '✕'; btn.classList.add('on'); btn.title = 'Close zoom (Esc)'; }
+  if (cardId === 'ov-carousel-card') ovPauseCarousel(); else ovPauseCarousel2();
+  setTimeout(ovZoomFitCharts, 60);
+  setTimeout(ovZoomFitCharts, 350);
+}
+
+function ovCloseZoom() {
+  const id = ovZoomedCardId;
+  if (!id) return;
+  const card = $(id);
+  ovZoomedCardId = null;
+  if (card) {
+    card.classList.remove('ov-zoomed');
+    const btn = card.querySelector('.ov-zoom-btn');
+    if (btn) { btn.textContent = '⛶'; btn.classList.remove('on'); btn.title = 'Zoom — view this chart enlarged'; }
+  }
+  document.body.classList.remove('ov-zoom-open');
+  if (ovZoomPlaceholder) { ovZoomPlaceholder.remove(); ovZoomPlaceholder = null; }
+  // restore normal chart sizes, then resume rotation (unless locked)
+  setTimeout(ovRestoreStaleApex, 60);
+  if (id === 'ov-carousel-card') ovResumeCarousel(); else ovResumeCarousel2();
+}
+
+function ovToggleZoom(cardId) {
+  if (ovZoomedCardId === cardId) ovCloseZoom(); else ovOpenZoom(cardId);
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && ovZoomedCardId) ovCloseZoom(); });
+
 // ===== Dashboard chart carousel: rotates Monthly Credit Trend / Cheque Status
 // Overview / Monthly Sales Trend / Payment Breakdown / Purchases Breakdown,
 // one slide at a time, every 4 seconds. Slides can be marked unavailable
@@ -7953,6 +8124,7 @@ function ovShowSlide(idx) {
   // Chart.js/ApexCharts instances created while their slide was display:none
   // can end up with a 0-width canvas — nudge them to resize now that they're visible.
   requestAnimationFrame(() => ovRefreshChartVisibility(idx));
+  setTimeout(ovZoomedCardId === 'ov-carousel-card' ? ovZoomFitCharts : ovRestoreStaleApex, 150);
 }
 
 function ovGoToSlide(idx) {
@@ -7975,7 +8147,7 @@ function ovNextSlide() {
 
 function ovResetCarouselTimer() {
   if (ovCarouselTimer) { clearInterval(ovCarouselTimer); ovCarouselTimer = null; }
-  if (ovCarouselLocked) return; // stay paused while locked, regardless of who/what called this
+  if (ovCarouselLocked || ovZoomedCardId === 'ov-carousel-card') return; // stay paused while locked/zoomed
   ovCarouselTimer = setInterval(() => {
     const slides = [...document.querySelectorAll('#ov-carousel-slides .ov-carousel-slide')];
     if (!slides.length) return;
@@ -7994,7 +8166,7 @@ function ovPauseCarousel() {
 }
 
 function ovResumeCarousel() {
-  if (ovCarouselLocked) return; // manual lock takes priority over hover-based pause/resume
+  if (ovCarouselLocked || ovZoomedCardId === 'ov-carousel-card') return; // manual lock takes priority over hover-based pause/resume
   if (!ovCarouselTimer) ovResetCarouselTimer();
 }
 
@@ -8050,6 +8222,7 @@ function ovShowSlide2(idx) {
   // ApexCharts instances created while their slide was display:none can end up
   // with a 0-width canvas — nudge them to recompute their size now that they're visible.
   requestAnimationFrame(() => ovRefreshChartVisibility2(idx));
+  setTimeout(ovZoomedCardId === 'ov-carousel2-card' ? ovZoomFitCharts : ovRestoreStaleApex, 150);
 }
 
 function ovGoToSlide2(idx) {
@@ -8070,7 +8243,7 @@ function ovNextSlide2() {
 
 function ovResetCarouselTimer2() {
   if (ovCarousel2Timer) { clearInterval(ovCarousel2Timer); ovCarousel2Timer = null; }
-  if (ovCarousel2Locked) return;
+  if (ovCarousel2Locked || ovZoomedCardId === 'ov-carousel2-card') return;
   ovCarousel2Timer = setInterval(() => {
     const slides = [...document.querySelectorAll('#ov-carousel2-slides .ov-carousel-slide')];
     if (!slides.length) return;
@@ -8087,7 +8260,7 @@ function ovPauseCarousel2() {
 }
 
 function ovResumeCarousel2() {
-  if (ovCarousel2Locked) return;
+  if (ovCarousel2Locked || ovZoomedCardId === 'ov-carousel2-card') return;
   if (!ovCarousel2Timer) ovResetCarouselTimer2();
 }
 
@@ -8598,6 +8771,52 @@ function closeModal(id) {
 /* ===== CREDIT PAYMENT SYNC-CHECK / RECONCILE MODAL ===== */
 let _reconcileGaps = [];
 
+// Stable identity for one flagged gap, so an admin's "I fixed this by hand"
+// answer can be remembered across scans/sessions. Includes the amount so that
+// if the underlying cash record is later edited to a different amount, the
+// gap is treated as new and shown again.
+function reconcileGapKey(g) {
+  const credId = (g.row && g.row.creditId) || (g.credit && g.credit.id) || '';
+  const amt = Number(g.missing || 0).toFixed(2);
+  return `${g.kind}|${g.entry && g.entry.id}|${credId}|${amt}`;
+}
+
+function getReconcileAckList() {
+  const adminUser = getUserByUsername('admin');
+  return (adminUser && adminUser.reconcileAck) || [];
+}
+
+function isReconcileAcked(g) {
+  const key = reconcileGapKey(g);
+  return getReconcileAckList().some(a => a.key === key);
+}
+
+// Admin confirms they already sorted this one out manually → remember it so
+// the Sync Check never lists it again.
+function markReconcileGapManuallyFixed(rid) {
+  const g = _reconcileGaps.find(x => x._rid === rid);
+  if (!g || !isAdmin()) return;
+  const ok = confirm('මේ එක ඔබ manually fix කරලාද?\n\n"OK" ඔබපුවොත් මේක නැවත Sync Check එකේ පෙන්වන්නේ නැහැ.');
+  if (!ok) return;
+  const adminUser = getUserByUsername('admin');
+  if (!adminUser) return;
+  adminUser.reconcileAck = adminUser.reconcileAck || [];
+  const key = reconcileGapKey(g);
+  if (!adminUser.reconcileAck.some(a => a.key === key)) {
+    adminUser.reconcileAck.push({
+      key,
+      ts: new Date().toISOString(),
+      by: DB.currentUsername,
+      note: `${g.kind} · ${g.entry && g.entry.date || ''} · ${fmt(g.missing)}${g.reason === 'CREDIT_NOT_FOUND' ? ' · bill not found' : ' · would overpay'}`
+    });
+  }
+  syncUser(adminUser);
+  g.ackedManually = true;
+  logActivity('RECONCILE_ACK', `Marked as manually fixed: ${key}`);
+  toast('✅ Manually fixed ලෙස සටහන් කළා');
+  renderReconcileResults();
+}
+
 async function openReconcileModal() {
   if (!isAdmin()) { toast('Admin only', 'red'); return; }
   openModal('reconcileModal');
@@ -8605,21 +8824,23 @@ async function openReconcileModal() {
   $('reconcile-list').innerHTML = '';
   $('reconcile-fixall-btn').style.display = 'none';
   const gaps = await scanCreditPaymentGaps();
-  _reconcileGaps = gaps.map((g, i) => Object.assign({}, g, { _rid: i, fixed: false }));
+  // Drop gaps the admin has already confirmed as manually fixed.
+  const open = gaps.filter(g => !isReconcileAcked(g));
+  _reconcileGaps = open.map((g, i) => Object.assign({}, g, { _rid: i, fixed: false }));
   renderReconcileResults();
 }
 
 function renderReconcileResults() {
   const statusEl = $('reconcile-status'), listEl = $('reconcile-list'), fixAllBtn = $('reconcile-fixall-btn');
   if (!statusEl || !listEl) return;
-  if (!_reconcileGaps.length) {
+  if (!_reconcileGaps.length || (!_reconcileGaps.some(g => !g.ackedManually) )) {
     statusEl.innerHTML = '✅ සියල්ල Sync වී ඇත — කිසිම ගැටළුවක් හමු නොවුනි.';
     fixAllBtn.style.display = 'none';
     listEl.innerHTML = '';
     return;
   }
   const alreadyOk = _reconcileGaps.filter(g => g.resolvedManually);
-  const visible = _reconcileGaps.filter(g => !g.resolvedManually);
+  const visible = _reconcileGaps.filter(g => !g.resolvedManually && !g.ackedManually);
   const fixablePending = visible.filter(g => !g.fixed && g.credit && !g.wouldOverpay);
   const needsReview = visible.filter(g => !g.fixed && (g.wouldOverpay || g.reason === 'CREDIT_NOT_FOUND'));
 
@@ -8640,9 +8861,9 @@ function renderReconcileResults() {
     if (g.fixed) {
       actionHtml = `<span style="color:var(--green);font-weight:700;white-space:nowrap;">✅ Fixed</span>`;
     } else if (g.reason === 'CREDIT_NOT_FOUND') {
-      actionHtml = `<span style="color:var(--red);font-size:.8rem;white-space:nowrap;">🛑 Bill not found — check manually</span>`;
+      actionHtml = `<div style="display:flex;flex-direction:column;gap:.35rem;align-items:flex-end;"><span style="color:var(--red);font-size:.8rem;white-space:nowrap;">🛑 Bill not found — check manually</span><button class="btn btn-ghost btn-sm" onclick="markReconcileGapManuallyFixed(${g._rid})">✔️ Manually Fixed</button></div>`;
     } else if (g.wouldOverpay) {
-      actionHtml = `<span style="color:var(--red);font-size:.8rem;white-space:nowrap;">🛑 Would overpay bill — check manually</span>`;
+      actionHtml = `<div style="display:flex;flex-direction:column;gap:.35rem;align-items:flex-end;"><span style="color:var(--red);font-size:.8rem;white-space:nowrap;">🛑 Would overpay bill — check manually</span><button class="btn btn-ghost btn-sm" onclick="markReconcileGapManuallyFixed(${g._rid})">✔️ Manually Fixed</button></div>`;
     } else if (g.credit) {
       actionHtml = `<button class="btn btn-green btn-sm" onclick="fixOneCreditPaymentGap(${g._rid})">Fix</button>`;
     } else {
@@ -9557,6 +9778,7 @@ async function payCreditWithCheque() {
     poolEntry.status = 'used';
     poolEntry.usedChequeId = rec.id;
     poolEntry.usedDate = today();
+    notifyChequeHandLevel(owner);
   }
 
   await autoSettleLinkedCredit(rec, owner);
@@ -10090,6 +10312,7 @@ async function saveCheque() {
     poolEntry.status = 'used';
     poolEntry.usedChequeId = rec.id;
     poolEntry.usedDate = today();
+    notifyChequeHandLevel(owner);
   }
   if (!editId && rec.linkedCreditId) await autoSettleLinkedCredit(rec, owner);
   logActivity(editId ? 'EDIT_CHEQUE' : 'ADD_CHEQUE', `${rec.entryId} · ${fmt(rec.amount)}`);
@@ -13108,7 +13331,7 @@ async function renderPL() {
       </div>
 
       <div style="font-weight:700;color:var(--red);margin:1rem 0 .2rem;">📉 Operating Expenses</div>
-      ${plRow('🧑\u200d💼 Salaries (Gross + Employer EPF/ETF)', r.totalSalaryExpense)}
+      ${plRow('💼 Salaries (Gross + Employer EPF/ETF)', r.totalSalaryExpense)}
       ${plRow('📝 Other Expenses &amp; Withdrawals', r.otherExpenses)}
       ${plRow('Total Expenses', r.totalExpenses, { bold: true, color: 'var(--red)' })}
 
@@ -13134,7 +13357,7 @@ async function renderPL() {
     { label: '💵 Cash Purchases', value: r.purchCash },
     { label: '📒 Credit Purchases', value: r.purchCredit },
     { label: '🏦 Cheque Purchases', value: r.purchCheque },
-    { label: '🧑\u200d💼 Salaries', value: r.totalSalaryExpense },
+    { label: '💼 Salaries', value: r.totalSalaryExpense },
     { label: '📝 Other Expenses', value: r.otherExpenses },
   ].filter(i => i.value > 0), v => fmt(v));
 
@@ -14475,7 +14698,7 @@ function populateMonthlyPurchaseOwnerFilter() {
   if (!el) return;
   const val = el.value || 'managers';
   const managers = getManagerUsers();
-  let html = '<option value="managers">🧑‍💼 All Managers</option>';
+  let html = '<option value="managers">💼 All Managers</option>';
   html += managers.map(u => `<option value="${u.username}">👤 ${escHtml(u.name || u.business || u.username)}</option>`).join('');
   html += '<option value="all">👥 All (incl. Admin)</option>';
   el.innerHTML = html;
@@ -15453,7 +15676,7 @@ function renderDailySummary() {
     <div class="ds-summary-item"><span>📅 Date</span><b style="font-size:.95rem;">${niceDate}</b></div>
     <div class="ds-summary-item"><span>💰 Total Sales</span><b>${fmt(data.totalSales)}</b></div>
     <div class="ds-summary-item"><span>✅ Net Cash</span><b>${fmt(data.totalNetCash)}</b></div>
-    <div class="ds-summary-item"><span>🧑‍💼 Cashiers Reported</span><b>${data.cashEntries.length}</b></div>
+    <div class="ds-summary-item"><span>🧾 Cashiers Reported</span><b>${data.cashEntries.length}</b></div>
   </div>`;
 
   if (!data.cashEntries.length && !data.cheques.length && !data.attendance.length && !data.managerActions.length) {
@@ -15488,7 +15711,7 @@ function renderDailySummary() {
     const totalExp = (entry.expenses || []).reduce((a, ex) => a + (Number(ex.amount) || 0), 0);
     html += `<div class="card" style="margin:1.2rem 1.5rem;">
       <div class="ds-cashier-head">
-        <div class="ds-cashier-name">🧑‍💼 ${cashierName} <small>· Entered by ${entry._ownerName || entry._owner || '—'}</small></div>
+        <div class="ds-cashier-name">🧾 ${cashierName} <small>· Entered by ${entry._ownerName || entry._owner || '—'}</small></div>
         <div class="ds-cashier-total">💰 Total Sales: ${fmt(entry.totalSales)}</div>
       </div>
       <div class="ds-subsection-title" style="margin-top:1.1rem;">🧾 Sales Details</div>
@@ -15554,15 +15777,15 @@ function renderDailySummary() {
 
   // ----- Manager Activity -----
   html += `<div class="card" style="margin:1.2rem 1.5rem;">
-    <div class="card-head"><div class="card-title">🧑‍💼 Manager Activity</div></div>`;
+    <div class="card-head"><div class="card-title">💼 Manager Activity</div></div>`;
   if (data.managerActions.length) {
-    const icons = {ADD_CREDIT:'💳',EDIT_CREDIT:'✏️',DEL_CREDIT:'🗑️',ADD_CHEQUE:'✅',EDIT_CHEQUE:'✏️',DEL_CHEQUE:'🗑️',ADD_CHEQUE_BOOK:'🖐️',DEL_CHEQUE_BOOK:'🗑️',ADD_PAYMENT:'💰',DEL_PAYMENT:'💰',ADD_SUPPLIER:'🏪',EDIT_SUPPLIER:'✏️',DEL_SUPPLIER:'🗑️',ADD_USER:'👥',EDIT_USER:'✏️',DEL_USER:'🗑️',LOGIN:'🔓',LOGOUT:'🔒',REGISTER:'✨',BACKUP:'📥',CHEQUE_LINK:'🔗',ADD_EMPLOYEE:'🧑‍💼',EDIT_EMPLOYEE:'✏️',DEL_EMPLOYEE:'🗑️',ADD_ADVANCE:'💸',DEL_ADVANCE:'🗑️',PROCESS_PAYROLL:'🧮',DEL_PAYROLL:'🗑️',DEL_CASH_PURCHASE:'🛒',MARK_ATTENDANCE:'🗓️',EDIT_ATTENDANCE:'✏️',DEL_ATTENDANCE:'🗑️',CASH_LOG:'💵',EDIT_CASH_LOG:'✏️',DEL_CASH_LOG:'🗑️',ADD_CASH:'💵',EDIT_CASH:'✏️',DEL_CASH:'🗑️',ADD_RELOAD:'📶',EDIT_RELOAD:'✏️',DEL_RELOAD:'🗑️',RELOAD_HANDOVER:'🤝',CASH_TEMP_SAVE:'🕓',CASH_TEMP_DELETE:'🗑️'};
+    const icons = {ADD_CREDIT:'💳',EDIT_CREDIT:'✏️',DEL_CREDIT:'🗑️',ADD_CHEQUE:'✅',EDIT_CHEQUE:'✏️',DEL_CHEQUE:'🗑️',ADD_CHEQUE_BOOK:'🖐️',DEL_CHEQUE_BOOK:'🗑️',ADD_PAYMENT:'💰',DEL_PAYMENT:'💰',ADD_SUPPLIER:'🏪',EDIT_SUPPLIER:'✏️',DEL_SUPPLIER:'🗑️',ADD_USER:'👥',EDIT_USER:'✏️',DEL_USER:'🗑️',LOGIN:'🔓',LOGOUT:'🔒',REGISTER:'✨',BACKUP:'📥',CHEQUE_LINK:'🔗',ADD_EMPLOYEE:'💼',EDIT_EMPLOYEE:'✏️',DEL_EMPLOYEE:'🗑️',ADD_ADVANCE:'💸',DEL_ADVANCE:'🗑️',PROCESS_PAYROLL:'🧮',DEL_PAYROLL:'🗑️',DEL_CASH_PURCHASE:'🛒',MARK_ATTENDANCE:'🗓️',EDIT_ATTENDANCE:'✏️',DEL_ATTENDANCE:'🗑️',CASH_LOG:'💵',EDIT_CASH_LOG:'✏️',DEL_CASH_LOG:'🗑️',ADD_CASH:'💵',EDIT_CASH:'✏️',DEL_CASH:'🗑️',ADD_RELOAD:'📶',EDIT_RELOAD:'✏️',DEL_RELOAD:'🗑️',RELOAD_HANDOVER:'🤝',CASH_TEMP_SAVE:'🕓',CASH_TEMP_DELETE:'🗑️'};
     html += `<div class="table-wrap"><table>
       <thead><tr><th>🕐 Time</th><th>👤 Manager</th><th>📝 Action</th><th>ℹ️ Details</th></tr></thead>
       <tbody>${data.managerActions.map(e => `<tr><td style="white-space:nowrap;">${e.ts ? new Date(e.ts).toLocaleTimeString() : '—'}</td><td><span class="user-data-badge">${e.actor || '?'}</span> ${e._ownerName || ''}</td><td>${icons[e.action] || '📝'} ${(e.action || '—').replace(/_/g, ' ')}</td><td style="font-size:.82rem;color:var(--muted);">${e.details || ''}</td></tr>`).join('')}</tbody>
     </table></div>`;
   } else {
-    html += `<div class="ds-empty-note">🧑‍💼 No manager activity was recorded today</div>`;
+    html += `<div class="ds-empty-note">💼 No manager activity was recorded today</div>`;
   }
   html += `</div>`;
 
@@ -16388,6 +16611,9 @@ function processPayroll() {
   PDB.payrolls.push(record);
   b.unsettled.forEach(a => { a.settled = true; a.payrollId = payrollId; });
   logActivity('PROCESS_PAYROLL', `${emp.name} - ${period} - ${fmt(b.netPay)}`);
+  if (isManager()) {
+    queuePushEvent('salary', '💼 Salary Processed', `${DB.currentUser?.name||DB.currentUsername} · ${emp.name} · ${period} · Net ${fmt(b.netPay)} · ${days} days`);
+  }
   savePayrollDB();
 
   // Auto-record the payout in the Manager Cash Disposal Log as a "💼 Salary" entry, which
@@ -16650,7 +16876,7 @@ function renderActivityLog() {
     renderPagination('activityPagination', 0, activityLogPage, 'goActivityLogPage', ACTIVITY_PAGE_SIZE);
     return;
   }
-  const icons={ADD_CREDIT:'💳',EDIT_CREDIT:'✏️',DEL_CREDIT:'🗑️',ADD_CHEQUE:'✅',EDIT_CHEQUE:'✏️',DEL_CHEQUE:'🗑️',ADD_CHEQUE_BOOK:'🖐️',DEL_CHEQUE_BOOK:'🗑️',ADD_PAYMENT:'💰',DEL_PAYMENT:'💰',ADD_SUPPLIER:'🏪',EDIT_SUPPLIER:'✏️',DEL_SUPPLIER:'🗑️',ADD_USER:'👥',EDIT_USER:'✏️',DEL_USER:'🗑️',LOGIN:'🔓',LOGOUT:'🔒',REGISTER:'✨',BACKUP:'📥',CHEQUE_LINK:'🔗',ADD_EMPLOYEE:'🧑‍💼',EDIT_EMPLOYEE:'✏️',DEL_EMPLOYEE:'🗑️',ADD_ADVANCE:'💸',DEL_ADVANCE:'🗑️',PROCESS_PAYROLL:'🧮',DEL_PAYROLL:'🗑️',DEL_CASH_PURCHASE:'🛒',MARK_ATTENDANCE:'🗓️',EDIT_ATTENDANCE:'✏️',DEL_ATTENDANCE:'🗑️',CASH_LOG:'💵',EDIT_CASH_LOG:'✏️',DEL_CASH_LOG:'🗑️',ADD_CASH:'💵',EDIT_CASH:'✏️',DEL_CASH:'🗑️',ADD_RELOAD:'📶',EDIT_RELOAD:'✏️',DEL_RELOAD:'🗑️',RELOAD_HANDOVER:'🤝',CASH_TEMP_SAVE:'🕓',CASH_TEMP_DELETE:'🗑️'};
+  const icons={ADD_CREDIT:'💳',EDIT_CREDIT:'✏️',DEL_CREDIT:'🗑️',ADD_CHEQUE:'✅',EDIT_CHEQUE:'✏️',DEL_CHEQUE:'🗑️',ADD_CHEQUE_BOOK:'🖐️',DEL_CHEQUE_BOOK:'🗑️',ADD_PAYMENT:'💰',DEL_PAYMENT:'💰',ADD_SUPPLIER:'🏪',EDIT_SUPPLIER:'✏️',DEL_SUPPLIER:'🗑️',ADD_USER:'👥',EDIT_USER:'✏️',DEL_USER:'🗑️',LOGIN:'🔓',LOGOUT:'🔒',REGISTER:'✨',BACKUP:'📥',CHEQUE_LINK:'🔗',ADD_EMPLOYEE:'💼',EDIT_EMPLOYEE:'✏️',DEL_EMPLOYEE:'🗑️',ADD_ADVANCE:'💸',DEL_ADVANCE:'🗑️',PROCESS_PAYROLL:'🧮',DEL_PAYROLL:'🗑️',DEL_CASH_PURCHASE:'🛒',MARK_ATTENDANCE:'🗓️',EDIT_ATTENDANCE:'✏️',DEL_ATTENDANCE:'🗑️',CASH_LOG:'💵',EDIT_CASH_LOG:'✏️',DEL_CASH_LOG:'🗑️',ADD_CASH:'💵',EDIT_CASH:'✏️',DEL_CASH:'🗑️',ADD_RELOAD:'📶',EDIT_RELOAD:'✏️',DEL_RELOAD:'🗑️',RELOAD_HANDOVER:'🤝',CASH_TEMP_SAVE:'🕓',CASH_TEMP_DELETE:'🗑️'};
   const pageLogs = filtered.slice((activityLogPage-1)*ACTIVITY_PAGE_SIZE, activityLogPage*ACTIVITY_PAGE_SIZE);
   tbody.innerHTML = pageLogs.map(e=>`<tr>
     <td style="font-size:.78rem;white-space:nowrap;">${e.ts?new Date(e.ts).toLocaleString():'—'}</td>
