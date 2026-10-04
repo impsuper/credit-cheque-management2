@@ -6329,6 +6329,9 @@ async function initFirebase() {
     if (firebase.apps.length === 0) firebase.initializeApp(firebaseConfig);
     try { firebase.analytics(); } catch (e) {}
     fdb = firebase.firestore();
+    // iOS Safari / Home Screen apps often can't keep Firestore's default streaming (WebChannel)
+    // connection alive, so reads hang forever. Long-polling is slower but reliable. Must run before any other Firestore call.
+    try { fdb.settings({ experimentalForceLongPolling: true }); } catch (e) { console.warn('firestore settings', e); }
     fauth = firebase.auth();
     ffun = firebase.functions();
     usersCol = fdb.collection('cms_users');
@@ -6357,7 +6360,7 @@ async function loadDB() {
     await new Promise(r => setTimeout(r, 1500 * (i + 1)));
   }
   try {
-    const c = await usersCol.doc(fauth.currentUser.uid).get({ source: 'cache' });
+    const c = await _withTimeout(usersCol.doc(fauth.currentUser.uid).get({ source: 'cache' }), 3000);
     if (c.exists) {
       const me = c.data();
       DB.currentUser = me; DB.currentUsername = me.username; DB.users = [me];
