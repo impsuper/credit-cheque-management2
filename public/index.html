@@ -6320,10 +6320,33 @@ async function initFirebase() {
   }
 }
 
+let _loadDBWhy = '';
+// Mobile networks often hiccup right when the app wakes up. A single failed
+// server read used to send a still-signed-in user to the login page, so retry
+// a few times, then fall back to the locally cached user doc.
 async function loadDB() {
   if (!firebaseReady()) return loadDBLocal();
+  for (let i = 0; i < 3; i++) {
+    DB.dataIncomplete = false; _loadDBWhy = '';
+    if (await _loadDBOnce()) return true;
+    if (!DB.dataIncomplete) return false; // no sign-in / no user record: a real login is needed
+    await new Promise(r => setTimeout(r, 1500 * (i + 1)));
+  }
+  try {
+    const c = await usersCol.doc(fauth.currentUser.uid).get({ source: 'cache' });
+    if (c.exists) {
+      const me = c.data();
+      DB.currentUser = me; DB.currentUsername = me.username; DB.users = [me];
+      DB.dataIncomplete = true; startLiveSync();
+      return true;
+    }
+  } catch (e) { console.error('loadDB cache fallback', e); }
+  return false;
+}
+
+async function _loadDBOnce() {
   const authUser = fauth && fauth.currentUser;
-  if (!authUser) return false;
+  if (!authUser) { _loadDBWhy = 'no saved sign-in on this device'; return false; }
 
   try {
     // See the matching comment in loadPayrollDB(): force the server here
@@ -6331,7 +6354,7 @@ async function loadDB() {
     // "doc doesn't exist" and bounce a real user straight back to the
     // login page.
     const ownSnap = await usersCol.doc(authUser.uid).get({ source: 'server' });
-    if (!ownSnap.exists) return false;
+    if (!ownSnap.exists) { _loadDBWhy = 'user record not found'; return false; }
 
     const me = ownSnap.data();
     DB.currentUser = me;
@@ -6369,6 +6392,7 @@ async function loadDB() {
     return true;
   } catch (e) {
     console.error('loadDB', e);
+    _loadDBWhy = 'server read failed (' + (e && (e.code || e.message)) + ')';
     // Couldn't get a fresh read (offline, blocked, backend unreachable...).
     // Whatever loadDBLocal() falls back to next isn't guaranteed current.
     DB.dataIncomplete = true;
@@ -18218,7 +18242,7 @@ restoreSidebarState();
   if (loggedIn && DB.currentUser) {
     afterSplash(() => initDashboard());
   } else {
-    afterSplash(() => showPage('loginPage'));
+    afterSplash(() => { showPage('loginPage'); if (_loadDBWhy) toast('ℹ️ Login page: ' + _loadDBWhy, 'yellow'); });
   }
 
   if (!firebaseReady()) {
