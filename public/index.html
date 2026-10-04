@@ -1512,6 +1512,29 @@ th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
   }catch(e){}
 })();
 </script>
+<style>
+#notifBtn{position:relative}
+.notif-badge{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:#dc2626;color:#fff;font-size:11px;font-weight:700;line-height:18px;text-align:center}
+.notif-badge.pulse{animation:npPulse 1.6s infinite}
+@keyframes npPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.2)}}
+#notifPanel{position:fixed;top:58px;right:8px;width:min(420px,94vw);max-height:78vh;display:flex;flex-direction:column;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.25);z-index:9999;overflow:hidden}
+.np-head{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border)}
+.np-tabs{display:flex;border-bottom:1px solid var(--border)}
+.np-tabs button{flex:1;padding:9px;background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);font-weight:600;cursor:pointer}
+.np-tabs button.on{color:var(--text);border-bottom-color:#2563eb}
+.np-actions{padding:8px 12px;border-bottom:1px solid var(--border)}
+.np-list{overflow-y:auto;flex:1}
+.np-item{display:flex;gap:8px;padding:10px 12px;border-bottom:1px solid var(--border);align-items:flex-start}
+.np-item.rd{opacity:.65}
+.np-ico{font-size:20px}
+.np-main{flex:1;min-width:0;cursor:pointer}
+.np-title{font-weight:700;font-size:13px}
+.np-body{font-size:12px;white-space:pre-line;word-break:break-word;margin-top:2px}
+.np-time{font-size:11px;color:var(--muted);margin-top:3px}
+.np-btns{display:flex;flex-direction:column;gap:4px}
+.np-btns button{background:none;border:1px solid var(--border);border-radius:6px;cursor:pointer;padding:2px 7px;color:var(--text)}
+.np-empty{padding:28px;text-align:center;color:var(--muted)}
+</style>
 </head>
 <body>
 
@@ -1639,6 +1662,7 @@ th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
       <h1 id="pageTitle">📊 Dashboard</h1>
       <div class="topbar-right">
         <div class="topbar-user" id="topbarUser" title="Logged in as"><span class="ico">👤</span><span id="topbarUserName">—</span></div>
+        <button class="btn btn-ghost btn-sm hidden" id="notifBtn" onclick="toggleNotifPanel(event)" title="Notifications">✉️<span class="notif-badge hidden" id="notifBadge">0</span></button>
         <button class="btn btn-ghost btn-sm" id="refreshBtn" onclick="manualRefresh()" title="Refresh"><span id="refreshIcon">🔄</span> <span class="bk-label">Refresh</span></button>
         <button class="btn btn-ghost btn-sm hidden" id="aiAskBtn" onclick="openAiAskBot()" title="Ask AI — Local Smart Assistant">🤖 <span class="bk-label">Ask AI</span><span class="ai-pulse-dot"></span></button>
         <button class="btn btn-ghost btn-sm hidden" id="topbarSettingsBtn" onclick="showSection('settings')" title="Settings">⚙️ <span class="bk-label">Settings</span></button>
@@ -5421,7 +5445,78 @@ function startTodoLiveSync() {
   });
 }
 
+// ===== Notification Center (✉️) — reads cms_notifications, written by Cloud Function sendFilteredPush =====
+let NOTIFS = [], notifUnsub = null, _notifTab = 'unread', _notifPrevUnread = -1, _notifDocBound = false;
+const NOTIF_ICON = { cash:'💵', cheque:'🧾', credit:'📒', payment:'💰', chequeDue:'⏰', todo:'📝' };
+const _nEsc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function notifRemindOn() { try { return localStorage.getItem('cms_notif_remind') !== '0'; } catch (e) { return true; } }
+function toggleNotifRemind() {
+  try { localStorage.setItem('cms_notif_remind', notifRemindOn() ? '0' : '1'); } catch (e) {}
+  renderNotifBadge(); renderNotifPanel();
+  toast(notifRemindOn() ? '🔔 Unread reminders ON' : '🔕 Unread reminders OFF', 'yellow');
+}
+function startNotifSync() {
+  if (!isAdmin() || !firebaseReady() || notifUnsub) return;
+  notifUnsub = fdb.collection('cms_notifications').orderBy('createdAt', 'desc').limit(150).onSnapshot(snap => {
+    NOTIFS = snap.docs.map(d => Object.assign({}, d.data(), { id: d.id }));
+    const unread = NOTIFS.filter(n => !n.read).length;
+    if (notifRemindOn() && unread > 0 && unread > _notifPrevUnread) toast('📬 Unread notifications ' + unread + ' ක් තියෙනවා', 'yellow');
+    _notifPrevUnread = unread;
+    renderNotifBadge(); renderNotifPanel();
+  }, err => { console.error('notif sync', err); notifUnsub = null; });
+}
+function stopNotifSync() {
+  if (notifUnsub) { try { notifUnsub(); } catch (e) {} notifUnsub = null; }
+  NOTIFS = []; _notifPrevUnread = -1; renderNotifBadge(); $('notifPanel')?.remove();
+}
+function renderNotifBadge() {
+  const b = $('notifBadge'); if (!b) return;
+  const n = NOTIFS.filter(x => !x.read).length;
+  b.textContent = n > 99 ? '99+' : n;
+  b.classList.toggle('hidden', n === 0);
+  b.classList.toggle('pulse', n > 0 && notifRemindOn());
+}
+function toggleNotifPanel(ev) {
+  if (ev) ev.stopPropagation();
+  if ($('notifPanel')) { $('notifPanel').remove(); return; }
+  const p = document.createElement('div'); p.id = 'notifPanel'; document.body.appendChild(p);
+  if (!_notifDocBound) {
+    _notifDocBound = true;
+    document.addEventListener('click', e => { const pn = $('notifPanel'); if (pn && !pn.contains(e.target) && !e.target.closest('#notifBtn')) pn.remove(); });
+  }
+  renderNotifPanel();
+}
+function setNotifTab(t) { _notifTab = t; renderNotifPanel(); }
+function renderNotifPanel() {
+  const p = $('notifPanel'); if (!p) return;
+  const un = NOTIFS.filter(n => !n.read), rd = NOTIFS.filter(n => n.read);
+  const list = _notifTab === 'unread' ? un : rd;
+  const item = n => {
+    const t = n.createdAt && n.createdAt.toDate ? n.createdAt.toDate().toLocaleString('en-GB', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) : '';
+    return `<div class="np-item${n.read ? ' rd' : ''}"><div class="np-ico">${NOTIF_ICON[n.type] || '🔔'}</div>
+      <div class="np-main" onclick="notifSetRead('${n.id}',true)"><div class="np-title">${_nEsc(n.title)}</div><div class="np-body">${_nEsc(n.body)}</div><div class="np-time">${t}</div></div>
+      <div class="np-btns"><button title="${n.read ? 'Mark unread' : 'Mark read'}" onclick="notifSetRead('${n.id}',${!n.read})">${n.read ? '↩' : '✓'}</button><button title="Delete" onclick="notifDelete('${n.id}')">🗑</button></div></div>`;
+  };
+  p.innerHTML = `<div class="np-head"><b>✉️ Notifications</b><button class="btn btn-ghost btn-sm" onclick="toggleNotifRemind()">🔔 Remind: ${notifRemindOn() ? 'ON' : 'OFF'}</button></div>
+    <div class="np-tabs"><button class="${_notifTab === 'unread' ? 'on' : ''}" onclick="setNotifTab('unread')">Unread (${un.length})</button><button class="${_notifTab === 'read' ? 'on' : ''}" onclick="setNotifTab('read')">Read (${rd.length})</button></div>
+    <div class="np-actions">${_notifTab === 'unread'
+      ? `<button class="btn btn-ghost btn-sm" onclick="notifMarkAll()" ${un.length ? '' : 'disabled'}>✓ Read all</button>`
+      : `<button class="btn btn-ghost btn-sm" onclick="notifDeleteRead()" ${rd.length ? '' : 'disabled'}>🗑 Delete all read</button>`}</div>
+    <div class="np-list">${list.length ? list.map(item).join('') : '<div class="np-empty">මොකුත් නෑ</div>'}</div>`;
+}
+async function _notifRun(fn) { try { await fn(); } catch (e) { console.error('notif', e); toast('⚠️ Notification update වුනේ නෑ', 'red'); } }
+function notifSetRead(id, v) { return _notifRun(() => fdb.collection('cms_notifications').doc(id).update({ read: !!v })); }
+function notifDelete(id) { return _notifRun(() => fdb.collection('cms_notifications').doc(id).delete()); }
+function notifMarkAll() {
+  return _notifRun(async () => { const b = fdb.batch(); NOTIFS.filter(n => !n.read).forEach(n => b.update(fdb.collection('cms_notifications').doc(n.id), { read: true })); await b.commit(); });
+}
+function notifDeleteRead() {
+  if (!confirm('Read කරපු ඔක්කොම delete කරන්නද?')) return;
+  return _notifRun(async () => { const b = fdb.batch(); NOTIFS.filter(n => n.read).forEach(n => b.delete(fdb.collection('cms_notifications').doc(n.id))); await b.commit(); });
+}
+
 function stopTodoSync() {
+  stopNotifSync();
   if (todoUnsub) { try { todoUnsub(); } catch (e) {} todoUnsub = null; }
   TODOS = []; TODO_GROUPS = []; _todosLoaded = false; _groupsSeeded = false; _todoSyncRetried = false;
   todoGroupFilter = 'all'; todoFilter = 'all';
@@ -6719,6 +6814,8 @@ function initDashboard() {
   $('plNavLink')?.classList.toggle('hidden', !isAdmin());
   $('todoNavLink')?.classList.toggle('hidden', !isAdmin());
   if (isAdmin()) startTodoLiveSync();
+  $('notifBtn')?.classList.toggle('hidden', !isAdmin());
+  if (isAdmin()) startNotifSync();
   $('aiAskBtn')?.classList.toggle('hidden', !(isAdmin() || isManager()));
   $('topbarSettingsBtn')?.classList.toggle('hidden', !isAdmin());
   $('dateEl').textContent = '📅 ' + new Date().toLocaleDateString('en-US', {
