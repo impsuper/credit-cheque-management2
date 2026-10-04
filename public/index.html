@@ -4217,6 +4217,24 @@ th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
 
 
 
+<script>
+// Fail-safe: runs before the heavy CDN scripts. If the app hasn't left the splash screen
+// after 15s, show what is missing / where startup stalled instead of hanging silently.
+(function () {
+  var t0 = Date.now(), steps = [];
+  window._bootMark = function (s) { steps.push(s + '@' + Math.round((Date.now() - t0) / 1000) + 's'); };
+  setTimeout(function () {
+    var s = document.getElementById('splashScreen');
+    if (!s || s.style.display === 'none' || s.classList.contains('sp-out')) return;
+    var miss = [];
+    ['firebase', 'jspdf', 'Chart', 'ApexCharts'].forEach(function (n) { if (typeof window[n] === 'undefined') miss.push(n); });
+    var b = document.createElement('div');
+    b.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:2147483647;background:#7f1d1d;color:#fff;padding:14px;font:14px/1.4 sans-serif;text-align:center';
+    b.innerHTML = '⚠️ App still loading after 15s<br>Steps done: ' + (steps.join(', ') || 'none') + '<br>Missing libraries: ' + (miss.join(', ') || 'none') + '<br><button style="margin-top:8px;padding:8px 18px;font-size:15px" onclick="location.reload()">Reload</button>';
+    document.body.appendChild(b);
+  }, 15000);
+})();
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <!-- Dashboard chart libraries: Chart.js for bar charts, ApexCharts for donut/area charts -->
@@ -18208,7 +18226,9 @@ restoreSidebarState();
       toast('⚠️ Connection slow — still loading…', 'yellow');
     }
   }, 30000);
+  window._bootMark && _bootMark('start');
   await initFirebase();
+  window._bootMark && _bootMark('firebase');
   if (fauth) {
     await Promise.race([
       new Promise(resolve => { const unsub = fauth.onAuthStateChanged(() => { unsub(); resolve(); }); }),
@@ -18226,13 +18246,16 @@ restoreSidebarState();
       try { await _withTimeout(fauth.currentUser.getIdToken(true), 5000); } catch (e) { console.error('initial token refresh', e); }
     }
   }
+  window._bootMark && _bootMark('auth');
   registerServiceWorker();
   initMessaging();
   let loggedIn = false;
   try { loggedIn = await _withTimeout(loadDB(), 18000); } catch (e) { _loadDBWhy = 'startup timeout'; console.warn('loadDB', e); }
+  window._bootMark && _bootMark('user-data');
   await _withTimeout(loadPayrollDB(), 8000).catch(e => console.warn('loadPayrollDB', e.message));
   await _withTimeout(loadRolePermissions(), 8000).catch(e => console.warn('loadRolePermissions', e.message));
 
+  window._bootMark && _bootMark('payroll+roles');
   // Sync the admin's globally-chosen theme (source of truth) now that DB is loaded
   try {
     const themeAdmin = getUserByUsername('admin');
