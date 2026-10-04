@@ -1281,6 +1281,24 @@ body.ov-zoom-open .ov-zoom-backdrop{display:block;}
 .todo-pop-item .tp-notes{font-size:.78rem;color:var(--muted);margin-top:.15rem;white-space:pre-wrap;word-break:break-word;}
 .todo-pop-item .tp-due{font-size:.74rem;color:var(--muted);margin-top:.25rem;}
 .form-group textarea{width:100%;padding:.7rem .9rem;border:1.5px solid var(--border);border-radius:9px;font:inherit;font-size:.9rem;background:var(--surface);color:var(--text);resize:vertical;min-height:72px;}
+/* groups: quick-view chip bar, in-item group dropdown, manage-groups modal */
+.todo-groupbar{display:flex;flex-wrap:wrap;gap:.45rem;padding:.8rem 1.5rem 0;}
+.todo-gchip{display:inline-flex;align-items:center;gap:.4rem;padding:.38rem .85rem;border-radius:20px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font:inherit;font-size:.8rem;font-weight:700;cursor:pointer;transition:transform .15s,border-color .15s;white-space:nowrap;}
+.todo-gchip:hover{border-color:var(--accent);transform:translateY(-1px);}
+.todo-gchip.on{background:var(--navy-bg,#1e293b);color:#fff;border-color:var(--navy-bg,#1e293b);}
+.todo-gchip .gc-n{font-weight:800;opacity:.7;}
+.todo-gchip.empty:not(.on){opacity:.55;}
+.todo-gchip .gc-over{background:var(--red);color:#fff;border-radius:9px;min-width:17px;height:17px;padding:0 5px;font-size:.66rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;}
+@media(max-width:768px){.todo-groupbar{padding:.7rem .8rem 0;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:.3rem;}.todo-gchip{flex-shrink:0;}}
+.todo-group-sel{padding:.18rem .45rem;border-radius:20px;border:1px solid var(--border);background:var(--bg);color:var(--muted);font:inherit;font-size:.73rem;font-weight:700;cursor:pointer;max-width:180px;}
+.todo-group-sel:hover{border-color:var(--accent);}
+.todo-form-group-row{display:flex;gap:.5rem;align-items:center;}
+.todo-form-group-row select{flex:1;min-width:0;}
+.tg-row{display:flex;gap:.5rem;align-items:center;margin-bottom:.5rem;}
+.tg-row .tg-icon{width:66px;flex-shrink:0;padding:.45rem .3rem;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:1.05rem;}
+.tg-row .tg-name{flex:1;min-width:0;padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font:inherit;font-size:.88rem;}
+.tg-row .tg-count{min-width:26px;text-align:center;font-size:.75rem;font-weight:800;color:var(--muted);}
+.tg-new{border-top:1px dashed var(--border);padding-top:.8rem;margin-top:.6rem;}
 
 /* ===== DESKTOP: both chart carousels side by side in ONE row, and each
    carousel's ‹ dots › strip moved up beside its 🔓 lock button =====
@@ -2656,7 +2674,7 @@ th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
     </div>
 
     <!-- PAYROLL -->
-    <!-- ===== 📝 TO-DO REMINDERS (ADMIN ONLY) ===== -->
+        <!-- ===== 📝 TO-DO REMINDERS (ADMIN ONLY) ===== -->
     <div id="todoSection" class="section">
       <div class="todo-stats">
         <div class="todo-stat s-over" id="td-stat-over" onclick="setTodoFilter('over')"><span class="ts-ico">⚠️</span><div><div class="ts-num" id="td-n-over">0</div><div class="ts-lbl">Overdue</div></div></div>
@@ -2668,24 +2686,24 @@ th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
         <div class="card-head">
           <div class="card-title">📝 To-Do Reminders</div>
           <div class="card-actions">
+            <button class="btn btn-ghost btn-sm" onclick="openTodoGroupsModal()">⚙️ Groups</button>
             <button class="btn btn-navy btn-sm" onclick="openTodoModal()">➕ Add To-Do</button>
           </div>
         </div>
         <div class="tab-bar">
           <div class="tab active" id="td-tab-pending" onclick="switchTodoTab('pending')">⏳ Pending <span class="tab-count" id="td-count-pending">0</span></div>
+          <div class="tab" id="td-tab-repeat" onclick="switchTodoTab('repeat')">🔁 Repeated <span class="tab-count" id="td-count-repeat">0</span></div>
           <div class="tab" id="td-tab-done" onclick="switchTodoTab('done')">✅ Finished Works <span class="tab-count" id="td-count-done">0</span></div>
         </div>
-        <div id="td-content-pending" class="tab-content show">
-          <div id="todoFilterNote" class="todo-filter-note hidden"></div>
-          <div id="todoPendingList" class="todo-list"></div>
+        <div class="todo-toolbar">
+          <input type="text" id="td-search" placeholder="🔍 Search title, notes or group..." oninput="renderTodos()">
+          <button class="btn btn-ghost btn-sm hidden" id="td-clear-old" onclick="todoClearOldFinished()">🗑️ Clear older than 30 days</button>
         </div>
-        <div id="td-content-done" class="tab-content">
-          <div class="todo-toolbar">
-            <input type="text" id="td-done-search" placeholder="🔍 Search finished works..." oninput="renderTodos()">
-            <button class="btn btn-ghost btn-sm" onclick="todoClearOldFinished()">🗑️ Clear older than 30 days</button>
-          </div>
-          <div id="todoDoneList" class="todo-list"></div>
-        </div>
+        <div id="todoGroupBar" class="todo-groupbar"></div>
+        <div id="todoFilterNote" class="todo-filter-note hidden"></div>
+        <div id="td-content-pending" class="tab-content show"><div id="todoPendingList" class="todo-list"></div></div>
+        <div id="td-content-repeat" class="tab-content"><div id="todoRepeatList" class="todo-list"></div></div>
+        <div id="td-content-done" class="tab-content"><div id="todoDoneList" class="todo-list"></div></div>
       </div>
     </div>
 
@@ -3864,6 +3882,13 @@ th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
         <input type="text" id="td-title" maxlength="120" placeholder="What needs to be done?">
       </div>
       <div class="form-group">
+        <label>📁 Group</label>
+        <div class="todo-form-group-row">
+          <select id="td-group"><option value="">📌 No group</option></select>
+          <button type="button" class="btn btn-ghost btn-sm" title="Create a new group" onclick="openTodoGroupsModal(true)">➕ New group</button>
+        </div>
+      </div>
+      <div class="form-group">
         <label>🗒️ Notes (optional)</label>
         <textarea id="td-notes" maxlength="500" placeholder="Extra details..."></textarea>
       </div>
@@ -3892,6 +3917,7 @@ th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
         <select id="td-repeat">
           <option value="none">Does not repeat</option>
           <option value="daily">Daily</option>
+          <option value="weekly">Weekly (same weekday)</option>
           <option value="monthly">Monthly (same date every month)</option>
           <option value="yearly">Yearly</option>
         </select>
@@ -3900,11 +3926,36 @@ th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
         <input type="checkbox" id="td-overdue-alert" checked style="width:18px;height:18px;margin:0;flex-shrink:0;">
         <label for="td-overdue-alert" style="margin:0;cursor:pointer;">🔔 Alert me every day while overdue <span style="display:block;font-size:.74rem;color:var(--muted);font-weight:500;">Uncheck to stop the daily "overdue" push / popup if you don't mark it Done. (The one-time alert at the due time still comes.)</span></label>
       </div>
-      <div style="font-size:.78rem;color:var(--muted);line-height:1.5;">ℹ️ Due Time නොදුන්නොත් ඒ දවසේ උදේ 8:00 ට මතක් කරනවා. Repeat to-do එකක් <b>Done</b> කළාම Finished Works එකේ සටහන් වෙලා, ඊළඟ දිනයට ස්වයංක්‍රීයව මාරු වෙනවා.</div>
+      <div style="font-size:.78rem;color:var(--muted);line-height:1.5;">ℹ️ Due Time නොදුන්නොත් ඒ දවසේ උදේ 8:00 ට මතක් කරනවා. Repeat to-do එකක් <b>Done</b> කළාම <b>Finished Works වලට නොගොස්</b> 🔁 Repeated list එකේම ඉඳලා ඊළඟ දිනයට ස්වයංක්‍රීයව මාරු වෙනවා.</div>
     </div>
     <div class="modal-foot">
       <button class="btn btn-ghost" onclick="closeModal('todoModal')">Cancel</button>
       <button class="btn btn-navy" onclick="saveTodo()">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 📁 TO-DO GROUPS (create / rename / change icon / delete) ===== -->
+<div id="todoGroupsModal" class="overlay">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-head">
+      <h3>📁 To-Do Groups</h3>
+      <button class="modal-close" onclick="closeModal('todoGroupsModal')">×</button>
+    </div>
+    <div class="modal-body" style="max-height:62vh;overflow:auto;">
+      <div style="font-size:.8rem;color:var(--muted);margin-bottom:.8rem;line-height:1.5;">නම හෝ icon එක වෙනස් කළාම ඉබේම save වෙනවා. Group එකක් delete කළොත් ඒකේ to-do delete වෙන්නේ නෑ — ඒවා "No group" වලට යනවා.</div>
+      <div id="todoGroupsList"></div>
+      <div class="tg-new">
+        <div style="font-size:.78rem;font-weight:700;color:var(--muted);margin-bottom:.4rem;">➕ New group</div>
+        <div class="tg-row">
+          <select class="tg-icon" id="tg-new-icon"></select>
+          <input class="tg-name" type="text" id="tg-new-name" maxlength="30" placeholder="e.g. Staff Meetings" onkeydown="if(event.key==='Enter'){event.preventDefault();todoAddGroupFromModal();}">
+          <button class="btn btn-navy btn-sm" onclick="todoAddGroupFromModal()">Add</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-navy" onclick="closeModal('todoGroupsModal')">Done</button>
     </div>
   </div>
 </div>
@@ -5132,7 +5183,10 @@ function clearSession() {
                brought back after a while): overdue / due-today / early-window items,
                each with a ✔️ Done button. Per-device toggle 'cms_todo_popup_off'.
    The Cloud Function owns the *Notified flags; the client only resets them when
-   the schedule (date / time / early reminder) of a to-do changes. */
+   the schedule (date / time / early reminder) of a to-do changes.
+   Repeating to-dos (daily / weekly / monthly / yearly) live in the 🔁 Repeated tab and
+   are rolled forward on Done — they never go to Finished Works.
+   Groups: cms_todos/meta_groups (list of {id,name,icon}); each to-do has groupId. */
 
 /* TODO-CORE-START */
 const TODO_TZ = 'Asia/Colombo';
@@ -5207,7 +5261,8 @@ function todoRelLabel(t, nowMs, state) {
 }
 
 /* ----- repeat (daily / monthly / yearly) ----- */
-const TODO_REPEAT_LABELS = { none: 'Does not repeat', daily: 'Daily', monthly: 'Monthly', yearly: 'Yearly' };
+const TODO_REPEAT_LABELS = { none: 'Does not repeat', daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly', yearly: 'Yearly' };
+function todoDaysBetween(a, b) { return Math.round((Date.parse(b + 'T12:00:00Z') - Date.parse(a + 'T12:00:00Z')) / 86400000); }
 function todoDaysInMonth(y, m) { return new Date(Date.UTC(y, m, 0)).getUTCDate(); } // m = 1..12
 function todoAddDays(dateStr, n) {
   const d = new Date(dateStr + 'T12:00:00Z');
@@ -5225,6 +5280,7 @@ function todoAddMonths(dateStr, n, anchorDay) {
 }
 function todoStepDate(dateStr, repeat, anchorDay) {
   if (repeat === 'daily') return todoAddDays(dateStr, 1);
+  if (repeat === 'weekly') return todoAddDays(dateStr, 7);
   if (repeat === 'monthly') return todoAddMonths(dateStr, 1, anchorDay);
   if (repeat === 'yearly') return todoAddMonths(dateStr, 12, anchorDay);
   return dateStr;
@@ -5240,6 +5296,11 @@ function todoNextDueDate(t, nowMs) {
   if (rep === 'daily') {
     const d = todoAddDays(t.dueDate, 1);
     return d > today ? d : todoAddDays(today, 1);
+  }
+  if (rep === 'weekly') {
+    // same weekday, always in the future: skip every missed week in one jump
+    const diff = todoDaysBetween(t.dueDate, today);
+    return todoAddDays(t.dueDate, 7 * (diff >= 0 ? Math.floor(diff / 7) + 1 : 1));
   }
   let d = todoStepDate(t.dueDate, rep, t.repeatAnchorDay);
   for (let i = 0; d <= today && i < 5000; i++) d = todoStepDate(d, rep, t.repeatAnchorDay);
@@ -5261,23 +5322,66 @@ function todoCountsForBadge(t, nowMs) {
   const s = todoState(t, nowMs);
   return s === 'today' || (s === 'over' && !todoMuted(t));
 }
+
+/* ----- list filters (pure) ----- */
+// state tile filter: all | over | today | up   (up = "early" or "up")
+function todoStateMatches(filter, st) {
+  return filter === 'all' || (filter === 'over' && st === 'over') || (filter === 'today' && st === 'today') ||
+         (filter === 'up' && (st === 'early' || st === 'up'));
+}
+// search: every word must appear in the title, notes or group name (case-insensitive)
+function todoMatches(t, q, groupName) {
+  const terms = String(q || '').toLowerCase().split(/\s+/).filter(Boolean);
+  if (!terms.length) return true;
+  const hay = `${t.title || ''} ${t.notes || ''} ${groupName || ''}`.toLowerCase();
+  return terms.every(w => hay.includes(w));
+}
 /* TODO-CORE-END */
 
 function todoEsc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+/* ---------- groups: where they live ----------
+   Group list = ONE doc in the same admin-only collection: cms_todos/meta_groups
+   → { list: [{ id, name, icon }], updatedAt }. Each to-do just stores groupId
+   ('' = no group). Rename / change icon edits the list only; deleting a group
+   un-groups its to-dos. Seeded once with the defaults below. */
+const TODO_GROUPS_DOC = 'meta_groups';
+// single-codepoint emoji only (ZWJ sequences show as two icons on older PCs)
+const TODO_GROUP_ICONS = ['🎂', '🤝', '🎒', '🚗', '🛡️', '🏠', '💵', '🏥', '🎉', '📞', '🛒', '🔧', '✈️', '📚', '📌', '⭐'];
+const TODO_DEFAULT_GROUPS = [
+  { id: 'g_birthdays', name: 'Birthdays', icon: '🎂' },
+  { id: 'g_meetings', name: 'Meetings', icon: '🤝' },
+  { id: 'g_classes', name: "Children's Classes", icon: '🎒' },
+  { id: 'g_vehicle', name: 'Vehicle Licence', icon: '🚗' },
+  { id: 'g_insurance', name: 'Insurance', icon: '🛡️' }
+];
+function todoDefaultGroups() { return TODO_DEFAULT_GROUPS.map(g => Object.assign({}, g)); }
+
 let TODOS = [];
+let TODO_GROUPS = [];
 let todoUnsub = null;
 let _todosLoaded = false;
+let _groupsSeeded = false;
 let _todoSyncRetried = false;
-let todoTab = 'pending';
-let todoFilter = 'all';
+let todoTab = 'pending';          // 'pending' (one-time) | 'repeat' | 'done'
+let todoFilter = 'all';           // state tile filter: all | over | today | up
+let todoGroupFilter = 'all';      // all | <groupId> | '__none'
 let _todoPopupLastShown = 0;
 let _todoHiddenAt = 0;
+let _todoGroupsFromForm = false;
 
+function saveTodoGroupsLocal() { try { localStorage.setItem('cms_todo_groups', JSON.stringify(TODO_GROUPS)); } catch (e) {} }
+function loadTodoGroupsLocal(seedIfEmpty) {
+  let g = null;
+  try { g = JSON.parse(localStorage.getItem('cms_todo_groups') || 'null'); } catch (e) {}
+  if (Array.isArray(g)) TODO_GROUPS = g;
+  else if (seedIfEmpty) { TODO_GROUPS = todoDefaultGroups(); saveTodoGroupsLocal(); }
+}
 function loadTodosLocal() {
   try { TODOS = JSON.parse(localStorage.getItem('cms_todos') || '[]'); } catch (e) { TODOS = []; }
+  loadTodoGroupsLocal(true);
   _todosLoaded = true;
 }
 function saveTodosLocal() { try { localStorage.setItem('cms_todos', JSON.stringify(TODOS)); } catch (e) {} }
@@ -5286,9 +5390,21 @@ function startTodoLiveSync() {
   if (!isAdmin()) return;
   if (!firebaseReady()) { if (!_todosLoaded) { loadTodosLocal(); onTodosChanged(); } return; }
   if (todoUnsub) return;
+  if (!TODO_GROUPS.length) loadTodoGroupsLocal(false);   // show last-known groups until the first snapshot lands
   todoUnsub = fdb.collection('cms_todos').onSnapshot(snap => {
     _todoSyncRetried = false;
-    TODOS = snap.docs.map(d => Object.assign({}, d.data(), { id: d.id }));
+    const gdoc = snap.docs.find(d => d.id === TODO_GROUPS_DOC);
+    TODOS = snap.docs.filter(d => d.id !== TODO_GROUPS_DOC).map(d => Object.assign({}, d.data(), { id: d.id }));
+    if (gdoc) {
+      const list = gdoc.data().list;
+      TODO_GROUPS = Array.isArray(list) ? list : [];
+      saveTodoGroupsLocal();
+    } else if (!snap.metadata.fromCache && !_groupsSeeded) {
+      // first ever run (server confirmed there is no groups doc) → seed the defaults once
+      _groupsSeeded = true;
+      TODO_GROUPS = todoDefaultGroups();
+      todoSaveGroups();
+    }
     _todosLoaded = true;
     saveTodosLocal();
     onTodosChanged();
@@ -5307,7 +5423,8 @@ function startTodoLiveSync() {
 
 function stopTodoSync() {
   if (todoUnsub) { try { todoUnsub(); } catch (e) {} todoUnsub = null; }
-  TODOS = []; _todosLoaded = false; _todoSyncRetried = false;
+  TODOS = []; TODO_GROUPS = []; _todosLoaded = false; _groupsSeeded = false; _todoSyncRetried = false;
+  todoGroupFilter = 'all'; todoFilter = 'all';
   updateTodoNavBadge();
 }
 
@@ -5315,9 +5432,15 @@ function onTodosChanged() {
   updateTodoNavBadge();
   if ($('todoSection')?.classList.contains('show')) renderTodos();
   if ($('todoReminderModal')?.classList.contains('show')) renderTodoPopup(true);
+  if ($('todoGroupsModal')?.classList.contains('show')) renderTodoGroupsModal();
 }
 
+/* open (not finished) to-dos, split into one-time and repeating, earliest due first */
 function todoPending() { return TODOS.filter(t => t.status !== 'done').sort((a, b) => todoDueOf(a) - todoDueOf(b)); }
+function todoIsRepeating(t) { return !!t.repeat && t.repeat !== 'none'; }
+function todoOnetime() { return todoPending().filter(t => !todoIsRepeating(t)); }
+function todoRepeated() { return todoPending().filter(todoIsRepeating); }
+function todoDoneItems() { return TODOS.filter(t => t.status === 'done').sort((a, b) => (b.doneAt || '').localeCompare(a.doneAt || '')); }
 function todoAttentionList(nowMs) {
   const n = nowMs || Date.now();
   return todoPending().filter(t => todoNeedsAttention(t, n));
@@ -5345,12 +5468,151 @@ function todoPatch(id, fields) {
   onTodosChanged();
   return todoCloudSet(id, fields);
 }
+async function todoBulkPatch(ids, fields) {
+  ids.forEach(id => { const t = TODOS.find(x => x.id === id); if (t) Object.assign(t, fields); });
+  saveTodosLocal();
+  onTodosChanged();
+  if (!firebaseReady() || !ids.length) return;
+  try {
+    for (let i = 0; i < ids.length; i += 400) {
+      const batch = fdb.batch();
+      ids.slice(i, i + 400).forEach(id => batch.set(fdb.collection('cms_todos').doc(id), clean(fields), { merge: true }));
+      await batch.commit();
+    }
+  } catch (e) { console.error('todoBulkPatch', e); toast('⚠️ To-Do cloud save වුනේ නෑ', 'red'); }
+}
 
 function todoNowParts() {
   const ms = Date.now();
   return { ms, date: todoColomboDate(ms) };
 }
 
+/* ---------- groups: helpers + management ---------- */
+function todoGroupById(id) { return TODO_GROUPS.find(g => g.id === id) || null; }
+function todoGroupName(id) { const g = todoGroupById(id); return g ? g.name : ''; }
+function todoGroupKey(t) { return todoGroupById(t.groupId) ? t.groupId : '__none'; }   // deleted/unknown group ⇒ "no group"
+function todoGroupLabel(id) { const g = todoGroupById(id); return g ? `${g.icon} ${g.name}` : '📌 No group'; }
+
+async function todoSaveGroups() {
+  saveTodoGroupsLocal();
+  onTodosChanged();
+  if (!firebaseReady()) return;
+  try { await fdb.collection('cms_todos').doc(TODO_GROUPS_DOC).set(clean({ list: TODO_GROUPS, updatedAt: new Date().toISOString() })); }
+  catch (e) { console.error('todoSaveGroups', e); toast('⚠️ Groups cloud save වුනේ නෑ — firestore.rules publish කරලාද?', 'red'); }
+}
+
+function todoGroupNameTaken(name, exceptId) {
+  const n = name.trim().toLowerCase();
+  return TODO_GROUPS.some(g => g.id !== exceptId && g.name.trim().toLowerCase() === n);
+}
+
+async function todoAddGroup(name, icon) {
+  if (!isAdmin()) return null;
+  name = String(name || '').trim().slice(0, 30);
+  if (!name) { toast('⚠️ Group නම ඇතුල් කරන්න', 'red'); return null; }
+  if (todoGroupNameTaken(name)) { toast('⚠️ ඒ නමින් group එකක් දැනටමත් තියෙනවා', 'red'); return null; }
+  const g = { id: uid(), name, icon: icon || '📌' };
+  TODO_GROUPS.push(g);
+  await todoSaveGroups();
+  logActivity('TODO_GROUP_ADD', name);
+  toast(`✅ Group "${name}" හැදුවා`);
+  return g.id;
+}
+
+async function todoRenameGroup(id, name) {
+  const g = todoGroupById(id);
+  if (!g || !isAdmin()) return;
+  name = String(name || '').trim().slice(0, 30);
+  if (!name) { toast('⚠️ Group නම හිස් විය නොහැක', 'red'); renderTodoGroupsModal(); return; }
+  if (todoGroupNameTaken(name, id)) { toast('⚠️ ඒ නමින් group එකක් දැනටමත් තියෙනවා', 'red'); renderTodoGroupsModal(); return; }
+  if (g.name === name) return;
+  g.name = name;
+  await todoSaveGroups();
+  populateTodoGroupSelect();
+}
+
+async function todoSetGroupIcon(id, icon) {
+  const g = todoGroupById(id);
+  if (!g || !isAdmin()) return;
+  g.icon = icon;
+  await todoSaveGroups();
+  populateTodoGroupSelect();
+}
+
+async function todoDeleteGroup(id) {
+  const g = todoGroupById(id);
+  if (!g || !isAdmin()) return;
+  const members = TODOS.filter(t => t.groupId === id).map(t => t.id);
+  const msg = members.length
+    ? `"${g.name}" group එක delete කරන්නද?\n\nඒකේ තියෙන to-do ${members.length}ක් delete වෙන්නේ නෑ — ඒවා "No group" වලට යනවා.`
+    : `"${g.name}" group එක delete කරන්නද?`;
+  if (!confirm(msg)) return;
+  TODO_GROUPS = TODO_GROUPS.filter(x => x.id !== id);
+  if (todoGroupFilter === id) todoGroupFilter = 'all';
+  if (members.length) await todoBulkPatch(members, { groupId: '' });
+  await todoSaveGroups();
+  populateTodoGroupSelect();
+  logActivity('TODO_GROUP_DELETE', g.name);
+  toast('🗑️ Group delete උනා');
+}
+
+async function todoSetGroup(id, groupId) {
+  if (!isAdmin()) return;
+  await todoPatch(id, { groupId: groupId || '' });
+  toast(groupId ? `📁 ${todoGroupLabel(groupId)} වලට දැම්මා` : '📁 Group එක අයින් කළා');
+}
+
+function populateTodoGroupSelect(selected) {
+  const sel = $('td-group');
+  if (!sel) return;
+  const cur = selected !== undefined ? selected : sel.value;
+  sel.innerHTML = `<option value="">📌 No group</option>` +
+    TODO_GROUPS.map(g => `<option value="${todoEsc(g.id)}">${todoEsc(g.icon)} ${todoEsc(g.name)}</option>`).join('');
+  sel.value = todoGroupById(cur) ? cur : '';
+}
+
+function openTodoGroupsModal(fromForm) {
+  if (!isAdmin()) { toast('Admin only', 'red'); return; }
+  _todoGroupsFromForm = !!fromForm;
+  renderTodoGroupsModal();
+  openModal('todoGroupsModal');
+}
+
+function todoIconOptions(selected) {
+  const list = TODO_GROUP_ICONS.includes(selected) || !selected ? TODO_GROUP_ICONS : [selected].concat(TODO_GROUP_ICONS);
+  return list.map(i => `<option value="${todoEsc(i)}"${i === selected ? ' selected' : ''}>${todoEsc(i)}</option>`).join('');
+}
+
+function renderTodoGroupsModal() {
+  const box = $('todoGroupsList');
+  if (!box) return;
+  const counts = {};
+  TODOS.forEach(t => { if (todoGroupById(t.groupId)) counts[t.groupId] = (counts[t.groupId] || 0) + 1; });
+  box.innerHTML = TODO_GROUPS.length
+    ? TODO_GROUPS.map(g => {
+        const id = todoEsc(g.id);
+        return `<div class="tg-row">
+          <select class="tg-icon" onchange="todoSetGroupIcon('${id}', this.value)">${todoIconOptions(g.icon)}</select>
+          <input class="tg-name" type="text" maxlength="30" value="${todoEsc(g.name)}" onchange="todoRenameGroup('${id}', this.value)">
+          <span class="tg-count" title="To-dos in this group">${counts[g.id] || 0}</span>
+          <button class="btn btn-ghost btn-sm" title="Delete group" onclick="todoDeleteGroup('${id}')">🗑️</button>
+        </div>`;
+      }).join('')
+    : `<div class="todo-empty" style="padding:1rem;">තවම group කිසිවක් නෑ — පහළින් අලුත් එකක් හදන්න</div>`;
+  const ni = $('tg-new-icon');
+  if (ni && !ni.options.length) ni.innerHTML = todoIconOptions('📌');
+}
+
+async function todoAddGroupFromModal() {
+  const nameEl = $('tg-new-name');
+  const id = await todoAddGroup(nameEl.value, $('tg-new-icon').value);
+  if (!id) return;
+  nameEl.value = '';
+  populateTodoGroupSelect(_todoGroupsFromForm && $('todoModal')?.classList.contains('show') ? id : undefined);
+  if (_todoGroupsFromForm && $('todoModal')?.classList.contains('show')) closeModal('todoGroupsModal');
+}
+
+/* ---------- add / edit ---------- */
 function openTodoModal(id) {
   if (!isAdmin()) { toast('Admin only', 'red'); return; }
   const t = id ? TODOS.find(x => x.id === id) : null;
@@ -5363,6 +5625,8 @@ function openTodoModal(id) {
   $('td-early').value = t ? String(Number(t.earlyMins) || 0) : '1440';
   $('td-repeat').value = t ? (t.repeat || 'none') : 'none';
   $('td-overdue-alert').checked = t ? !todoMuted(t) : true;
+  // a brand-new to-do starts in whichever group you are currently viewing
+  populateTodoGroupSelect(t ? (t.groupId || '') : (todoGroupById(todoGroupFilter) ? todoGroupFilter : ''));
   openModal('todoModal');
   setTimeout(() => $('td-title')?.focus(), 80);
 }
@@ -5375,6 +5639,7 @@ async function saveTodo() {
   const earlyMins = Number($('td-early').value) || 0;
   const repeat = $('td-repeat').value || 'none';
   const muteOverdue = !$('td-overdue-alert').checked;
+  const groupId = $('td-group')?.value || '';
   if (!title) { toast('⚠️ Title එක ඇතුල් කරන්න', 'red'); return; }
   if (!dueDate) { toast('⚠️ Due date එක තෝරන්න', 'red'); return; }
   const notes = $('td-notes').value.trim();
@@ -5387,7 +5652,7 @@ async function saveTodo() {
     if (!old) return;
     // Monthly/yearly keep the ORIGINAL day-of-month (e.g. the 31st) unless the date itself was changed.
     const repeatAnchorDay = (old.dueDate === dueDate && old.repeatAnchorDay) ? old.repeatAnchorDay : Number(dueDate.slice(8, 10));
-    const fields = { title, notes, dueDate, dueTime, dueAt, earlyMins, repeat, repeatAnchorDay, muteOverdue, updatedAt: new Date().toISOString() };
+    const fields = { title, notes, dueDate, dueTime, dueAt, earlyMins, repeat, repeatAnchorDay, muteOverdue, groupId, updatedAt: new Date().toISOString() };
     const scheduleChanged = old.dueDate !== dueDate || (old.dueTime || '') !== dueTime || (Number(old.earlyMins) || 0) !== earlyMins;
     if (scheduleChanged) Object.assign(fields, todoInitialFlags(fields, nowMs), { quietUntil: 0 });
     closeModal('todoModal');
@@ -5397,7 +5662,7 @@ async function saveTodo() {
     return;
   }
 
-  const t = { id: uid(), title, notes, dueDate, dueTime, dueAt, earlyMins, repeat, repeatAnchorDay: Number(dueDate.slice(8, 10)), muteOverdue, status: 'pending',
+  const t = { id: uid(), title, notes, dueDate, dueTime, dueAt, earlyMins, repeat, repeatAnchorDay: Number(dueDate.slice(8, 10)), muteOverdue, groupId, status: 'pending',
     createdAt: new Date().toISOString(), createdBy: DB.currentUsername || '', doneAt: null, doneBy: null };
   Object.assign(t, todoInitialFlags(t, nowMs));
   TODOS.push(t);
@@ -5421,18 +5686,15 @@ async function todoMarkDone(id, fromPopup) {
     await todoPatch(id, { status: 'done', doneAt, doneBy });
     toast('✔️ Done — Finished Works වලට ගියා');
   } else {
-    // Repeating: log THIS occurrence in Finished Works, then roll the same to-do
-    // forward to its next date (fresh reminders; hushed until tomorrow so a daily
-    // item you just finished doesn't pop straight back up).
-    const log = { id: uid(), title: t.title, notes: t.notes || '', dueDate: t.dueDate, dueTime: t.dueTime || '', dueAt: todoDueOf(t),
-      earlyMins: 0, repeat: 'none', wasRepeat: t.repeat, status: 'done', doneAt, doneBy,
-      createdAt: doneAt, createdBy: doneBy, earlyNotified: true, dueNotified: true, lastOverdueNotify: '', muteOverdue: false };
-    TODOS.push(log);
+    // Repeating to-dos are NEVER "finished": they stay in the 🔁 Repeated list and roll
+    // forward to the next date (fresh reminders; hushed until tomorrow so a daily item
+    // you just completed doesn't pop straight back up). Only a last-done stamp + counter
+    // are kept — nothing is added to Finished Works.
     const nextFields = { dueDate: next, dueAt: todoDueAtMs(next, t.dueTime), updatedAt: doneAt,
+      lastDoneAt: doneAt, lastDoneBy: doneBy, doneCount: (Number(t.doneCount) || 0) + 1,
       quietUntil: todoDueAtMs(todoAddDays(todoColomboDate(nowMs), 1), '00:00') };
     Object.assign(nextFields, todoInitialFlags(Object.assign({}, t, nextFields), nowMs));
-    saveTodosLocal();
-    await Promise.all([todoCloudSet(log.id, log), todoPatch(id, nextFields)]);
+    await todoPatch(id, nextFields);
     toast(`✔️ Done · 🔁 next: ${todoFmtDate(next)}`);
   }
   logActivity('TODO_DONE', t.title);
@@ -5504,16 +5766,21 @@ function initTodoSection() {
 
 function switchTodoTab(tab) {
   todoTab = tab;
-  $('td-tab-pending')?.classList.toggle('active', tab === 'pending');
-  $('td-tab-done')?.classList.toggle('active', tab === 'done');
-  $('td-content-pending')?.classList.toggle('show', tab === 'pending');
-  $('td-content-done')?.classList.toggle('show', tab === 'done');
+  ['pending', 'repeat', 'done'].forEach(k => {
+    $('td-tab-' + k)?.classList.toggle('active', tab === k);
+    $('td-content-' + k)?.classList.toggle('show', tab === k);
+  });
   renderTodos();
 }
 
 function setTodoFilter(f) {
   todoFilter = (todoFilter === f) ? 'all' : f;
-  if (todoTab !== 'pending') { switchTodoTab('pending'); return; }
+  if (todoTab === 'done') { switchTodoTab('pending'); return; }
+  renderTodos();
+}
+
+function setTodoGroupFilter(g) {
+  todoGroupFilter = (todoGroupFilter === g) ? 'all' : g;
   renderTodos();
 }
 
@@ -5528,11 +5795,21 @@ function todoDueChipText(t) {
   return `📅 ${todoFmtDate(t.dueDate)}${t.dueTime ? ' · ' + todoFmtTime(t.dueTime) : ''}`;
 }
 
-function todoPendingItemHTML(t, nowMs) {
+// A compact dropdown that looks like a chip: change it to move the to-do to another group instantly
+function todoGroupSelectHTML(t) {
+  const cur = todoGroupById(t.groupId) ? t.groupId : '';
+  return `<select class="todo-group-sel" title="Move to another group" onchange="todoSetGroup('${todoEsc(t.id)}', this.value)">` +
+    `<option value="">📌 No group</option>` +
+    TODO_GROUPS.map(g => `<option value="${todoEsc(g.id)}"${g.id === cur ? ' selected' : ''}>${todoEsc(g.icon)} ${todoEsc(g.name)}</option>`).join('') +
+    `</select>`;
+}
+
+function todoOpenItemHTML(t, nowMs, repeated) {
   const st = todoState(t, nowMs);
   const m = TODO_STATE_META[st];
   const early = Number(t.earlyMins) || 0;
   const id = todoEsc(t.id);
+  const lastDone = t.lastDoneAt ? new Date(t.lastDoneAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
   return `<div class="todo-item ${m.cls}">
     <div class="todo-main">
       <div class="todo-title">${todoEsc(t.title)}</div>
@@ -5540,13 +5817,16 @@ function todoPendingItemHTML(t, nowMs) {
       <div class="todo-meta">
         <span class="todo-chip ${m.chip}">${m.ico} ${todoRelLabel(t, nowMs, st)}</span>
         <span class="todo-chip">${todoDueChipText(t)}</span>
-        ${t.repeat && t.repeat !== 'none' ? `<span class="todo-chip">🔁 ${TODO_REPEAT_LABELS[t.repeat] || t.repeat}</span>` : ''}
+        ${todoGroupSelectHTML(t)}
+        ${repeated ? `<span class="todo-chip">🔁 ${TODO_REPEAT_LABELS[t.repeat] || t.repeat}</span>` : ''}
         ${early > 0 ? `<span class="todo-chip">⏰ ${TODO_EARLY_LABELS[early] || early + ' min before'}</span>` : ''}
+        ${repeated && lastDone ? `<span class="todo-chip c-done">✔️ Last done ${todoEsc(lastDone)}</span>` : ''}
+        ${repeated && Number(t.doneCount) > 0 ? `<span class="todo-chip">×${Number(t.doneCount)} done</span>` : ''}
         ${todoMuted(t) ? `<span class="todo-chip">🔕 Overdue alerts off</span>` : ''}
       </div>
     </div>
     <div class="todo-actions">
-      <button class="btn btn-green btn-sm" onclick="todoMarkDone('${id}')">✔️ Done</button>
+      <button class="btn btn-green btn-sm" title="${repeated ? 'Done — moves to the next date' : 'Done — moves to Finished Works'}" onclick="todoMarkDone('${id}')">✔️ Done</button>
       ${(st === 'over' || todoMuted(t)) ? `<button class="btn btn-ghost btn-sm" title="${todoMuted(t) ? 'Turn daily overdue alerts back on' : 'Stop the daily overdue alerts for this to-do'}" onclick="todoToggleMute('${id}')">${todoMuted(t) ? '🔔' : '🔕'}</button>` : ''}
       <button class="btn btn-ghost btn-sm" title="Edit" onclick="openTodoModal('${id}')">✏️</button>
       <button class="btn btn-ghost btn-sm" title="Delete" onclick="todoDelete('${id}')">🗑️</button>
@@ -5565,6 +5845,7 @@ function todoDoneItemHTML(t) {
       <div class="todo-meta">
         <span class="todo-chip c-done">✅ Done${when ? ' · ' + todoEsc(when) : ''}</span>
         ${who ? `<span class="todo-chip">👤 ${todoEsc(who)}</span>` : ''}
+        ${todoGroupById(t.groupId) ? `<span class="todo-chip">${todoEsc(todoGroupLabel(t.groupId))}</span>` : ''}
         ${t.wasRepeat ? `<span class="todo-chip">🔁 ${TODO_REPEAT_LABELS[t.wasRepeat] || t.wasRepeat}</span>` : ''}
         <span class="todo-chip">${todoDueChipText(t)}</span>
       </div>
@@ -5576,42 +5857,77 @@ function todoDoneItemHTML(t) {
   </div>`;
 }
 
+// Items of a tab AFTER the state-tile filter and the search box, but BEFORE the group filter
+// (so the group chips can show how many match in every group).
+function todoBaseList(tab, nowMs) {
+  const q = ($('td-search')?.value || '').trim();
+  let list = tab === 'done' ? todoDoneItems() : tab === 'repeat' ? todoRepeated() : todoOnetime();
+  if (tab !== 'done') list = list.filter(t => todoStateMatches(todoFilter, todoState(t, nowMs)));
+  if (q) list = list.filter(t => todoMatches(t, q, todoGroupName(t.groupId)));
+  return list;
+}
+
+// Quick view + filter: one chip per group with its count (and a red number for overdue ones)
+function renderTodoGroupBar(base, nowMs) {
+  const bar = $('todoGroupBar');
+  if (!bar) return;
+  const counts = {}, overs = {};
+  base.forEach(t => {
+    const k = todoGroupKey(t);
+    counts[k] = (counts[k] || 0) + 1;
+    if (todoTab !== 'done' && todoState(t, nowMs) === 'over') overs[k] = (overs[k] || 0) + 1;
+  });
+  const chip = (key, label) => {
+    const n = counts[key] || 0, o = overs[key] || 0;
+    return `<button type="button" class="todo-gchip${todoGroupFilter === key ? ' on' : ''}${n ? '' : ' empty'}" onclick="setTodoGroupFilter('${todoEsc(key)}')">${todoEsc(label)} <span class="gc-n">${n}</span>${o ? `<span class="gc-over" title="Overdue">${o}</span>` : ''}</button>`;
+  };
+  let html = `<button type="button" class="todo-gchip${todoGroupFilter === 'all' ? ' on' : ''}" onclick="setTodoGroupFilter('all')">🗂️ All <span class="gc-n">${base.length}</span>${Object.values(overs).reduce((a, b) => a + b, 0) ? `<span class="gc-over" title="Overdue">${Object.values(overs).reduce((a, b) => a + b, 0)}</span>` : ''}</button>`;
+  html += TODO_GROUPS.map(g => chip(g.id, `${g.icon} ${g.name}`)).join('');
+  if (counts['__none'] || todoGroupFilter === '__none') html += chip('__none', '📌 No group');
+  bar.innerHTML = html;
+}
+
+function todoEmptyHTML(tab, totalInTab, filtered) {
+  if (filtered) return `<div class="todo-empty"><span class="te-ico">🔎</span>මේ filter / search එකට ගැලපෙන දෙයක් නෑ</div>`;
+  if (tab === 'repeat') return `<div class="todo-empty"><span class="te-ico">🔁</span>Repeat වෙන to-do කිසිවක් නෑ — ➕ Add To-Do එකේ <b>Repeat</b> (Daily / Weekly / Monthly / Yearly) තෝරන්න</div>`;
+  if (tab === 'done') return `<div class="todo-empty"><span class="te-ico">📭</span>තවම Finished work කිසිවක් නෑ</div>`;
+  return `<div class="todo-empty"><span class="te-ico">🎉</span>Pending to-do කිසිවක් නෑ — ➕ Add To-Do ඔබලා අලුත් එකක් දාන්න</div>`;
+}
+
 function renderTodos() {
   if (!isAdmin() || !$('todoPendingList')) return;
   const nowMs = Date.now();
-  const pending = todoPending();
-  const done = TODOS.filter(t => t.status === 'done').sort((a, b) => (b.doneAt || '').localeCompare(a.doneAt || ''));
-  const states = pending.map(t => todoState(t, nowMs));
-  const nOver = states.filter(s => s === 'over').length;
-  const nToday = states.filter(s => s === 'today').length;
-  const nUp = states.filter(s => s === 'early' || s === 'up').length;
+  const open = todoPending();
+  const states = open.map(t => todoState(t, nowMs));
+  const nDone = todoDoneItems().length;
 
-  $('td-n-over').textContent = nOver;
-  $('td-n-today').textContent = nToday;
-  $('td-n-up').textContent = nUp;
-  $('td-n-done').textContent = done.length;
-  $('td-count-pending').textContent = pending.length;
-  $('td-count-done').textContent = done.length;
-  ['over', 'today', 'up'].forEach(k => $('td-stat-' + k)?.classList.toggle('on', todoFilter === k && todoTab === 'pending'));
+  $('td-n-over').textContent = states.filter(s => s === 'over').length;
+  $('td-n-today').textContent = states.filter(s => s === 'today').length;
+  $('td-n-up').textContent = states.filter(s => s === 'early' || s === 'up').length;
+  $('td-n-done').textContent = nDone;
+  $('td-count-pending').textContent = todoOnetime().length;
+  $('td-count-repeat').textContent = todoRepeated().length;
+  $('td-count-done').textContent = nDone;
+  ['over', 'today', 'up'].forEach(k => $('td-stat-' + k)?.classList.toggle('on', todoFilter === k && todoTab !== 'done'));
 
-  // Pending list (with optional filter from the stat tiles)
-  const match = { all: () => true, over: s => s === 'over', today: s => s === 'today', up: s => s === 'early' || s === 'up' }[todoFilter];
-  const shown = pending.filter((t, i) => match(states[i]));
+  if (todoGroupFilter !== 'all' && todoGroupFilter !== '__none' && !todoGroupById(todoGroupFilter)) todoGroupFilter = 'all';
+  const base = todoBaseList(todoTab, nowMs);
+  renderTodoGroupBar(base, nowMs);
+  const shown = base.filter(t => todoGroupFilter === 'all' || todoGroupKey(t) === todoGroupFilter);
+
   const note = $('todoFilterNote');
-  if (todoFilter !== 'all') {
+  if (todoFilter !== 'all' && todoTab !== 'done') {
     note.innerHTML = `Showing: <b>${{ over: 'Overdue', today: 'Due Today', up: 'Upcoming' }[todoFilter]}</b> (${shown.length}) <a onclick="setTodoFilter('${todoFilter}')">✕ Show all</a>`;
     note.classList.remove('hidden');
   } else note.classList.add('hidden');
-  $('todoPendingList').innerHTML = shown.length
-    ? shown.map(t => todoPendingItemHTML(t, nowMs)).join('')
-    : `<div class="todo-empty"><span class="te-ico">${pending.length ? '🔎' : '🎉'}</span>${pending.length ? 'මේ filter එකට අදාළ to-do නෑ' : 'Pending to-do කිසිවක් නෑ — ➕ Add To-Do ඔබලා අලුත් එකක් දාන්න'}</div>`;
+  $('td-clear-old')?.classList.toggle('hidden', todoTab !== 'done');
 
-  // Finished list (search)
-  const q = ($('td-done-search')?.value || '').trim().toLowerCase();
-  const doneShown = q ? done.filter(t => (t.title + ' ' + (t.notes || '')).toLowerCase().includes(q)) : done;
-  $('todoDoneList').innerHTML = doneShown.length
-    ? doneShown.map(todoDoneItemHTML).join('')
-    : `<div class="todo-empty"><span class="te-ico">📭</span>${done.length ? 'Search එකට ගැලපෙන දෙයක් නෑ' : 'තවම Finished work කිසිවක් නෑ'}</div>`;
+  const hasAnyFilter = todoFilter !== 'all' || todoGroupFilter !== 'all' || !!($('td-search')?.value || '').trim();
+  const totalInTab = todoTab === 'done' ? nDone : todoTab === 'repeat' ? todoRepeated().length : todoOnetime().length;
+  const emptyHtml = todoEmptyHTML(todoTab, totalInTab, totalInTab > 0 && hasAnyFilter);
+  if (todoTab === 'pending') $('todoPendingList').innerHTML = shown.length ? shown.map(t => todoOpenItemHTML(t, nowMs, false)).join('') : emptyHtml;
+  else if (todoTab === 'repeat') $('todoRepeatList').innerHTML = shown.length ? shown.map(t => todoOpenItemHTML(t, nowMs, true)).join('') : emptyHtml;
+  else $('todoDoneList').innerHTML = shown.length ? shown.map(todoDoneItemHTML).join('') : emptyHtml;
 }
 
 /* ---------- popup when the app opens ---------- */
@@ -5632,6 +5948,8 @@ function renderTodoPopup(silent) {
     return `<div class="todo-pop-item ${m.cls}">
       <div style="min-width:0;flex:1;">
         <span class="todo-chip ${m.chip}">${m.ico} ${todoRelLabel(t, nowMs, st)}</span>
+        ${todoGroupById(t.groupId) ? `<span class="todo-chip">${todoEsc(todoGroupLabel(t.groupId))}</span>` : ''}
+        ${todoIsRepeating(t) ? `<span class="todo-chip">🔁 ${TODO_REPEAT_LABELS[t.repeat] || t.repeat}</span>` : ''}
         <div class="tp-title">${todoEsc(t.title)}</div>
         ${t.notes ? `<div class="tp-notes">${todoEsc(t.notes)}</div>` : ''}
         <div class="tp-due">${todoDueChipText(t)}</div>
@@ -5665,10 +5983,13 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // keep badge / relative labels fresh while the app stays open
+// (don't re-render under the admin's fingers while a dropdown / search box is being used)
 setInterval(() => {
   if (!DB.currentUser || !isAdmin()) return;
   updateTodoNavBadge();
-  if ($('todoSection')?.classList.contains('show') && !$('todoModal')?.classList.contains('show')) renderTodos();
+  const ae = document.activeElement;
+  const busy = ae && (ae.classList?.contains('todo-group-sel') || ae.id === 'td-search');
+  if ($('todoSection')?.classList.contains('show') && !$('todoModal')?.classList.contains('show') && !busy) renderTodos();
 }, 60000);
 
 /* ============= PUSH NOTIFICATIONS (Firebase Cloud Messaging) =============
