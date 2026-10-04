@@ -6299,6 +6299,12 @@ async function saveNotifPref(key, value) {
 }
 
 
+// Rejects if a promise doesn't settle in `ms` — iOS home-screen apps can leave
+// IndexedDB / network calls pending forever after being resumed from the background.
+function _withTimeout(p, ms) {
+  return Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout ' + ms + 'ms')), ms))]);
+}
+
 async function initFirebase() {
   try {
     if (!firebaseConfig.apiKey || firebaseConfig.apiKey.indexOf('YOUR_') === 0) return false;
@@ -6311,7 +6317,7 @@ async function initFirebase() {
     archivePeriodsCol = fdb.collection('cms_archive_periods');
     payrollDocRef = fdb.collection('cms_payroll').doc('company');
     rolePermDocRef = fdb.collection('cms_settings').doc('dashboardPermissions');
-    try { await fdb.enablePersistence({ synchronizeTabs: true }); } catch (e) {}
+    try { await _withTimeout(fdb.enablePersistence({ synchronizeTabs: true }), 4000); } catch (e) {}
     return true;
   } catch (e) {
     console.error('initFirebase', e);
@@ -6326,7 +6332,7 @@ let _loadDBWhy = '';
 // a few times, then fall back to the locally cached user doc.
 async function loadDB() {
   if (!firebaseReady()) return loadDBLocal();
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 2; i++) {
     DB.dataIncomplete = false; _loadDBWhy = '';
     if (await _loadDBOnce()) return true;
     if (!DB.dataIncomplete) return false; // no sign-in / no user record: a real login is needed
@@ -6353,7 +6359,7 @@ async function _loadDBOnce() {
     // too, so a brand-new device's empty local cache can't falsely report
     // "doc doesn't exist" and bounce a real user straight back to the
     // login page.
-    const ownSnap = await usersCol.doc(authUser.uid).get({ source: 'server' });
+    const ownSnap = await _withTimeout(usersCol.doc(authUser.uid).get({ source: 'server' }), 5000);
     if (!ownSnap.exists) { _loadDBWhy = 'user record not found'; return false; }
 
     const me = ownSnap.data();
@@ -6383,7 +6389,7 @@ async function _loadDBOnce() {
     if (me.role === 'cashier') {
       DB.users = [me];
     } else {
-      const snap = await usersCol.get({ source: 'server' });
+      const snap = await _withTimeout(usersCol.get({ source: 'server' }), 8000);
       DB.users = snap.docs.map(d => d.data());
     }
 
@@ -18193,11 +18199,21 @@ restoreSidebarState();
 })();
 
 (async function () {
+  // Watchdog: never sit on the splash screen forever.
+  window._splashWatch = setTimeout(() => {
+    const s = document.getElementById('splashScreen');
+    if (s && s.style.display !== 'none') {
+      s.classList.add('sp-out'); setTimeout(() => { s.style.display = 'none'; }, 580);
+      if (!document.querySelector('.page.show')) showPage('loginPage');
+      toast('⚠️ Connection slow — still loading…', 'yellow');
+    }
+  }, 30000);
   await initFirebase();
   if (fauth) {
-    await new Promise(resolve => {
-      const unsub = fauth.onAuthStateChanged(() => { unsub(); resolve(); });
-    });
+    await Promise.race([
+      new Promise(resolve => { const unsub = fauth.onAuthStateChanged(() => { unsub(); resolve(); }); }),
+      new Promise(resolve => setTimeout(resolve, 4000))
+    ]);
     // A session restored from persisted storage can carry a cached ID token
     // whose custom claims (role) are stale relative to what's currently set
     // on the Auth user record. Forcing one fresh token fetch here — before
@@ -18207,14 +18223,15 @@ restoreSidebarState();
     // hitting a permission-denied on the first connection and relying on
     // each listener's own error-handler to self-heal a moment later.
     if (fauth.currentUser) {
-      try { await fauth.currentUser.getIdToken(true); } catch (e) { console.error('initial token refresh', e); }
+      try { await _withTimeout(fauth.currentUser.getIdToken(true), 5000); } catch (e) { console.error('initial token refresh', e); }
     }
   }
   registerServiceWorker();
   initMessaging();
-  const loggedIn = await loadDB();
-  await loadPayrollDB();
-  await loadRolePermissions();
+  let loggedIn = false;
+  try { loggedIn = await _withTimeout(loadDB(), 18000); } catch (e) { _loadDBWhy = 'startup timeout'; console.warn('loadDB', e); }
+  await _withTimeout(loadPayrollDB(), 8000).catch(e => console.warn('loadPayrollDB', e.message));
+  await _withTimeout(loadRolePermissions(), 8000).catch(e => console.warn('loadRolePermissions', e.message));
 
   // Sync the admin's globally-chosen theme (source of truth) now that DB is loaded
   try {
@@ -18228,6 +18245,7 @@ restoreSidebarState();
   const splashStart = Date.now();
 
   function afterSplash(fn) {
+    clearTimeout(window._splashWatch);
     const elapsed = Date.now() - splashStart;
     const wait = Math.max(0, SPLASH_MIN - elapsed);
     setTimeout(() => {
