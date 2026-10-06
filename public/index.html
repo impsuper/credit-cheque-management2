@@ -4219,19 +4219,25 @@ th{background:color-mix(in srgb,var(--surface-2) 60%,transparent);}
 
 <script>
 // Fail-safe: runs before the heavy CDN scripts. If the app hasn't left the splash screen
-// after 15s, show what is missing / where startup stalled instead of hanging silently.
+// after 15s, show where startup stalled. The banner closes itself once startup finishes, or via ✕.
 (function () {
-  var t0 = Date.now(), steps = [];
-  window._bootMark = function (s) { steps.push(s + '@' + Math.round((Date.now() - t0) / 1000) + 's'); };
+  var t0 = Date.now(), steps = [], banner = null;
+  function dismiss() { if (banner && banner.parentNode) banner.parentNode.removeChild(banner); banner = null; }
+  window._bootMark = function (s) {
+    steps.push(s + '@' + Math.round((Date.now() - t0) / 1000) + 's');
+    if (s === 'payroll+roles') dismiss();
+  };
   setTimeout(function () {
     var s = document.getElementById('splashScreen');
     if (!s || s.style.display === 'none' || s.classList.contains('sp-out')) return;
     var miss = [];
     ['firebase', 'jspdf', 'Chart', 'ApexCharts'].forEach(function (n) { if (typeof window[n] === 'undefined') miss.push(n); });
-    var b = document.createElement('div');
-    b.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:2147483647;background:#7f1d1d;color:#fff;padding:14px;font:14px/1.4 sans-serif;text-align:center';
-    b.innerHTML = '⚠️ App still loading after 15s<br>Steps done: ' + (steps.join(', ') || 'none') + '<br>Missing libraries: ' + (miss.join(', ') || 'none') + '<br><button style="margin-top:8px;padding:8px 18px;font-size:15px" onclick="location.reload()">Reload</button>';
-    document.body.appendChild(b);
+    banner = document.createElement('div');
+    banner.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:2147483647;background:#7f1d1d;color:#fff;padding:14px 40px 14px 14px;font:14px/1.4 sans-serif;text-align:center';
+    banner.innerHTML = '<button aria-label="Close" onclick="this.parentNode.style.display=\'none\'" style="position:absolute;top:6px;right:10px;background:none;border:0;color:#fff;font-size:24px;line-height:1;cursor:pointer">✕</button>'
+      + '⚠️ App still loading after 15s<br>Steps done: ' + (steps.join(', ') || 'none') + '<br>Missing libraries: ' + (miss.join(', ') || 'none')
+      + '<br><button style="margin-top:8px;padding:8px 18px;font-size:15px" onclick="location.reload()">Reload</button>';
+    document.body.appendChild(banner);
   }, 15000);
 })();
 </script>
