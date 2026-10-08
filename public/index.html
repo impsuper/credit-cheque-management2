@@ -1577,6 +1577,65 @@ html .btn.btn-ghost{border:1.5px solid color-mix(in srgb,var(--navy) 28%,transpa
 .chat-ref,.chat-row input{padding:.5rem .6rem;border:1.5px solid var(--border);border-radius:10px;font-size:.85rem;background:var(--surface);color:var(--text);min-width:0}
 .chat-row{display:flex;gap:.4rem}.chat-row input{flex:1}
 @media(max-width:700px){.chat-box{width:100vw;height:100dvh;border-radius:0}.chat-wrap.adm .chat-side{width:100%;border:none}.chat-wrap.adm:not(.inthread) .chat-main{display:none}.chat-wrap.adm.inthread .chat-side{display:none}.chat-wrap.adm .chat-back{display:block}}
+
+/* ===== LIQUIDITY RUNWAY GAUGE (Monthly Sales Target) ===== */
+.lrg-card{margin-bottom:1.6rem;}
+.lrg-body{display:grid;grid-template-columns:minmax(260px,380px) 1fr;gap:1.4rem;padding:1.2rem 1.5rem 1.4rem;align-items:center;}
+.lrg-gauge-wrap{position:relative;text-align:center;}
+.lrg-gauge-wrap svg{width:100%;height:auto;display:block;overflow:visible;}
+.lrg-arc-track{stroke:var(--track-bg);}
+.lrg-arc-fill{transition:stroke-dashoffset 1.1s cubic-bezier(.22,1,.36,1),stroke .4s;}
+.lrg-needle{transition:transform 1.1s cubic-bezier(.22,1,.36,1);transform-origin:150px 150px;}
+.lrg-center{position:absolute;left:0;right:0;bottom:6px;pointer-events:none;}
+.lrg-pct{font-size:2.3rem;font-weight:800;line-height:1;color:var(--navy);letter-spacing:-.02em;}
+.lrg-pct small{font-size:1rem;font-weight:700;margin-left:2px;}
+.lrg-pct-sub{font-size:.74rem;color:var(--muted);margin-top:.25rem;font-weight:600;}
+.lrg-scale{display:flex;justify-content:space-between;font-size:.68rem;color:var(--muted);font-weight:600;padding:0 4px;margin-top:2px;}
+.lrg-status{display:inline-flex;align-items:center;gap:.4rem;padding:.3rem .8rem;border-radius:999px;font-size:.76rem;font-weight:700;margin-top:.7rem;}
+.lrg-status.ok{background:color-mix(in srgb,var(--green) 16%,transparent);color:var(--green);}
+.lrg-status.warn{background:color-mix(in srgb,var(--yellow) 18%,transparent);color:var(--yellow);}
+.lrg-status.bad{background:color-mix(in srgb,var(--red) 16%,transparent);color:var(--red);}
+.lrg-status.done{background:color-mix(in srgb,var(--navy3) 16%,transparent);color:var(--navy3);}
+.lrg-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.8rem;}
+.lrg-m{background:linear-gradient(180deg,var(--surface),var(--surface-2));border:1px solid var(--border);border-left:4px solid var(--navy3);border-radius:12px;padding:.8rem .95rem;min-width:0;}
+.lrg-m.c-green{border-left-color:var(--green);} .lrg-m.c-red{border-left-color:var(--red);}
+.lrg-m.c-yellow{border-left-color:var(--yellow);} .lrg-m.c-accent{border-left-color:var(--accent);}
+.lrg-m-label{font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;}
+.lrg-m-val{font-size:1.02rem;font-weight:800;color:var(--text);margin-top:.25rem;word-break:break-word;}
+.lrg-m-sub{font-size:.7rem;color:var(--muted);margin-top:.2rem;font-weight:500;}
+.lrg-bar{grid-column:1/-1;margin-top:.2rem;}
+.lrg-bar-track{position:relative;height:10px;border-radius:99px;background:var(--track-bg);overflow:visible;}
+.lrg-bar-fill{height:100%;border-radius:99px;transition:width 1s cubic-bezier(.22,1,.36,1);}
+.lrg-bar-pace{position:absolute;top:-4px;width:2px;height:18px;background:var(--navy);border-radius:2px;opacity:.75;}
+.lrg-bar-cap{display:flex;justify-content:space-between;font-size:.68rem;color:var(--muted);margin-top:.45rem;font-weight:600;}
+.lrg-empty{padding:1.6rem 1.5rem;text-align:center;color:var(--muted);font-size:.9rem;}
+.lrg-empty .ico{font-size:2rem;display:block;margin-bottom:.4rem;}
+.lrg-setbtn{background:var(--surface);color:var(--navy);border:1.5px solid var(--border);border-radius:8px;padding:.35rem .8rem;font-size:.78rem;font-weight:700;cursor:pointer;}
+.lrg-setbtn:hover{border-color:var(--navy3);color:var(--navy3);}
+.lrg-admin-row{display:flex;flex-wrap:wrap;gap:.7rem;align-items:flex-end;padding:1.1rem 1.5rem 0;}
+.lrg-admin-row label{display:block;font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:.25rem;}
+.lrg-admin-row input{padding:.55rem .8rem;border:1.5px solid var(--border);border-radius:8px;font-size:.9rem;background:var(--surface);color:var(--text);font-family:inherit;}
+.lrg-admin-row input[type=number]{min-width:190px;}
+.lrg-admin-note{padding:.6rem 1.5rem 1.2rem;font-size:.75rem;color:var(--muted);}
+@media(max-width:720px){.lrg-body{grid-template-columns:1fr;padding:1rem;}.lrg-pct{font-size:1.9rem;}}
+.lrg-m-ai{font-size:.68rem;margin-top:.35rem;font-weight:700;color:var(--accent);line-height:1.35;}
+.lrg-ai-wrap{padding:0 1.5rem 1.5rem;}
+.lrg-ai{border:1px solid var(--border);border-radius:14px;padding:.95rem 1.05rem 1.05rem;background:linear-gradient(180deg,var(--surface),var(--surface-2));}
+.lrg-ai-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:.5rem;margin-bottom:.75rem;font-weight:800;color:var(--navy);font-size:.95rem;}
+.lrg-conf{font-size:.7rem;font-weight:700;padding:.2rem .65rem;border-radius:999px;border:1px solid var(--border);color:var(--muted);}
+.lrg-conf.hi{color:var(--green);border-color:var(--green);} .lrg-conf.mid{color:var(--yellow);border-color:var(--yellow);} .lrg-conf.lo{color:var(--red);border-color:var(--red);}
+.lrg-ai-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:.7rem;}
+.lrg-ai-note{font-size:.76rem;color:var(--muted);margin-top:.8rem;line-height:1.55;}
+.lrg-days{display:flex;align-items:flex-end;gap:2px;height:100px;margin-top:.9rem;padding-top:4px;}
+.lrg-day{flex:1;min-width:0;border-radius:3px 3px 0 0;}
+.lrg-day.act{background:var(--navy3);}
+.lrg-day.pred{background:var(--accent);opacity:.5;}
+.lrg-day.late{box-shadow:inset 0 3px 0 var(--yellow);}
+.lrg-day.pred.late{opacity:.9;}
+.lrg-day.off{background:var(--border);min-height:3px;}
+.lrg-days-cap{display:flex;flex-wrap:wrap;gap:.9rem;font-size:.68rem;color:var(--muted);font-weight:600;margin-top:.5rem;}
+.lrg-days-cap i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px;}
+@media(max-width:720px){.lrg-ai-wrap{padding:0 1rem 1.1rem;}}
 </style>
 <script>
 /* ===== INSTANT THEME BOOT — runs before first paint, prevents theme flash ===== */
@@ -1733,6 +1792,7 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
     <div class="sb-link hidden" id="cashNavLink" title="Cash" onclick="showSection('cash')"><span class="ico">💰</span><span>Cash</span></div>
     <div class="sb-link hidden" id="dailySummaryNavLink" title="Daily Summary" onclick="showSection('dailySummary')"><span class="ico">📅</span><span>Daily Summary</span></div>
     <div class="sb-link" id="navLink-suppliers" title="Suppliers" onclick="showSection('suppliers')"><span class="ico">🏪</span><span>Suppliers</span></div>
+    <div class="sb-link" id="navLink-salesTarget" title="Sales Target" onclick="showSection('salesTarget')"><span class="ico">🎯</span><span>Sales Target</span></div>
     <div class="sb-link hidden" id="payrollNavLink" title="Payroll" onclick="showSection('payroll')"><span class="ico">💲</span><span>Payroll</span></div>
     <div class="sb-link hidden" id="todoNavLink" title="To-Do" onclick="showSection('todo')"><span class="ico">📝</span><span>To-Do</span><em class="todo-nav-badge hidden" id="todoNavBadge">0</em></div>
     <div class="sb-link" id="navLink-reload" title="Reload" onclick="showSection('reload')"><span class="ico">📱</span><span>Reload</span></div>
@@ -3248,6 +3308,28 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
       </div>
     </div>
 
+    <!-- SALES TARGET (Monthly Sales Target + Liquidity Runway Gauge + AI forecast) -->
+    <div id="salesTargetSection" class="section">
+      <div class="card" style="margin:0 0 1.2rem;" id="lrg-admin-card">
+        <div class="card-head"><div class="card-title">🎯 Monthly Sales Target</div><span id="lrg-admin-state" style="font-size:.78rem;color:var(--muted);font-weight:600;"></span></div>
+        <div class="lrg-admin-row" id="lrg-admin-form">
+          <div><label for="lrg-target-month">Month</label><input type="month" id="lrg-target-month" onchange="renderSalesTargetAdmin(true)"></div>
+          <div><label for="lrg-target-input">Target (LKR)</label><input type="number" id="lrg-target-input" min="0" step="1000" placeholder="e.g. 5000000" onkeydown="if(event.key==='Enter')saveSalesTargetFromUI()"></div>
+          <div><label for="lrg-holiday-input">Expected Holidays (days off)</label><input type="number" id="lrg-holiday-input" min="0" max="31" step="1" placeholder="e.g. 3" style="min-width:150px;" onkeydown="if(event.key==='Enter')saveSalesTargetFromUI()"></div>
+          <button class="btn btn-navy btn-sm" onclick="saveSalesTargetFromUI()">💾 Save Target</button>
+          <button class="btn btn-ghost btn-sm" onclick="clearSalesTargetFromUI()">🗑️ Clear</button>
+        </div>
+        <div class="lrg-admin-note" id="lrg-admin-note"></div>
+      </div>
+
+      <div class="card lrg-card" id="salesTargetGaugeCard">
+        <div class="card-head">
+          <div class="card-title">🎯 Liquidity Runway Gauge <span id="lrg-month-label" style="font-weight:500;font-size:.8rem;color:var(--muted);margin-left:.4rem;"></span></div>
+        </div>
+        <div id="lrg-content"></div>
+      </div>
+    </div>
+
     <!-- ANALYTICS -->
     <div id="analyticsSection" class="section">
       <!-- KPI row -->
@@ -4418,6 +4500,23 @@ const ETF_EMPLOYER_RATE = 0.03;
 let rolePermDocRef = null;
 let rolePermLiveUnsub = null;
 let ROLE_PERMS = { manager: {}, admin: {} };
+// Monthly sales targets { 'YYYY-MM': amountLKR } — set by Admin (Analytics), stored on the
+// same cms_settings/dashboardPermissions doc so Managers can read it live.
+let SALES_TARGETS = {};
+try { SALES_TARGETS = JSON.parse(localStorage.getItem('cms_sales_targets') || '{}') || {}; } catch (e) { SALES_TARGETS = {}; }
+// Expected holidays (days the shop is closed) per month { 'YYYY-MM': n } — -1 / missing = "not set" (AI estimates from history).
+let SALES_HOLIDAYS = {};
+try { SALES_HOLIDAYS = JSON.parse(localStorage.getItem('cms_sales_holidays') || '{}') || {}; } catch (e) { SALES_HOLIDAYS = {}; }
+function _applySalesTargetsFrom(data) {
+  if (data && data.salesTargets && typeof data.salesTargets === 'object') {
+    SALES_TARGETS = data.salesTargets;
+    try { localStorage.setItem('cms_sales_targets', JSON.stringify(SALES_TARGETS)); } catch (e) {}
+  }
+  if (data && data.salesHolidays && typeof data.salesHolidays === 'object') {
+    SALES_HOLIDAYS = data.salesHolidays;
+    try { localStorage.setItem('cms_sales_holidays', JSON.stringify(SALES_HOLIDAYS)); } catch (e) {}
+  }
+}
 // Defaults match the app's original behavior (both roles could see all of
 // these) so an empty/missing doc changes nothing for existing installs.
 // EXTENDING THIS LATER: adding a brand-new toggleable sidebar section, stat
@@ -4431,7 +4530,7 @@ const DEFAULT_MANAGER_PERMS = {
   // Sidebar sections
   credits: true, cheques: true, suppliers: true, reports: true,
   analytics: true, aiinsights: true, reload: true, cash: true, payroll: true,
-  dailySummary: true,
+  dailySummary: true, salesTarget: true,
   // Dashboard stat tiles
   tile_activeCheques: true, tile_outstanding: true, tile_avgDaySale: true,
   tile_lastMonthAvgSale: true,
@@ -4453,6 +4552,7 @@ const DASHBOARD_SECTIONS = [
   { key: 'credits',    navId: 'navLink-credits',    label: '💳 Credits' },
   { key: 'cheques',    navId: 'navLink-cheques',    label: '✅ Cheques' },
   { key: 'suppliers',  navId: 'navLink-suppliers',  label: '🏪 Suppliers' },
+  { key: 'salesTarget', navId: 'navLink-salesTarget', label: '🎯 Sales Target' },
   { key: 'reports',    navId: 'navLink-reports',    label: '📋 Reports' },
   { key: 'analytics',  navId: 'navLink-analytics',  label: '📈 Analytics' },
   { key: 'aiinsights', navId: 'navLink-aiinsights', label: '🤖 AI Insights' },
@@ -6747,6 +6847,7 @@ async function loadRolePermissions() {
       const data = snap.data();
       ROLE_PERMS.manager = data.manager || {};
       ROLE_PERMS.admin = data.admin || {};
+      _applySalesTargetsFrom(data);
       try { localStorage.setItem('cms_role_perms', JSON.stringify(ROLE_PERMS)); } catch (e) {}
     }
     startRolePermLiveSync();
@@ -6776,10 +6877,12 @@ function startRolePermLiveSync() {
     const data = snap.data();
     ROLE_PERMS.manager = data.manager || {};
     ROLE_PERMS.admin = data.admin || {};
+    _applySalesTargetsFrom(data);
     try { localStorage.setItem('cms_role_perms', JSON.stringify(ROLE_PERMS)); } catch (e) { console.error('role perm live sync local mirror', e); }
     applyNavPermissions();
     const active = document.querySelector('.section.show');
     if (active && active.id === 'overviewSection') renderOverview();
+    if (active && active.id === 'salesTargetSection') { try { renderSalesTargetAdmin(); renderSalesTargetGauge(); } catch (e) {} }
     if (active && active.id === 'settingsSection' && DB.settingsTab === 'permissions') renderPermissionsSettings();
   }, async err => {
     console.error('role perm live sync', err);
@@ -6812,6 +6915,398 @@ async function saveRolePermissions(newManagerPerms, newAdminPerms) {
     console.error('saveRolePermissions', e);
     toast('⚠️ Save failed — internet connection එක check කරන්න', 'red');
   }
+}
+
+
+// ============= SALES TARGET PAGE — Liquidity Runway Gauge + Monthly Sales Target + AI forecast =============
+function lrgMonthKey(d) { d = d || new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
+function lrgDayKey(key, d) { return key + '-' + String(d).padStart(2, '0'); }
+// Target for a month. If none was set for that month, the most recent earlier
+// target carries forward so the gauge doesn't go blank on the 1st of a new month.
+function getSalesTargetFor(key) {
+  const t = Number((SALES_TARGETS || {})[key]);
+  if (t > 0) return { amount: t, carried: false, from: key };
+  const prev = Object.keys(SALES_TARGETS || {}).filter(k => k < key && Number(SALES_TARGETS[k]) > 0).sort().pop();
+  return prev ? { amount: Number(SALES_TARGETS[prev]), carried: true, from: prev } : { amount: 0, carried: false, from: null };
+}
+// Expected holidays the admin entered for a month, or null when not set.
+function getSalesHolidaysFor(key) {
+  const raw = (SALES_HOLIDAYS || {})[key];
+  if (raw === undefined || raw === null || raw === '') return null;
+  const v = Number(raw);
+  return (isNaN(v) || v < 0) ? null : Math.round(v);
+}
+function lrgShort(n) {
+  n = Number(n) || 0; const a = Math.abs(n);
+  if (a >= 1e6) return (n / 1e6).toFixed(a >= 1e7 ? 1 : 2).replace(/\.0+$/, '') + 'M';
+  if (a >= 1e3) return (n / 1e3).toFixed(0) + 'K';
+  return String(Math.round(n));
+}
+function lrgNormCdf(z) {
+  const t = 1 / (1 + 0.2316419 * Math.abs(z)), d = 0.3989423 * Math.exp(-z * z / 2);
+  const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+  return z > 0 ? 1 - p : p;
+}
+
+// ---------------------------------------------------------------------------
+// LOCAL SMART FORECAST (runs on this device only — no data leaves the browser)
+// Learns from the last ≤6 complete months of daily sales:
+//   • late-month boost  — how much stronger days 25+ are than days 1–24
+//   • weekday pattern   — Mon..Sun strength (shrunk toward 1 so thin data can't mislead)
+//   • holidays          — days with no sales logged = closed days (average per month)
+//   • volatility        — day-to-day spread, used to turn the forecast into a hit-chance
+// ---------------------------------------------------------------------------
+function lrgHistory(now) {
+  now = now || new Date();
+  const curKey = lrgMonthKey(now);
+  const byDay = new Map();
+  (typeof getAllCashEntries === 'function' ? getAllCashEntries() : []).forEach(e => {
+    if (!e.date) return;
+    byDay.set(e.date, (byDay.get(e.date) || 0) + (Number(e.totalSales) || 0));
+  });
+  const dates = [...byDay.keys()].filter(d => byDay.get(d) > 0).sort();
+  const first = dates[0] || null;
+  const months = new Map();
+  dates.forEach(d => {
+    const k = d.slice(0, 7); if (k >= curKey) return;
+    if (!months.has(k)) months.set(k, []);
+    months.get(k).push({ day: +d.slice(8, 10), v: byDay.get(d) });
+  });
+  let keys = [...months.keys()].sort().filter(k => {
+    if (first && k === first.slice(0, 7) && +first.slice(8, 10) > 5) return false;   // partial first month
+    return months.get(k).length >= 10;                                              // too little data
+  });
+  keys = keys.slice(-6);
+  const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
+  const mInfo = keys.map(k => {
+    const rows = months.get(k), y = +k.slice(0, 4), m = +k.slice(5, 7), dim = new Date(y, m, 0).getDate();
+    const early = rows.filter(r => r.day < 25), late = rows.filter(r => r.day >= 25);
+    return { key: k, y, m, dim, rows, logged: rows.length, holidays: Math.max(dim - rows.length, 0),
+             earlyAvg: avg(early.map(r => r.v)), lateAvg: avg(late.map(r => r.v)), earlyN: early.length, lateN: late.length };
+  });
+  // late-month uplift (median across months)
+  const ups = mInfo.filter(m => m.earlyN >= 5 && m.lateN >= 2 && m.earlyAvg > 0).map(m => m.lateAvg / m.earlyAvg).sort((a, b) => a - b);
+  let uplift = 1;
+  if (ups.length) uplift = ups.length % 2 ? ups[(ups.length - 1) / 2] : (ups[ups.length / 2 - 1] + ups[ups.length / 2]) / 2;
+  uplift = Math.min(Math.max(uplift, 0.8), 2.0);
+  // weekday factors (days 1–24 only, so the 25th+ boost doesn't pollute them)
+  const wdSum = Array(7).fill(0), wdN = Array(7).fill(0);
+  mInfo.forEach(m => m.rows.forEach(r => {
+    if (r.day >= 25 || m.earlyAvg <= 0) return;
+    const w = new Date(m.y, m.m - 1, r.day).getDay(); wdSum[w] += r.v / m.earlyAvg; wdN[w]++;
+  }));
+  const wd = wdSum.map((sum, i) => wdN[i] ? 1 + (sum / wdN[i] - 1) * (wdN[i] / (wdN[i] + 10)) : 1);
+  // volatility of a normal day around its expected value
+  const devs = [];
+  mInfo.forEach(m => m.rows.forEach(r => {
+    if (r.day >= 25 || m.earlyAvg <= 0) return;
+    devs.push(r.v / (m.earlyAvg * wd[new Date(m.y, m.m - 1, r.day).getDay()]));
+  }));
+  let cv = 0.25;
+  if (devs.length >= 15) {
+    const mu = avg(devs), sd = Math.sqrt(avg(devs.map(x => (x - mu) * (x - mu))));
+    cv = Math.min(Math.max(mu > 0 ? sd / mu : 0.25, 0.08), 0.6);
+  }
+  // recency-weighted base daily rate (last 3 months)
+  let baseHist = 0;
+  const recent = mInfo.slice(-3).filter(m => m.earlyAvg > 0);
+  if (recent.length) { let w = 0, t = 0; recent.forEach((m, i) => { w += i + 1; t += m.earlyAvg * (i + 1); }); baseHist = t / w; }
+  const n = mInfo.length;
+  return { months: mInfo, nMonths: n, uplift, wd, cv, baseHist,
+           avgHolidays: n ? avg(mInfo.map(m => m.holidays)) : null,
+           confidence: n >= 4 ? 'hi' : n >= 2 ? 'mid' : 'lo' };
+}
+
+function lrgPredict(now, h, c) {
+  const y = now.getFullYear(), mo = now.getMonth(), dim = c.dim, key = c.key;
+  const wdAt = d => h.wd[new Date(y, mo, d).getDay()];
+  const upAt = d => d >= 25 ? h.uplift : 1;
+  // this month's own "neutral" daily rate (weekday + late boost removed)
+  let curSum = 0, curN = 0;
+  c.byDay.forEach((v, dt) => {
+    if (dt.slice(0, 7) !== key || !(v > 0)) return;
+    const d = +dt.slice(8, 10); curSum += v / (wdAt(d) * upAt(d)); curN++;
+  });
+  const curBase = curN ? curSum / curN : 0;
+  let base;
+  if (curN && h.baseHist) { const w = Math.min(curN / 20, 1) * 0.85; base = curBase * w + h.baseHist * (1 - w); }
+  else base = curN ? curBase : (h.baseHist || 0);
+  // holidays
+  const setH = getSalesHolidaysFor(key);
+  const expH = setH !== null ? setH : (h.avgHolidays !== null ? Math.round(h.avgHolidays) : 0);
+  let missed = 0;
+  for (let d = 1; d <= c.daysElapsed; d++) if (!((c.byDay.get(lrgDayKey(key, d)) || 0) > 0)) missed++;
+  const remDays = Math.max(dim - c.daysElapsed, 0);
+  const remHol = Math.min(Math.max(expH - missed, 0), remDays);
+  const workLeft = remDays - remHol;
+  const workFrac = remDays ? workLeft / remDays : 0;
+  // day-by-day forecast
+  const preds = []; let R = 0, nSum = 0, nN = 0, lSum = 0, lN = 0;
+  for (let d = c.daysElapsed + 1; d <= dim; d++) {
+    const v = base * wdAt(d) * upAt(d) * workFrac;
+    preds.push({ day: d, v }); R += v;
+    if (d >= 25) { lSum += v; lN++; } else { nSum += v; nN++; }
+  }
+  const projected = c.sales + R;
+  // chance of hitting the target (normal approximation)
+  const sdDaily = base * h.cv;
+  const sd = Math.sqrt(Math.max(workLeft, 0) * sdDaily * sdDaily + Math.pow(0.06 * R, 2));
+  let prob = null, hitDay = null;
+  if (c.target > 0) {
+    if (c.sales >= c.target) { prob = 100; hitDay = 0; }
+    else {
+      const need = c.target - c.sales;
+      prob = remDays === 0 ? 0 : (sd > 0 ? (1 - lrgNormCdf((need - R) / sd)) * 100 : (R >= need ? 100 : 0));
+      let cum = c.sales;
+      for (const p of preds) { cum += p.v; if (cum >= c.target) { hitDay = p.day; break; } }
+    }
+  }
+  // expected share of the month's sales that should be done by now (replaces the straight-line pace)
+  let wTot = 0, wCum = 0;
+  for (let d = 1; d <= dim; d++) { const w = wdAt(d) * upAt(d); wTot += w; if (d <= c.daysElapsed) wCum += w; }
+  return {
+    base, uplift: h.uplift, expH, holidaysSet: setH !== null, remHol, missed, workLeft, workFrac, preds, R, projected,
+    prob, hitDay, sd, idealShare: wTot ? wCum / wTot : 0,
+    avgNormal: nN && workFrac ? (nSum / nN) / workFrac : null,   // per OPEN day, days 1–24
+    avgLate:   lN && workFrac ? (lSum / lN) / workFrac : null,   // per OPEN day, days 25+
+    avgPred:   workLeft > 0 ? R / workLeft : 0,
+    nMonths: h.nMonths, confidence: h.confidence, curDays: curN
+  };
+}
+
+function computeSalesTargetStats(now) {
+  now = now || new Date();
+  const key = lrgMonthKey(now);
+  const tgt = getSalesTargetFor(key);
+  const entries = (typeof getAllCashEntries === 'function' ? getAllCashEntries() : []).filter(e => e.date && e.date.slice(0, 7) === key);
+  const byDay = new Map();
+  entries.forEach(e => byDay.set(e.date, (byDay.get(e.date) || 0) + (Number(e.totalSales) || 0)));
+  const sales = [...byDay.values()].reduce((a, b) => a + b, 0);
+  const daysLogged = byDay.size;
+  const dim = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const today = now.getDate();
+  const todayKey = lrgDayKey(key, today);
+  const todayDone = (byDay.get(todayKey) || 0) > 0;
+  const daysElapsed = todayDone ? today : today - 1;        // days whose sales are already counted
+  const daysLeft = dim - daysElapsed;                         // calendar days still to come (incl. today until it's logged)
+  const target = tgt.amount;
+  // AI forecast (uses ALL cash entries, incl. previous months)
+  const hist = lrgHistory(now);
+  const allByDay = new Map(byDay);
+  const ai = lrgPredict(now, hist, { key, dim, target, sales, daysElapsed, byDay: allByDay });
+  const pct = target > 0 ? (sales / target) * 100 : 0;
+  const remaining = Math.max(target - sales, 0);
+  const reqDaily = remaining > 0 ? (ai.workLeft > 0 ? remaining / ai.workLeft : remaining) : 0;   // per OPEN day
+  const avgDaily = daysLogged ? sales / daysLogged : 0;
+  const idealPct = target > 0 ? ai.idealShare * 100 : 0;
+  const idealToDate = target > 0 ? target * ai.idealShare : 0;
+  const diffVsPace = sales - idealToDate;                     // + ahead, − behind
+  const projected = ai.projected;
+  const projPct = target > 0 ? (projected / target) * 100 : 0;
+  let status = 'ok', label = '✅ On track';
+  if (target <= 0) { status = 'warn'; label = 'No target'; }
+  else if (sales >= target) { status = 'done'; label = '🏆 Target achieved!'; }
+  else if (daysLeft <= 0) { status = 'bad'; label = '⛔ Month ended — target missed'; }
+  else if (diffVsPace >= 0) { status = 'ok'; label = '🚀 Ahead of pace'; }
+  else if (pct >= idealPct * 0.9) { status = 'warn'; label = '⚠️ Slightly behind pace'; }
+  else { status = 'bad'; label = '🔻 Behind pace'; }
+  return { key, target, carried: tgt.carried, carriedFrom: tgt.from, sales, daysLogged, dim, today, daysElapsed, daysLeft, pct, remaining,
+           reqDaily, avgDaily, idealToDate, idealPct, diffVsPace, projected, projPct, status, label, todayDone, ai, byDay };
+}
+function lrgColor(status) {
+  return status === 'bad' ? 'var(--red)' : status === 'warn' ? 'var(--yellow)' : status === 'done' ? 'var(--navy3)' : 'var(--green)';
+}
+function lrgAiPanel(st) {
+  const ai = st.ai;
+  const confTxt = { hi: 'High confidence', mid: 'Medium confidence', lo: 'Low confidence' }[ai.confidence];
+  const monthShort = new Date().toLocaleDateString('en-US', { month: 'short' });
+  const gap = st.projected - st.target;
+  const probClr = ai.prob >= 70 ? 'c-green' : ai.prob >= 40 ? 'c-yellow' : 'c-red';
+  const hitTxt = ai.hitDay === 0 ? 'Achieved 🎉' : ai.hitDay ? `${monthShort} ${ai.hitDay}` : 'Not this month';
+  const hitSub = ai.hitDay === 0 ? 'Target already reached' : ai.hitDay ? (ai.hitDay >= 25 ? 'Helped by the 25th+ boost' : 'At the predicted daily rate') : 'Forecast falls short of target';
+  const upPct = (ai.uplift - 1) * 100;
+  // day-by-day bars: actual (past) + AI forecast (future)
+  const vals = []; const bars = [];
+  for (let d = 1; d <= st.dim; d++) {
+    let cls, v, tip;
+    if (d <= st.daysElapsed) {
+      const a = st.byDay.get(lrgDayKey(st.key, d)) || 0;
+      if (a > 0) { cls = 'act'; v = a; tip = `Day ${d}: ${fmt(a)} (actual)`; } else { cls = 'off'; v = 0; tip = `Day ${d}: no sales (holiday)`; }
+    } else {
+      const p = ai.preds[d - st.daysElapsed - 1]; v = p ? p.v : 0; cls = 'pred'; tip = `Day ${d}: ~${fmt(v)} (AI forecast)`;
+    }
+    if (d >= 25) cls += ' late';
+    vals.push(v); bars.push({ cls, v, tip });
+  }
+  const maxV = Math.max(1, ...vals);
+  const barsHtml = bars.map(b => `<div class="lrg-day ${b.cls}" style="height:${Math.max((b.v / maxV) * 100, b.cls.startsWith('off') ? 0 : 2).toFixed(1)}%" title="${b.tip}"></div>`).join('');
+  let note;
+  if (ai.nMonths === 0) note = '🤖 ඉතිහාස දත්ත (සම්පූර්ණ මාස) තවම මදි — දැනට මේ මාසයේ දත්ත පමණක් භාවිතා කර ප්‍රෙඩික්ට් කරනවා. මාස 2ක් පමණ දත්ත ආවාම ගොඩක් නිවැරදි වෙනවා.';
+  else {
+    const upLine = upPct >= 3 ? `25 වෙනිදාට පසු දෛනික විකුණුම් සාමාන්‍යයෙන් <b>${upPct.toFixed(0)}%</b> කින් වැඩි වෙනවා` : '25 වෙනිදාට පසු විශේෂ වැඩිවීමක් දත්තවල පේන්නේ නෑ';
+    note = `🤖 ගිය සම්පූර්ණ මාස <b>${ai.nMonths}</b>ක දත්ත මත: ${upLine}. Weekday pattern එකත්, මාසයට නිවාඩු දින <b>${ai.expH}</b>ක් (${ai.holidaysSet ? 'ඔබ ලබාදුන්' : 'AI ඇස්තමේන්තුව'}) ද සලකා ඉතිරි දිනවල විකුණුම් ගණනය කළා. ගණනය සියල්ල device එකේම සිදුවෙනවා.`;
+  }
+  return `
+  <div class="lrg-ai-wrap"><div class="lrg-ai">
+    <div class="lrg-ai-head"><span>🤖 AI Prediction <span style="font-weight:500;font-size:.76rem;color:var(--muted);">· ඉතිරි දින ${st.dim - st.daysElapsed}ක් සඳහා</span></span><span class="lrg-conf ${ai.confidence}">${confTxt} · ${ai.nMonths} month${ai.nMonths === 1 ? '' : 's'} of history</span></div>
+    <div class="lrg-ai-grid">
+      <div class="lrg-m ${st.projPct >= 100 ? 'c-green' : 'c-yellow'}"><div class="lrg-m-label">Predicted Month-End</div><div class="lrg-m-val">${fmt(st.projected)}</div><div class="lrg-m-sub">${st.projPct.toFixed(0)}% of target · ${gap >= 0 ? '+' : '−'} ${fmt(Math.abs(gap))}</div></div>
+      <div class="lrg-m ${probClr}"><div class="lrg-m-label">Chance to Hit Target</div><div class="lrg-m-val">${ai.prob === null ? '—' : ai.prob.toFixed(0) + '%'}</div><div class="lrg-m-sub">Based on day-to-day variation</div></div>
+      <div class="lrg-m c-accent"><div class="lrg-m-label">Predicted Target Date</div><div class="lrg-m-val">${hitTxt}</div><div class="lrg-m-sub">${hitSub}</div></div>
+      <div class="lrg-m"><div class="lrg-m-label">Expected Daily Sale</div><div class="lrg-m-val">${ai.avgNormal !== null ? fmt(ai.avgNormal) : '—'}${ai.avgLate !== null ? `<div style="font-size:.78rem;font-weight:700;color:var(--yellow);margin-top:.15rem;">25th+ : ${fmt(ai.avgLate)}</div>` : ''}</div><div class="lrg-m-sub">${ai.avgNormal !== null ? 'Days 1–24 (per open day)' : 'Only 25th+ days remain'}</div></div>
+      <div class="lrg-m"><div class="lrg-m-label">Open Days Left</div><div class="lrg-m-val">${ai.workLeft} <span style="font-size:.75rem;font-weight:600;color:var(--muted)">of ${st.dim - st.daysElapsed}</span></div><div class="lrg-m-sub">${ai.remHol} holiday${ai.remHol === 1 ? '' : 's'} still to come · ${ai.expH} expected this month</div></div>
+    </div>
+    <div class="lrg-days">${barsHtml}</div>
+    <div class="lrg-days-cap"><span><i style="background:var(--navy3)"></i>Actual</span><span><i style="background:var(--accent);opacity:.6"></i>AI forecast</span><span><i style="background:var(--yellow)"></i>25th+ boost days</span><span><i style="background:var(--border)"></i>Holiday</span><span style="margin-left:auto;">Day 1 → ${st.dim}</span></div>
+    <div class="lrg-ai-note">${note}</div>
+  </div></div>`;
+}
+function renderSalesTargetGauge() {
+  const host = $('lrg-content'); if (!host || !DB.currentUser || isCashier()) return;
+  const st = computeSalesTargetStats();
+  const monthLabel = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  if ($('lrg-month-label')) $('lrg-month-label').textContent = '· ' + monthLabel;
+  if (st.target <= 0) {
+    host.innerHTML = `<div class="lrg-empty"><span class="ico">🎯</span>
+      <b>Monthly sales target එකක් තවම set කරලා නෑ.</b><br>
+      ${isAdmin() ? 'ඉහළ “Monthly Sales Target” කොටසෙන් target එකයි අපේක්ෂිත නිවාඩු දින ගණනයි දාන්න, එතකොට gauge එකයි AI prediction එකයි මෙතන පේනවා.' : 'Admin විසින් target එකක් set කළාම මෙතන පෙන්වනවා.'}</div>`;
+    return;
+  }
+  const ai = st.ai;
+  const color = lrgColor(st.status);
+  const clamp = Math.min(Math.max(st.pct, 0), 100);
+  // Semicircle gauge geometry (viewBox 300x170, centre 150,150, r 120)
+  const R = 120, C = Math.PI * R;
+  const fillOffset = C * (1 - clamp / 100);
+  const needleDeg = -90 + (clamp / 100) * 180;
+  const idealAng = Math.PI - (Math.min(st.idealPct, 100) / 100) * Math.PI;
+  const ix1 = 150 + (R - 16) * Math.cos(idealAng), iy1 = 150 - (R - 16) * Math.sin(idealAng);
+  const ix2 = 150 + (R + 14) * Math.cos(idealAng), iy2 = 150 - (R + 14) * Math.sin(idealAng);
+  let ticks = '';
+  for (let i = 0; i <= 10; i++) {
+    const a = Math.PI - (i / 10) * Math.PI, r1 = R + 6, r2 = R + (i % 5 === 0 ? 14 : 10);
+    ticks += `<line x1="${(150 + r1 * Math.cos(a)).toFixed(1)}" y1="${(150 - r1 * Math.sin(a)).toFixed(1)}" x2="${(150 + r2 * Math.cos(a)).toFixed(1)}" y2="${(150 - r2 * Math.sin(a)).toFixed(1)}" stroke="var(--muted)" stroke-width="${i % 5 === 0 ? 2 : 1}" opacity=".55"/>`;
+  }
+  const ahead = st.diffVsPace >= 0;
+  const reqVsAvg = st.avgDaily > 0 && ai.workLeft > 0 ? (st.reqDaily / st.avgDaily) : 0;
+  const reqSub = st.sales >= st.target ? 'Target already reached 🎉'
+    : st.daysLeft <= 0 ? 'Month has ended'
+    : `${ai.workLeft} open day${ai.workLeft === 1 ? '' : 's'} left` + (reqVsAvg ? ` · ${reqVsAvg.toFixed(2)}× current avg` : '');
+  const gap = st.projected - st.target;
+  const predRemainAtEnd = Math.max(st.target - st.projected, 0);
+  const predAvgEnd = (st.daysLogged + ai.workLeft) > 0 ? st.projected / (st.daysLogged + ai.workLeft) : 0;
+  host.innerHTML = `
+  <div class="lrg-body">
+    <div>
+      <div class="lrg-gauge-wrap">
+        <svg viewBox="0 0 300 170" role="img" aria-label="Sales target progress ${st.pct.toFixed(1)} percent">
+          <path class="lrg-arc-track" d="M30 150 A120 120 0 0 1 270 150" fill="none" stroke-width="22" stroke-linecap="round"/>
+          <path class="lrg-arc-fill" id="lrg-arc-fill" d="M30 150 A120 120 0 0 1 270 150" fill="none" stroke="${color}" stroke-width="22" stroke-linecap="round"
+                stroke-dasharray="${C.toFixed(2)}" stroke-dashoffset="${C.toFixed(2)}"/>
+          ${ticks}
+          <line x1="${ix1.toFixed(1)}" y1="${iy1.toFixed(1)}" x2="${ix2.toFixed(1)}" y2="${iy2.toFixed(1)}" stroke="var(--navy)" stroke-width="3" stroke-linecap="round"><title>AI-expected by today: ${st.idealPct.toFixed(1)}%</title></line>
+          <g class="lrg-needle" id="lrg-needle" style="transform:rotate(-90deg)">
+            <polygon points="146,150 150,52 154,150" fill="var(--navy)" opacity=".9"/>
+            <circle cx="150" cy="150" r="9" fill="var(--navy)"/><circle cx="150" cy="150" r="3.5" fill="var(--surface)"/>
+          </g>
+        </svg>
+        <div class="lrg-scale"><span>0</span><span>${lrgShort(st.target)}</span></div>
+      </div>
+      <div style="text-align:center;margin-top:.5rem;">
+        <div class="lrg-pct" style="color:${color}">${st.pct.toFixed(1)}<small>%</small></div>
+        <div class="lrg-pct-sub">${fmt(st.sales)} of ${fmt(st.target)}</div>
+        <span class="lrg-status ${st.status}">${st.label}</span>
+      </div>
+    </div>
+    <div class="lrg-metrics">
+      <div class="lrg-m c-red"><div class="lrg-m-label">Remaining to Target</div><div class="lrg-m-val">${fmt(st.remaining)}</div><div class="lrg-m-sub">${Math.max(100 - st.pct, 0).toFixed(1)}% still to go</div><div class="lrg-m-ai">🤖 Month-end: ${predRemainAtEnd > 0 ? fmt(predRemainAtEnd) + ' short' : 'target covered ✓'}</div></div>
+      <div class="lrg-m c-accent"><div class="lrg-m-label">Required Daily Sale</div><div class="lrg-m-val">${fmt(st.reqDaily)}</div><div class="lrg-m-sub">${reqSub}</div><div class="lrg-m-ai">🤖 AI expects ~${fmt(ai.avgPred)}/day</div></div>
+      <div class="lrg-m"><div class="lrg-m-label">Current Daily Average</div><div class="lrg-m-val">${fmt(st.avgDaily)}</div><div class="lrg-m-sub">${st.daysLogged} day${st.daysLogged === 1 ? '' : 's'} logged this month</div><div class="lrg-m-ai">🤖 Month-end avg: ${fmt(predAvgEnd)}</div></div>
+      <div class="lrg-m ${ahead ? 'c-green' : 'c-yellow'}"><div class="lrg-m-label">${ahead ? 'Ahead of Pace' : 'Behind Pace'}</div><div class="lrg-m-val" style="color:${ahead ? 'var(--green)' : 'var(--red)'}">${ahead ? '+' : '−'} ${fmt(Math.abs(st.diffVsPace))}</div><div class="lrg-m-sub">Expected by now: ${fmt(st.idealToDate)} (${st.idealPct.toFixed(0)}%)</div><div class="lrg-m-ai">🤖 At month-end: ${gap >= 0 ? '+' : '−'} ${fmt(Math.abs(gap))} vs target</div></div>
+      <div class="lrg-m ${st.projPct >= 100 ? 'c-green' : 'c-yellow'}"><div class="lrg-m-label">Projected Month-End</div><div class="lrg-m-val">${fmt(st.projected)}</div><div class="lrg-m-sub">${st.projPct.toFixed(0)}% of target (AI forecast)</div><div class="lrg-m-ai">🤖 Hit chance: ${ai.prob === null ? '—' : ai.prob.toFixed(0) + '%'}</div></div>
+      <div class="lrg-m"><div class="lrg-m-label">Days Left</div><div class="lrg-m-val">${Math.max(st.daysLeft, 0)} <span style="font-size:.75rem;font-weight:600;color:var(--muted)">of ${st.dim}</span></div><div class="lrg-m-sub">${st.carried ? '📌 Target carried from ' + st.carriedFrom : 'Day ' + st.today + ' of ' + st.dim}</div><div class="lrg-m-ai">🤖 Open days: ${ai.workLeft} (${ai.remHol} holiday${ai.remHol === 1 ? '' : 's'})</div></div>
+      <div class="lrg-bar">
+        <div class="lrg-bar-track"><div class="lrg-bar-fill" id="lrg-bar-fill" style="width:0%;background:${color}"></div><div class="lrg-bar-pace" style="left:${Math.min(st.idealPct, 100).toFixed(1)}%" title="AI-expected by today"></div></div>
+        <div class="lrg-bar-cap"><span>Month progress: day ${st.daysElapsed} / ${st.dim} (marker = AI-expected pace)</span><span>${lrgShort(st.sales)} / ${lrgShort(st.target)}</span></div>
+      </div>
+    </div>
+  </div>
+  ${lrgAiPanel(st)}`;
+  // animate after paint
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const arc = $('lrg-arc-fill'), nd = $('lrg-needle'), bar = $('lrg-bar-fill');
+    if (arc) arc.style.strokeDashoffset = fillOffset.toFixed(2);
+    if (nd) nd.style.transform = `rotate(${needleDeg.toFixed(1)}deg)`;
+    if (bar) bar.style.width = clamp.toFixed(1) + '%';
+  }));
+}
+
+// ---- Sales Target page: set / clear target + expected holidays ----
+function initSalesTargetSection() {
+  renderSalesTargetAdmin(true);
+  try { renderSalesTargetGauge(); } catch (e) { console.error('renderSalesTargetGauge', e); }
+}
+function renderSalesTargetAdmin(monthChanged) {
+  const card = $('lrg-admin-card'); if (!card) return;
+  const admin = isAdmin();
+  const mInp = $('lrg-target-month'), tInp = $('lrg-target-input'), hInp = $('lrg-holiday-input');
+  if (mInp && !mInp.value) mInp.value = lrgMonthKey();
+  const key = (mInp && mInp.value) || lrgMonthKey();
+  const cur = Number((SALES_TARGETS || {})[key]) || 0;
+  const curH = getSalesHolidaysFor(key);
+  if (tInp && (monthChanged || document.activeElement !== tInp)) tInp.value = cur > 0 ? cur : '';
+  if (hInp && (monthChanged || document.activeElement !== hInp)) hInp.value = curH !== null ? curH : '';
+  $('lrg-admin-form').classList.toggle('hidden', !admin);
+  const label = new Date(Number(key.slice(0, 4)), Number(key.slice(5, 7)) - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  if ($('lrg-admin-state')) $('lrg-admin-state').textContent = cur > 0 ? `${label}: ${fmt(cur)}` + (curH !== null ? ` · ${curH} holiday${curH === 1 ? '' : 's'}` : '') : `${label}: not set`;
+  let hint = '';
+  try {
+    const h = lrgHistory();
+    if (h.avgHolidays !== null) hint = ` 🤖 ගිය මාස ${h.nMonths}ක සාමාන්‍ය නිවාඩු දින: ${h.avgHolidays.toFixed(1)} (හිස්ව තැබුවොත් AI මේ අගය භාවිතා කරනවා).`;
+  } catch (e) { console.error('lrgHistory', e); }
+  if ($('lrg-admin-note')) $('lrg-admin-note').textContent = admin
+    ? 'Target එකයි අපේක්ෂිත නිවාඩු දින (සාප්පුව වසා තියෙන දින) ගණනයි මේ පිටුවේ gauge එකට සහ AI prediction එකට යනවා. Admin සහ Manager දෙන්නාටම පේනවා. මාසයකට target එකක් set නොකළොත් කලින් මාසයේ target එක ඉදිරියට යොදාගන්නවා.' + hint
+    : (cur > 0 ? 'Target එක Admin විසින් set කරලා තියෙන්නේ. (View only)' : 'Admin විසින් තවම target එකක් set කරලා නෑ.');
+}
+async function persistSalesTargets() {
+  try { localStorage.setItem('cms_sales_targets', JSON.stringify(SALES_TARGETS)); localStorage.setItem('cms_sales_holidays', JSON.stringify(SALES_HOLIDAYS)); } catch (e) { console.error('sales targets local mirror', e); }
+  if (!firebaseReady() || !rolePermDocRef) { toast('✅ Saved locally (offline mode)'); return true; }
+  try {
+    await rolePermDocRef.set({ salesTargets: SALES_TARGETS, salesHolidays: SALES_HOLIDAYS }, { merge: true });
+    return true;
+  } catch (e) {
+    console.error('persistSalesTargets', e);
+    toast('⚠️ Save failed — internet connection එක check කරන්න', 'red');
+    return false;
+  }
+}
+async function saveSalesTargetFromUI() {
+  if (!isAdmin()) { toast('⚠️ Admin only', 'red'); return; }
+  const key = $('lrg-target-month')?.value || lrgMonthKey();
+  const amt = Math.round(Number($('lrg-target-input')?.value));
+  if (!(amt > 0)) { toast('⚠️ වලංගු target එකක් (0 ට වැඩි) ඇතුල් කරන්න', 'red'); return; }
+  const dim = new Date(Number(key.slice(0, 4)), Number(key.slice(5, 7)), 0).getDate();
+  const hRaw = $('lrg-holiday-input')?.value;
+  let hol = -1;                                            // -1 = not set → AI estimates from history
+  if (hRaw !== '' && hRaw != null) {
+    hol = Math.round(Number(hRaw));
+    if (!(hol >= 0 && hol < dim)) { toast(`⚠️ නිවාඩු දින 0 ත් ${dim - 1} ත් අතර අගයක් ඇතුල් කරන්න`, 'red'); return; }
+  }
+  SALES_TARGETS = { ...SALES_TARGETS, [key]: amt };
+  SALES_HOLIDAYS = { ...SALES_HOLIDAYS, [key]: hol };
+  const ok = await persistSalesTargets();
+  renderSalesTargetAdmin(true); try { renderSalesTargetGauge(); } catch (e) {}
+  if (ok && firebaseReady() && rolePermDocRef) toast('🎯 Sales target saved ✅');
+}
+async function clearSalesTargetFromUI() {
+  if (!isAdmin()) { toast('⚠️ Admin only', 'red'); return; }
+  const key = $('lrg-target-month')?.value || lrgMonthKey();
+  if (!(Number((SALES_TARGETS || {})[key]) > 0)) { toast('මේ මාසයට target එකක් නෑ'); return; }
+  if (!confirm('මේ මාසයේ target එක ඉවත් කරන්නද?')) return;
+  SALES_TARGETS = { ...SALES_TARGETS, [key]: 0 };   // 0 = not set (keeps Firestore merge simple)
+  SALES_HOLIDAYS = { ...SALES_HOLIDAYS, [key]: -1 };
+  await persistSalesTargets();
+  renderSalesTargetAdmin(true); try { renderSalesTargetGauge(); } catch (e) {}
 }
 
 function loadDBLocal() {
@@ -7009,6 +7504,7 @@ const sectionTitles = {
   credits: '💳 Credits',
   cheques: '✅ Cheques',
   suppliers: '🏪 Suppliers',
+  salesTarget: '🎯 Sales Target',
   users: '👥 Manage Users',
   reports: '📋 Reports',
   analytics: '📈 Sales Analytics',
@@ -7067,6 +7563,7 @@ function showSection(name) {
     renderCheques();
   }
   if (name === 'suppliers') renderSuppliers();
+  if (name === 'salesTarget') initSalesTargetSection();
   if (name === 'users') renderUsers();
   if (name === 'overview') renderOverview();
   if (name === 'activity') renderActivityLog();
@@ -7136,6 +7633,8 @@ function refreshActiveSection() {
     renderUsers();
   } else if (id === 'overview') {
     renderOverview();
+  } else if (id === 'salesTarget') {
+    try { renderSalesTargetGauge(); renderSalesTargetAdmin(); } catch (e) { console.error('salesTarget refresh', e); }
   } else if (id === 'dailySummary') {
     renderDailySummary();
   } else if (id === 'settings') {
@@ -7219,6 +7718,7 @@ async function manualRefresh(silent = false) {
         if (rpSnap.exists) {
           const rpData = rpSnap.data();
           ROLE_PERMS.manager = rpData.manager || {};
+          _applySalesTargetsFrom(rpData);
           try { localStorage.setItem('cms_role_perms', JSON.stringify(ROLE_PERMS)); } catch (e) {}
           applyNavPermissions();
         }
