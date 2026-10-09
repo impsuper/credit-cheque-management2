@@ -1612,6 +1612,46 @@ html .btn.btn-ghost{border:1.5px solid color-mix(in srgb,var(--navy) 28%,transpa
 .lrg-empty .ico{font-size:2rem;display:block;margin-bottom:.4rem;}
 .lrg-setbtn{background:var(--surface);color:var(--navy);border:1.5px solid var(--border);border-radius:8px;padding:.35rem .8rem;font-size:.78rem;font-weight:700;cursor:pointer;}
 .lrg-setbtn:hover{border-color:var(--navy3);color:var(--navy3);}
+.coh-hide{display:none!important;}
+.coh-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:.6rem;align-items:flex-start;margin-bottom:.8rem;}
+.coh-title{font-size:1.05rem;font-weight:800;color:var(--navy);}
+.coh-sub{font-size:.8rem;color:var(--muted);margin-top:.2rem;}
+.coh-pill{padding:.3rem .8rem;border-radius:999px;border:1.5px solid var(--border);background:var(--track-bg);font-size:.78rem;font-weight:700;color:var(--text);font-family:inherit;cursor:pointer;}
+.coh-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.7rem;margin-bottom:1rem;}
+.coh-tile{background:var(--track-bg);border-radius:12px;padding:.7rem .9rem;}
+.coh-tile-l{font-size:.74rem;color:var(--muted);font-weight:600;}
+.coh-tile-v{font-size:1.3rem;font-weight:800;color:var(--navy);margin-top:.15rem;}
+.coh-tile-s{font-size:.7rem;color:var(--muted);}
+.coh-h{font-size:.95rem;font-weight:800;color:var(--navy);margin:.3rem 0 .15rem;}
+.coh-note{font-size:.76rem;color:var(--muted);margin-bottom:.5rem;}
+.coh-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.coh-table{border-collapse:separate;border-spacing:5px;width:100%;min-width:480px;}
+.coh-table th{font-size:.74rem;font-weight:700;color:var(--muted);text-align:center;padding:.15rem;}
+.coh-table th small{display:block;font-weight:500;font-size:.62rem;opacity:.85;}
+.coh-table th.coh-od{color:var(--red);}
+.coh-bank{font-size:.82rem;font-weight:700;color:var(--text);padding-right:.5rem;white-space:nowrap;}
+.coh-bank small{display:block;font-weight:500;font-size:.66rem;color:var(--muted);}
+.coh-cell{border-radius:9px;padding:.5rem .3rem;text-align:center;line-height:1.25;border:1px solid transparent;min-width:58px;}
+.coh-cell b{display:block;font-size:.84rem;font-weight:700;}
+.coh-cell span{font-size:.7rem;}
+.coh-cell.t0{background:var(--track-bg);color:var(--muted);opacity:.55;}
+.coh-cell.t1{background:rgba(70,110,170,.16);color:var(--text);}
+.coh-cell.t2{background:rgba(201,162,39,.30);color:var(--text);}
+.coh-cell.t3{background:rgba(201,162,39,.70);color:#1f1600;}
+.coh-cell.t4{background:rgba(150,100,8,.95);color:#fff;}
+.coh-cell.click{cursor:pointer;transition:transform .12s;}
+.coh-cell.click:hover{transform:scale(1.05);border-color:var(--accent);}
+.coh-legend{display:flex;flex-wrap:wrap;gap:.9rem;align-items:center;font-size:.7rem;color:var(--muted);margin-top:.6rem;}
+.coh-legend i{display:inline-block;width:14px;height:14px;border-radius:4px;margin-right:.3rem;vertical-align:-3px;}
+.coh-wk{margin:.6rem 0;}
+.coh-wk-top{display:flex;justify-content:space-between;gap:.5rem;flex-wrap:wrap;font-size:.8rem;font-weight:600;}
+.coh-wk-top span:last-child{color:var(--text);}
+.coh-wk-bar{height:10px;border-radius:99px;background:var(--track-bg);overflow:hidden;margin-top:.25rem;}
+.coh-wk-fill{height:100%;border-radius:99px;background:var(--navy3);}
+.coh-wk-fill.peak{background:var(--yellow);}
+.coh-wk-fill.od{background:var(--red);}
+.coh-alert{margin-top:1rem;padding:.8rem 1rem;border-radius:12px;background:var(--track-bg);font-size:.82rem;line-height:1.5;}
+.coh-alert b{display:block;margin-bottom:.15rem;}
 .lrg-admin-row{display:flex;flex-wrap:wrap;gap:.7rem;align-items:flex-end;padding:1.1rem 1.5rem 0;}
 .lrg-admin-row label{display:block;font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:.25rem;}
 .lrg-admin-row input{padding:.55rem .8rem;border:1.5px solid var(--border);border-radius:8px;font-size:.9rem;background:var(--surface);color:var(--text);font-family:inherit;}
@@ -2088,6 +2128,13 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
             </div>
             <div id="ov-top-suppliers-chart" class="simple-chart mini-chartjs-wrap" style="min-height:160px;"></div>
           </div>
+          <div class="ov-carousel-slide" data-slide="8" id="ov-slide-chequeHeat">
+            <div class="card-head">
+              <div class="card-title">🌡️ Cheque Outflow Heat Timeline</div>
+              <a onclick="DB.chequeTab='charts';showSection('cheques');syncChequeTabUI();renderChequeHeatTab();" style="font-size:.8rem;color:var(--accent);cursor:pointer;font-weight:600;">Full chart →</a>
+            </div>
+            <div id="ov-cheque-heat" class="simple-chart" style="min-height:200px;padding:.4rem 1.2rem 1rem;"></div>
+          </div>
         </div>
         <div class="ov-carousel-dots" id="ov-carousel-dots">
           <button type="button" class="ov-arrow-btn" onclick="ovPrevSlide()" title="Previous chart">‹</button>
@@ -2099,6 +2146,7 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
           <span class="ov-dot" onclick="ovGoToSlide(5)" title="Payment Breakdown"></span>
           <span class="ov-dot" onclick="ovGoToSlide(6)" title="Purchases Breakdown"></span>
           <span class="ov-dot" onclick="ovGoToSlide(7)" title="Top Suppliers by Purchase Value"></span>
+          <span class="ov-dot" onclick="ovGoToSlide(8)" title="Cheque Outflow Heat Timeline"></span>
           <button type="button" class="ov-arrow-btn" onclick="ovNextSlide()" title="Next chart">›</button>
         </div>
       </div>
@@ -2216,6 +2264,7 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
           <div class="tab active" onclick="switchChequeTab('active')" id="cheque-tab-active">⏳ Active <span class="tab-count" id="cnt-active">0</span></div>
           <div class="tab" onclick="switchChequeTab('settled')" id="cheque-tab-settled">✅ Settled <span class="tab-count" id="cnt-settled">0</span></div>
           <div class="tab" onclick="switchChequeTab('inhand')" id="cheque-tab-inhand">🖐️ In Manager's Hand <span class="tab-count" id="cnt-inhand">0</span></div>
+          <div class="tab" onclick="switchChequeTab('charts')" id="cheque-tab-charts">📊 Charts</div>
         </div>
         <div class="toolbar">
           <input type="text" id="ch-search" placeholder="🔍 Search..." oninput="renderCheques()">
@@ -2302,6 +2351,9 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
           </div>
           <div class="mobile-cards" id="chequesSettledMobile"></div>
           <div id="chequeSettledPagination" class="pg-bar-wrap"></div>
+        </div>
+        <div id="cheque-tab-content-charts" class="tab-content">
+          <div id="ch-heat-content" style="padding:1.2rem 1.5rem 1.5rem;"></div>
         </div>
         <div id="cheque-tab-content-inhand" class="tab-content">
           <div class="toolbar">
@@ -4598,7 +4650,7 @@ const DEFAULT_MANAGER_PERMS = {
   chart_purchasesBreakdown: true, chart_monthlySalesGrowth: true,
   chart_dailyTotalSales: true, chart_dailySalesComparison: true,
   chart_dailySalesMonthlyTrend: true, chart_topSuppliers: true, chart_dailySalesHeatmap: true,
-  chart_liquidityGauge: true
+  chart_liquidityGauge: true, chart_chequeOutflowHeat: true
 };
 // Admin's own defaults — same key set as Manager's, all true (Admin sees
 // everything out of the box, same as before this per-role tick existed).
@@ -4651,7 +4703,8 @@ const DASHBOARD_CHARTS = [
   { key: 'chart_dailySalesMonthlyTrend', slideId: 'ov-slide-monthlyTrend',     dotsId: 'ov-carousel2-dots', label: '🐛 This Month vs Past Months (Day-by-Day)' },
   { key: 'chart_dailySalesHeatmap',    slideId: 'ov-slide-dailySalesHeatmap',  dotsId: 'ov-carousel2-dots', label: '🔥 Daily Sales Heatmap' },
   { key: 'chart_liquidityGauge',       slideId: 'ov-slide-liquidityGauge',     dotsId: 'ov-carousel2-dots', label: '🎯 Liquidity Runway Gauge' },
-  { key: 'chart_topSuppliers',         slideId: 'ov-slide-topSuppliers',       dotsId: 'ov-carousel-dots',  label: '🏆 Top Suppliers by Purchase Value' }
+  { key: 'chart_topSuppliers',         slideId: 'ov-slide-topSuppliers',       dotsId: 'ov-carousel-dots',  label: '🏆 Top Suppliers by Purchase Value' },
+  { key: 'chart_chequeOutflowHeat',    slideId: 'ov-slide-chequeHeat',         dotsId: 'ov-carousel-dots',  label: '🌡️ Cheque Outflow Heat Timeline' }
 ];
 
 let fdb = null;
@@ -7369,6 +7422,92 @@ function renderDashLiquidityGauge() {
   return true;
 }
 
+// ===== CHEQUE OUTFLOW HEAT TIMELINE =====
+// Week-by-week × bank heat map of PENDING cheque payments (value + cheque count), plus a weekly total
+// bar list and a "heavy week" alert. Weeks are the app's Sat–Fri cheque-cycle weeks (chequeCycleBounds),
+// W1 = the current week. Cheques already past due show in a red "Overdue" column. Shown on the Dashboard
+// (compact) and in Cheques → 📊 Charts (full). Respects the viewer's scope via getDataRows().
+let COH_WEEKS = 6;
+function cohData() {
+  const weeks = [];
+  for (let i = 0; i < COH_WEEKS; i++) { const b = chequeCycleBounds(i); weeks.push({ off: i, start: b.start, end: b.end, amt: 0, count: 0 }); }
+  const firstStart = weeks[0].start, lastEnd = weeks[weeks.length - 1].end;
+  const od = { amt: 0, count: 0 }, banks = new Map(); let later = 0;
+  getDataRows('cheques').forEach(c => {
+    if (!c.dueDate || isChequeSettled(c)) return;
+    const amt = Number(c.amount) || 0, name = (c.bank || '').trim() || 'Unknown bank';
+    if (c.dueDate > lastEnd) { later++; return; }
+    let b = banks.get(name);
+    if (!b) { b = { name, amt: 0, count: 0, od: { amt: 0, count: 0 }, cells: weeks.map(() => ({ amt: 0, count: 0 })) }; banks.set(name, b); }
+    if (c.dueDate < firstStart) { b.od.amt += amt; b.od.count++; b.amt += amt; b.count++; od.amt += amt; od.count++; return; }
+    const wi = weeks.findIndex(w => c.dueDate >= w.start && c.dueDate <= w.end);
+    if (wi < 0) return;
+    b.cells[wi].amt += amt; b.cells[wi].count++; b.amt += amt; b.count++; weeks[wi].amt += amt; weeks[wi].count++;
+  });
+  return { weeks, od, firstStart, later, banks: [...banks.values()].filter(b => b.count > 0).sort((a, b) => b.amt - a.amt) };
+}
+function cohDay(s) { return new Date(s + 'T00:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }); }
+function cohRange(w) { return cohDay(w.start) + ' – ' + cohDay(w.end); }
+function cohSetWeeks(n) { COH_WEEKS = Math.max(2, Math.min(12, +n || 6)); renderChequeOutflowHeat(); }
+function cohGoTo(bank, from, to) {
+  try { populateChequeBankFilter(); } catch (e) {}
+  ['ch-search', 'ch-filter-sup', 'ch-filter-user', 'ch-filter-date-from', 'ch-filter-date-to'].forEach(id => { if ($(id)) $(id).value = ''; });
+  if ($('ch-filter-bank')) $('ch-filter-bank').value = bank;
+  if ($('ch-filter-status')) $('ch-filter-status').value = 'pending';
+  if ($('ch-filter-due-from')) $('ch-filter-due-from').value = from || '';
+  if ($('ch-filter-due-to')) $('ch-filter-due-to').value = to || '';
+  DB.chequeTab = 'active';
+  showSection('cheques');
+  syncChequeTabUI();
+}
+function renderChequeHeatTab() { const h = $('ch-heat-content'); if (h) cohRenderInto(h, true); }
+function renderChequeOutflowHeat() {
+  renderChequeHeatTab();
+  const h = $('ov-cheque-heat'); if (!h || !DB.currentUser || isCashier()) return false;
+  return cohRenderInto(h, false);
+}
+function cohRenderInto(host, full) {
+  const d = cohData(), W = d.weeks;
+  const total = W.reduce((a, w) => a + w.amt, 0) + d.od.amt, count = W.reduce((a, w) => a + w.count, 0) + d.od.count;
+  const sel = `<select class="coh-pill" onchange="cohSetWeeks(this.value)" title="Weeks to show">${[4, 6, 8, 12].map(n => `<option value="${n}"${n === COH_WEEKS ? ' selected' : ''}>ඉදිරි සති ${n}</option>`).join('')}</select>`;
+  const head = `<div class="coh-head"><div><div class="coh-title">${full ? 'Cheque Outflow Heat Timeline' : 'බැංකුව අනුව සතිපතා චෙක්පත් ගෙවීම්'}</div>${full ? '<div class="coh-sub">බැංකුව අනුව සතිපතා චෙක්පත් ගෙවීම් පුරෝකථනය (Pending cheques, Due Date අනුව)</div>' : ''}</div>${sel}</div>`;
+  if (!count) { host.innerHTML = head + `<div class="lrg-empty"><span class="ico">🌡️</span>ඉදිරි සති ${COH_WEEKS} තුළ due වන Pending චෙක්පත් නැහැ.${d.later ? ` (ඊට පසු due වන චෙක්පත් ${d.later}ක් තියෙනවා — සති ගණන වැඩි කරන්න.)` : ''}</div>`; return false; }
+  let peak = W[0]; W.forEach(w => { if (w.amt > peak.amt) peak = w; });
+  let maxCell = d.od.amt; d.banks.forEach(b => { b.cells.forEach(c => { if (c.amt > maxCell) maxCell = c.amt; }); if (b.od.amt > maxCell) maxCell = b.od.amt; });
+  const useM = maxCell >= 1e6;
+  const amtS = n => useM ? (n / 1e6).toFixed(2) + 'M' : (n >= 1e3 ? (n / 1e3).toFixed(0) + 'K' : String(Math.round(n)));
+  const tier = a => !a ? 0 : a / maxCell <= .25 ? 1 : a / maxCell <= .5 ? 2 : a / maxCell <= .75 ? 3 : 4;
+  const tiles = `<div class="coh-tiles">
+    <div class="coh-tile"><div class="coh-tile-l">මුළු ගෙවීම්</div><div class="coh-tile-v">Rs. ${lrgShort(total)}</div><div class="coh-tile-s">${fmt(total)}</div></div>
+    <div class="coh-tile"><div class="coh-tile-l">චෙක්පත් ගණන</div><div class="coh-tile-v">${count}</div><div class="coh-tile-s">${d.banks.length} bank${d.banks.length === 1 ? '' : 's'}</div></div>
+    <div class="coh-tile"><div class="coh-tile-l">වැඩිම ගෙවීම් සතිය</div><div class="coh-tile-v">${peak.amt > 0 ? 'Week ' + (peak.off + 1) : '—'}</div><div class="coh-tile-s">${peak.amt > 0 ? cohRange(peak) + ' · Rs. ' + lrgShort(peak.amt) : ''}</div></div>
+  </div>`;
+  const showOd = d.od.count > 0, dayBefore = new Date(d.firstStart + 'T00:00:00Z'); dayBefore.setUTCDate(dayBefore.getUTCDate() - 1);
+  const odTo = dayBefore.toISOString().slice(0, 10);
+  const cell = (c, bank, from, to) => {
+    const t = tier(c.amt);
+    return `<td><div class="coh-cell t${t}${t ? ' click' : ''}"${t ? ` onclick="cohGoTo(decodeURIComponent('${encodeURIComponent(bank)}'),'${from}','${to}')" title="${c.count} cheque${c.count === 1 ? '' : 's'} — ${fmt(c.amt)}"` : ''}>${t ? `<b>${amtS(c.amt)}</b><span>${c.count} chk</span>` : '<b>—</b><span>&nbsp;</span>'}</div></td>`;
+  };
+  const rows = d.banks.map(b => `<tr><td class="coh-bank">${escHtml(b.name)}<small>Rs. ${lrgShort(b.amt)} · ${b.count} chk</small></td>${showOd ? cell(b.od, b.name, '', odTo) : ''}${b.cells.map((c, i) => cell(c, b.name, W[i].start, W[i].end)).join('')}</tr>`).join('');
+  const table = `${full ? '<div class="coh-h">Weekly Bank Outflow Heatmap</div><div class="coh-note">සැම කොටුවකම මුදල් වටිනාකමත් චෙක්පත් ගණනත් පෙන්වයි. කොටුවක් ඔබන්න — ඒ චෙක්පත් Cheques → Active එකේ පෙන්වයි. W1 = මෙම සතිය (Sat–Fri).</div>' : ''}
+    <div class="coh-scroll"><table class="coh-table"><thead><tr><th style="text-align:left;">බැංකුව</th>${showOd ? '<th class="coh-od">Overdue<small>කල් ඉකුත්</small></th>' : ''}${W.map(w => `<th title="${cohRange(w)}">W${w.off + 1}<small>${cohDay(w.start)}</small></th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="coh-legend"><span>අඩු</span><span><i style="background:rgba(70,110,170,.16)"></i></span><span><i style="background:rgba(201,162,39,.30)"></i></span><span><i style="background:rgba(201,162,39,.70)"></i></span><span><i style="background:rgba(150,100,8,.95)"></i></span><span>වැඩි</span>${d.later ? `<span>· ඊට පසු due: ${d.later} chk</span>` : ''}</div>`;
+  const avg = total / (W.length + (showOd ? 1 : 0));
+  const heavy = peak.amt > 0 && W.length > 1 && peak.amt >= avg * 1.3;
+  const alertHtml = (heavy
+    ? `<div class="coh-alert"><b>⚠️ අවධානම් දැනුම්දීම</b>Week ${peak.off + 1} (${cohRange(peak)}) හි චෙක්පත් ගෙවීම් ඉහළයි — Rs. ${amtS(peak.amt)} · ${peak.count} චෙක්පත්. එම සතියට පෙර බැංකු ශේෂය සහ අපේක්ෂිත මුදල් ලැබීම් පරීක්ෂා කරන්න.</div>`
+    : `<div class="coh-alert"><b>✅ ගෙවීම් බෙදී ඇති ආකාරය</b>ගෙවීම් සති අතර සාපේක්ෂව සමව බෙදී ඇත.</div>`)
+    + (showOd ? `<div class="coh-alert" style="margin-top:.5rem;"><b>🔴 කල් ඉකුත් චෙක්පත්</b>Pending ව ඇති කල් ඉකුත් චෙක්පත් ${d.od.count}ක් (Rs. ${amtS(d.od.amt)}) තියෙනවා.</div>` : '');
+  let bars = '';
+  if (full) {
+    const maxW = Math.max(d.od.amt, ...W.map(w => w.amt), 1);
+    const line = (label, a, c, cls) => `<div class="coh-wk"><div class="coh-wk-top"><span>${label}</span><span>Rs. ${amtS(a)} · ${c} චෙක්පත්</span></div><div class="coh-wk-bar"><div class="coh-wk-fill ${cls}" style="width:${a > 0 ? Math.max(3, a / maxW * 100) : 0}%"></div></div></div>`;
+    bars = `<div class="coh-h" style="margin-top:1.4rem;">සතිය අනුව මුළු ගෙවීම්</div>` + (showOd ? line('Overdue', d.od.amt, d.od.count, 'od') : '') + W.map(w => line(`Week ${w.off + 1} <small style="color:var(--muted);font-weight:500;">· ${cohRange(w)}</small>`, w.amt, w.count, w === peak && w.amt > 0 ? 'peak' : '')).join('');
+  }
+  host.innerHTML = head + tiles + table + (full ? bars : '') + alertHtml;
+  return true;
+}
+
 function renderSalesTargetGauge() {
   const host = $('lrg-content'); if (!host || !DB.currentUser || isCashier()) return;
   const st = computeSalesTargetStats();
@@ -8555,6 +8694,7 @@ function renderCredits() {
 }
 
 function renderCheques() {
+  if (DB.chequeTab === 'charts') { try { renderChequeHeatTab(); } catch (e) { console.error('renderChequeHeatTab', e); } }
   const q = (($('ch-search')?.value || '') + '').toLowerCase();
   const supFilter = $('ch-filter-sup')?.value || '';
   const statFilter = $('ch-filter-status')?.value || '';
@@ -10140,6 +10280,11 @@ function renderOverview() {
   try { renderChequeDueCalendarWeekly(); } catch (e) { console.error('renderChequeDueCalendarWeekly failed:', e); }
   ovSetSlideAvailable('ov-slide-chequeDueCalendarWeekly', chartAllowed('chart_chequeDueCalendarWeekly'), 'ov-carousel-dots');
 
+  // Chart: Cheque Outflow Heat Timeline — plain HTML table, safe to render eagerly.
+  let cohOk = false;
+  try { cohOk = renderChequeOutflowHeat(); } catch (e) { console.error('renderChequeOutflowHeat failed:', e); }
+  ovSetSlideAvailable('ov-slide-chequeHeat', cohOk && chartAllowed('chart_chequeOutflowHeat'), 'ov-carousel-dots');
+
   // Mini Sales Charts on Dashboard
   const allCash = getAllCashEntries ? getAllCashEntries() : [];
   ovSetSlideAvailable('ov-sales-row', !!allCash.length && chartAllowed('chart_monthlySalesTrend'), 'ov-carousel-dots');
@@ -11633,6 +11778,9 @@ function syncChequeTabUI() {
   document.querySelectorAll('#chequesSection .tab-content').forEach(t => t.classList.remove('show'));
   $(`cheque-tab-${DB.chequeTab}`)?.classList.add('active');
   $(`cheque-tab-content-${DB.chequeTab}`)?.classList.add('show');
+  // The list filters/search/sort don't apply to the Charts tab — hide them there only.
+  const isCharts = DB.chequeTab === 'charts';
+  document.querySelectorAll('#chequesSection .card > .toolbar, #chequesSection .card > .sa-filter-bar, #ch-sort-pills, #ch-range-summary').forEach(el => el.classList.toggle('coh-hide', isCharts));
 }
 
 function switchCreditTab(tab) {
