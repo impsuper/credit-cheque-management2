@@ -1571,6 +1571,9 @@ html .btn.btn-ghost{border:1.5px solid color-mix(in srgb,var(--navy) 28%,transpa
 .cm{max-width:80%;padding:.5rem .75rem;border-radius:14px;font-size:.88rem;word-break:break-word}
 .cm small{display:block;font-size:.66rem;opacity:.65;margin-top:.2rem}
 .cm.me{align-self:flex-end;background:var(--navy-bg);color:#fff;border-bottom-right-radius:4px}
+.cm.sel{outline:2px solid var(--accent);outline-offset:1px}.cm-ck{margin-right:.4rem;font-weight:800}
+.cm.me small{opacity:.9}.cm-tk{margin-left:.3rem;font-weight:800;letter-spacing:-2px;font-size:.78rem}.cm-tk.seen{color:#53bdeb}
+.chat-selbar{display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;padding:.45rem .8rem;background:var(--hover-tint);border-bottom:1px solid var(--border);font-size:.82rem;font-weight:700}.chat-selbar span{flex:1}
 .cm.ot{align-self:flex-start;background:var(--surface);border:1px solid var(--border);border-bottom-left-radius:4px}
 .cm-ref{font-size:.74rem;font-weight:700;padding:.25rem .5rem;margin-bottom:.3rem;border-radius:8px;background:rgba(224,165,38,.18);border:1px solid rgba(224,165,38,.5);cursor:pointer}
 .chat-comp{padding:.6rem;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:.4rem;background:var(--surface)}
@@ -6096,8 +6099,8 @@ async function todoArmMgrAlert(t) {
     const dueAt = Number(t.dueAt) || todoDueAtMs(t.dueDate, t.dueTime);
     const when = todoFmtDate(t.dueDate) + (t.dueTime ? ' · ' + todoFmtTime(t.dueTime) : '');
     const rp = t.repeat && t.repeat !== 'none' ? ' · 🔁 ' + (TODO_REPEAT_LABELS[t.repeat] || t.repeat) : '';
-    await fdb.collection('cms_alerts').doc('todo_' + t.id).set({
-      to: '*', type: 'todo', todoId: t.id, title: 'To-Do: ' + t.title,
+    await fdb.collection('cms_alerts').add({
+      to: '*', type: 'todo', todoId: t.id, armedAt: Date.now(), title: 'To-Do: ' + t.title,
       body: ('📅 ' + when + rp + (t.notes ? ' · ' + t.notes : '')).slice(0, 300),
       dueAt, from: DB.currentUsername || '', fromName: (DB.currentUser && DB.currentUser.name) || DB.currentUsername || '',
       createdAt: new Date(dueAt).toISOString(), cancelled: false, readBy: {}, hiddenBy: {}, doneBy: {}
@@ -6107,8 +6110,12 @@ async function todoArmMgrAlert(t) {
 }
 async function todoCancelMgrAlert(id) {
   if (!isAdmin() || !firebaseReady()) return;
-  try { await fdb.collection('cms_alerts').doc('todo_' + id).set({ cancelled: true }, { merge: true }); }
-  catch (e) { console.error('todoCancelMgrAlert', e); }
+  // A new "todoCancel" doc (create-only, so it works even if rules forbid editing existing alerts).
+  // The manager's Notification Center drops every armed todo alert older than this marker.
+  try {
+    await fdb.collection('cms_alerts').add({ to: '*', type: 'todoCancel', todoId: id, at: Date.now(), title: '', body: '',
+      from: DB.currentUsername || '', createdAt: new Date().toISOString(), readBy: {}, hiddenBy: {} });
+  } catch (e) { console.error('todoCancelMgrAlert', e); }
 }
 
 async function saveTodo() {
@@ -19697,13 +19704,23 @@ window.mgrAlert=function(to,type,title,body,extra){
 var TODO_GRACE=60*60000; /* after 1h past due → "Overdue" (red) */
 var lsGet=function(k){try{return JSON.parse(localStorage.getItem(k)||'{}')||{}}catch(e){return {}}};
 var lsSet=function(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
-var isTodoDone=function(n){var me=ME();return !!((n.doneBy&&n.doneBy[me])||lsGet('cms_todo_mdone')[n.id]===n.dueAt)};
+var isTodoDone=function(n){var me=ME();return !!((n.readBy&&n.readBy[me]==='done')||lsGet('cms_todo_mdone')[n.id]===n.dueAt)};
 var snoozeOf=function(n){return Number(lsGet('cms_todo_msnooze')[n.id])||0};
 var lastToast={};
+var SEEN={};
 function merge(){
   var me=ME(),now=Date.now();
-  var a=ALR.filter(function(n){return !(n.hiddenBy&&n.hiddenBy[me])})
-    .filter(function(n){return n.type!=='todo'||(!n.cancelled&&Number(n.dueAt)<=now&&snoozeOf(n)<=now)})
+  /* todo alerts: only the NEWEST armed doc per todo counts, and a later "todoCancel" marker kills it */
+  var latest={},cancels={};SEEN={};
+  ALR.forEach(function(n){
+    if(n.type==='todo'){var t=Number(n.armedAt)||0;if(latest[n.todoId]===undefined||t>latest[n.todoId])latest[n.todoId]=t;}
+    else if(n.type==='todoCancel'){cancels[n.todoId]=Math.max(cancels[n.todoId]||0,Number(n.at)||0);}
+    else if(n.type==='chatSeen'){SEEN[n.thread]=Math.max(SEEN[n.thread]||0,Number(n.seenUpTo)||0);}
+  });
+  var a=ALR.filter(function(n){return n.type!=='todoCancel'&&n.type!=='chatSeen'&&n.type!=='todoDone'})
+    .filter(function(n){return !(n.hiddenBy&&n.hiddenBy[me])})
+    .filter(function(n){if(n.type!=='todo')return true;var t=Number(n.armedAt)||0;
+      return !n.cancelled&&t===latest[n.todoId]&&!(cancels[n.todoId]>0&&cancels[n.todoId]>=t)&&Number(n.dueAt)<=now&&snoozeOf(n)<=now})
     .map(function(n){
       if(n.type==='todo'){var d=isTodoDone(n);return Object.assign({},n,{read:d,_done:d,_over:!d&&now>=Number(n.dueAt)+TODO_GRACE,_col:ALR_COL});}
       return Object.assign({},n,{read:!unread(n,me),_col:ALR_COL});});
@@ -19713,18 +19730,18 @@ function merge(){
 function todoToasts(){
   if(!isManager())return;var now=Date.now();
   NOTIFS.forEach(function(n){
-    if(n.type!=='todo'||n._done)return;var k=n.id,last=lastToast[k]||0;
+    if(n.type!=='todo'||n._col!==ALR_COL||!n.todoId||n._done)return;var k=n.id,last=lastToast[k]||0;
     if(!last||now-last>=TODO_GRACE){lastToast[k]=now;
       toast(n._over?'⚠️ Overdue To-Do: '+String(n.title).replace(/^To-Do:\s*/,''):'⏰ To-Do due now: '+String(n.title).replace(/^To-Do:\s*/,''),n._over?'red':'yellow');}
   });
 }
 window.todoMgrDone=function(id){
-  var n=NOTIFS.find(function(x){return x.id===id});if(!n)return;
+  var n=NOTIFS.find(function(x){return x.id===id});if(!n)return;var me=ME();
   var d=lsGet('cms_todo_mdone');d[id]=n.dueAt;lsSet('cms_todo_mdone',d);
   merge();renderNotifBadge();renderNotifPanel();
-  var me=ME(),nm=(DB.currentUser&&DB.currentUser.name)||me,t=String(n.title).replace(/^To-Do:\s*/,'');
-  fdb.collection(ALR_COL).doc(id).update({['doneBy.'+me]:true,['readBy.'+me]:true}).catch(function(e){console.error('todoMgrDone',e)});
-  try{mgrAlert('admin','todoDone','Done: '+t,nm+' marked this To-Do as done')}catch(e){}
+  /* readBy.<me> = 'done' (a key the rules allow) keeps Done across the manager's devices.
+     No extra alert is sent to the admin, so Done never creates another unread item. */
+  fdb.collection(ALR_COL).doc(id).update({['readBy.'+me]:'done'}).catch(function(e){console.error('todoMgrDone',e)});
   toast('✔️ Done');
 };
 window.todoMgrSnooze=function(id,v){
@@ -19738,13 +19755,13 @@ window.startNotifSync=function(){
   var me=ME(),err=function(e){console.error('notif sync',e)};
   var upd=function(){merge();todoToasts();var un=NOTIFS.filter(function(n){return !n.read}).length;
     if(notifRemindOn()&&un>0&&un>_notifPrevUnread)toast('📬 Unread notifications '+un+' ක් තියෙනවා','yellow');
-    _notifPrevUnread=un;renderNotifBadge();renderNotifPanel();};
+    _notifPrevUnread=un;renderNotifBadge();renderNotifPanel();if(isOn())render();};
   var sig='';
   var tick=function(){merge();todoToasts();var un=NOTIFS.filter(function(n){return !n.read}).length;_notifPrevUnread=un;
     var s2=NOTIFS.map(function(n){return n.id+(n.read?1:0)+(n._over?1:0)}).join('|');if(s2!==sig){sig=s2;renderNotifBadge();renderNotifPanel();}};
   var tmr=isManager()?setInterval(tick,30000):null;
   var c=fdb.collection(ALR_COL),parts={},tos=isAdmin()?['admin']:[me,'*'];
-  unsubs=tos.map(function(t){return c.where('to','==',t).limit(150).onSnapshot(function(s){parts[t]=s.docs.map(function(d){return Object.assign({},d.data(),{id:d.id})});ALR=[].concat.apply([],Object.keys(parts).map(function(k){return parts[k]}));upd();},err)});
+  unsubs=tos.map(function(t){return c.where('to','==',t).limit(400).onSnapshot(function(s){parts[t]=s.docs.map(function(d){return Object.assign({},d.data(),{id:d.id})});ALR=[].concat.apply([],Object.keys(parts).map(function(k){return parts[k]}));upd();},err)});
   if(isAdmin())unsubs.push(fdb.collection('cms_notifications').orderBy('createdAt','desc').limit(150).onSnapshot(function(s){SRV=s.docs.map(function(d){return Object.assign({},d.data(),{id:d.id})});upd();},err));
   notifUnsub=function(){unsubs.forEach(function(f){try{f()}catch(e){}});unsubs=[];if(tmr)clearInterval(tmr);};
 };
@@ -19777,7 +19794,7 @@ window.renderNotifPanel=function(){
   var item=function(n){
     var ic=NOTIF_ICON[n.type]||'🔔';
     if(T==='rem')return '<div class="np-item"><div class="np-ico">'+ic+'</div><div class="np-main" onclick="notifGo(\''+n.go+'\')"><div class="np-title">'+_nEsc(n.title)+'</div><div class="np-body">'+_nEsc(n.body)+'</div></div></div>';
-    if(n.type==='todo'){
+    if(n.type==='todo'&&n._col===ALR_COL&&n.todoId){
       var el=Date.now()-Number(n.dueAt),lab=n._done?'✔ Done':(n._over?'⚠️ Overdue · '+(el>=86400000?Math.floor(el/86400000)+'d':el>=3600000?Math.floor(el/3600000)+'h':Math.max(1,Math.floor(el/60000))+'m'):'⏰ Due now');
       return '<div class="np-item'+(n.read?' rd':'')+'"><div class="np-ico">'+ic+'</div><div class="np-main"><div class="np-title">'+_nEsc(n.title)+'</div><div class="np-body">'+_nEsc(n.body)+'</div><div class="np-time" style="'+(n._over?'color:var(--red);font-weight:700':'')+'">'+lab+' · '+fmtT(n.dueAt)+'</div>'
         +(n._done?'':'<div style="display:flex;gap:.4rem;margin-top:.45rem;flex-wrap:wrap"><button class="btn btn-green btn-sm" onclick="todoMgrDone(\''+n.id+'\')">✔ Done</button><select class="btn btn-ghost btn-sm" onchange="todoMgrSnooze(\''+n.id+'\',this.value);this.value=\'\'"><option value="">⏰ Remind later</option><option value="30">30 minutes</option><option value="60">1 hour</option><option value="180">3 hours</option><option value="tm">Tomorrow 8:00 AM</option></select></div>')
@@ -19796,12 +19813,28 @@ window.renderNotifPanel=function(){
 function ensureChat(){
   if($('chatWrap'))return;
   var d=document.createElement('div');d.id='chatWrap';d.className='chat-wrap';
-  d.innerHTML='<div class="chat-box"><div class="chat-side" id="chatSide"></div><div class="chat-main"><div class="chat-head"><button class="chat-back" onclick="chatBack()">‹</button><b id="chatTitle">Chat</b><button onclick="closeChat()">✕</button></div><div class="chat-msgs" id="chatMsgs"></div><div class="chat-comp"><select id="chatRef" class="chat-ref"></select><div class="chat-row"><input id="chatIn" type="text" placeholder="Message…" autocomplete="off"><button class="btn btn-navy btn-sm" onclick="chatSend()">Send</button></div></div></div></div>';
+  d.innerHTML='<div class="chat-box"><div class="chat-side" id="chatSide"></div><div class="chat-main"><div class="chat-head"><button class="chat-back" onclick="chatBack()">‹</button><b id="chatTitle">Chat</b><button id="chatSelBtn" title="Select messages" style="display:none" onclick="chatSelToggle()">☑</button><button onclick="closeChat()">✕</button></div><div class="chat-selbar" id="chatSelBar" style="display:none"><span id="chatSelCnt">0 selected</span><button class="btn btn-ghost btn-sm" onclick="chatSelAll()">Select all</button><button class="btn btn-ghost btn-sm" style="color:#dc2626;border-color:#dc2626" onclick="chatDeleteSel()">🗑 Delete</button><button class="btn btn-ghost btn-sm" onclick="chatSelToggle()">Cancel</button></div><div class="chat-msgs" id="chatMsgs"></div><div class="chat-comp"><select id="chatRef" class="chat-ref"></select><div class="chat-row"><input id="chatIn" type="text" placeholder="Message…" autocomplete="off"><button class="btn btn-navy btn-sm" onclick="chatSend()">Send</button></div></div></div></div>';
   document.body.appendChild(d);
   d.addEventListener('click',function(e){if(e.target===d)closeChat()});
   $('chatIn').addEventListener('keydown',function(e){if(e.key==='Enter')chatSend()});
 }
 function isOn(){var w=$('chatWrap');return !!(w&&w.classList.contains('on'))}
+var selMode=false,SEL={};
+function selBar(adm){
+  var b=$('chatSelBar'),btn=$('chatSelBtn');if(!b||!btn)return;
+  btn.style.display=adm&&curThread?'':'none';b.style.display=adm&&selMode?'flex':'none';
+  $('chatSelCnt').textContent=Object.keys(SEL).length+' selected';
+}
+window.chatSelToggle=function(){selMode=!selMode;SEL={};stick=false;render();};
+window.chatSelPick=function(id){if(!isAdmin()||!selMode)return;if(SEL[id])delete SEL[id];else SEL[id]=true;stick=false;render();};
+window.chatSelAll=function(){CHAT.filter(function(m){return m.thread===curThread}).forEach(function(m){SEL[m.id]=true});stick=false;render();};
+window.chatDeleteSel=async function(){
+  var ids=Object.keys(SEL);if(!ids.length||!isAdmin())return;
+  if(!confirm('Delete '+ids.length+' message'+(ids.length>1?'s':'')+'? They will be removed for the manager too.'))return;
+  try{var b=fdb.batch();ids.forEach(function(id){b.delete(fdb.collection(CHAT_COL).doc(id))});await b.commit();
+    SEL={};selMode=false;toast('🗑 Messages deleted');}
+  catch(e){console.error(e);toast('⚠️ Delete වුනේ නෑ — Firestore rules (cms_chat delete) පරීක්ෂා කරන්න','red');}
+};
 function render(){
   if(!isOn())return;
   var adm=isAdmin(),me=ME(),by={};
@@ -19813,12 +19846,16 @@ function render(){
   var msgs=(by[curThread]||[]).slice().sort(function(x,y){return ms(x.createdAt)-ms(y.createdAt)}),box=$('chatMsgs');
   var atEnd=stick||box.scrollHeight-box.scrollTop-box.clientHeight<80;
   box.innerHTML=msgs.length?msgs.map(function(m){var mine=m.from===me;
-    return '<div class="cm '+(mine?'me':'ot')+'">'+(m.ref?'<div class="cm-ref"'+(m.ref.kind==='cheque'?' onclick="closeChat();showSection(\'cheques\')"':'')+'>📎 '+_nEsc(m.ref.label)+'</div>':'')+(m.text?'<div>'+_nEsc(m.text)+'</div>':'')+'<small>'+(mine?'':_nEsc(m.fromName||m.from)+' · ')+fmtT(m.createdAt)+'</small></div>';}).join(''):'<div class="np-empty">මෙතෙක් පණිවිඩ නැහැ</div>';
+    return '<div class="cm '+(mine?'me':'ot')+(selMode&&adm&&SEL[m.id]?' sel':'')+'"'+(selMode&&adm?' onclick="chatSelPick(\''+m.id+'\')" style="cursor:pointer"':'')+'>'+(selMode&&adm?'<span class="cm-ck">'+(SEL[m.id]?'☑':'☐')+'</span>':'')+(m.ref?'<div class="cm-ref"'+(m.ref.kind==='cheque'?' onclick="closeChat();showSection(\'cheques\')"':'')+'>📎 '+_nEsc(m.ref.label)+'</div>':'')+(m.text?'<div>'+_nEsc(m.text)+'</div>':'')+'<small>'+(mine?'':_nEsc(m.fromName||m.from)+' · ')+fmtT(m.createdAt)+(mine?(function(){var sn=(SEEN[curThread]||0)>=ms(m.createdAt);return ' <span class="cm-tk'+(sn?' seen':'')+'" title="'+(sn?'Seen':'Sent')+'">'+(sn?'✓✓':'✓')+'</span>';})():'')+'</small></div>';}).join(''):'<div class="np-empty">මෙතෙක් පණිවිඩ නැහැ</div>';
   if(atEnd){box.scrollTop=box.scrollHeight;stick=false;}
+  selBar(adm);
 }
 function markRead(){
-  if(!isOn()||!curThread)return;var me=ME(),ids=ALR.filter(function(n){return n.type==='chat'&&n.thread===curThread&&unread(n,me)});
-  if(!ids.length)return;var b=fdb.batch();ids.forEach(function(n){b.update(fdb.collection(ALR_COL).doc(n.id),{['readBy.'+me]:true})});b.commit().catch(function(){});
+  if(!isOn()||!curThread)return;var me=ME(),th=curThread,ids=ALR.filter(function(n){return n.type==='chat'&&n.thread===th&&unread(n,me)});
+  if(!ids.length)return;var b=fdb.batch(),upTo=0;
+  ids.forEach(function(n){upTo=Math.max(upTo,ms(n.createdAt));b.update(fdb.collection(ALR_COL).doc(n.id),{['readBy.'+me]:true})});
+  /* "seen" receipt for the sender (blue ticks) — a tiny create-only alert, never shown in the list */
+  b.commit().then(function(){mgrAlert(isAdmin()?th:'admin','chatSeen','','',{thread:th,seenUpTo:upTo});}).catch(function(){});
 }
 function fillRefs(){
   var s=$('chatRef');if(!s)return;REFS={};var o='<option value="">Attach a cheque / bill (optional)</option>';
@@ -19838,9 +19875,9 @@ window.openChat=function(th){
   var w=$('chatWrap');w.classList.add('on');w.classList.toggle('adm',isAdmin());w.classList.toggle('inthread',!isAdmin()||!!th);
   listen();render();fillRefs();markRead();
 };
-window.chatPick=function(u){curThread=u;stick=true;$('chatWrap').classList.add('inthread');render();fillRefs();markRead();};
+window.chatPick=function(u){curThread=u;selMode=false;SEL={};stick=true;$('chatWrap').classList.add('inthread');render();fillRefs();markRead();};
 window.chatBack=function(){$('chatWrap').classList.remove('inthread');};
-window.closeChat=function(){var w=$('chatWrap');if(w)w.classList.remove('on');if(chatUnsub){try{chatUnsub()}catch(e){}chatUnsub=null;}};
+window.closeChat=function(){selMode=false;SEL={};var w=$('chatWrap');if(w)w.classList.remove('on');if(chatUnsub){try{chatUnsub()}catch(e){}chatUnsub=null;}};
 window.chatSend=async function(){
   var inp=$('chatIn'),txt=inp.value.trim(),ref=REFS[$('chatRef').value]||null;
   if((!txt&&!ref)||!curThread)return;inp.value='';$('chatRef').value='';stick=true;
