@@ -2040,6 +2040,24 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
             </div>
             <div id="ov-liquidity-gauge" class="simple-chart" style="min-height:230px;"></div>
           </div>
+          <div class="ov-carousel-slide" data-slide="6" id="ov-slide-weekdayAvg">
+            <div class="card-head">
+              <div class="card-title">📈 Day vs Average Sale</div>
+              <select id="ov-weekday-avg-range" onchange="renderWeekdayAvgSalesChart()" style="padding:.4rem .8rem;border:1.5px solid var(--border);border-radius:8px;font-size:.82rem;background:var(--surface);color:var(--text);">
+                <option value="1">Last 1 Month</option>
+                <option value="3" selected>Last 3 Months</option>
+                <option value="6">Last 6 Months</option>
+                <option value="12">Last 12 Months</option>
+              </select>
+            </div>
+            <div style="padding:1rem 1.2rem;">
+              <div style="display:flex;gap:.9rem;align-items:stretch;flex-wrap:wrap;">
+                <div id="ov-weekday-avg-chart" class="simple-chart mini-apex-wrap" style="flex:1 1 260px;min-width:0;min-height:230px;"></div>
+                <div id="ov-weekday-avg-months" style="flex:0 0 150px;max-height:260px;overflow-y:auto;display:flex;flex-direction:column;gap:.45rem;"></div>
+              </div>
+              <div id="ov-weekday-avg-note" style="font-size:.74rem;color:var(--muted);text-align:center;margin-top:.5rem;line-height:1.5;"></div>
+            </div>
+          </div>
         </div>
         <div class="ov-carousel-dots" id="ov-carousel2-dots">
           <button type="button" class="ov-arrow-btn" onclick="ovPrevSlide2()" title="Previous chart">‹</button>
@@ -2049,6 +2067,7 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
           <span class="ov-dot" onclick="ovGoToSlide2(3)" title="This Month vs Past Months"></span>
           <span class="ov-dot" onclick="ovGoToSlide2(4)" title="Daily Sales Heatmap"></span>
           <span class="ov-dot" onclick="ovGoToSlide2(5)" title="Liquidity Runway Gauge"></span>
+          <span class="ov-dot" onclick="ovGoToSlide2(6)" title="Day vs Average Sale"></span>
           <button type="button" class="ov-arrow-btn" onclick="ovNextSlide2()" title="Next chart">›</button>
         </div>
       </div>
@@ -4237,6 +4256,10 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
         <input type="checkbox" id="td-overdue-alert" checked style="width:18px;height:18px;margin:0;flex-shrink:0;">
         <label for="td-overdue-alert" style="margin:0;cursor:pointer;">🔔 Alert me every day while overdue <span style="display:block;font-size:.74rem;color:var(--muted);font-weight:500;">Uncheck to stop the daily "overdue" push / popup if you don't mark it Done. (The one-time alert at the due time still comes.)</span></label>
       </div>
+      <div class="form-group" style="display:flex;align-items:center;gap:.6rem;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:.7rem .9rem;">
+        <input type="checkbox" id="td-mgr-alert" style="width:18px;height:18px;margin:0;flex-shrink:0;">
+        <label for="td-mgr-alert" style="margin:0;cursor:pointer;">👔 Manager Alert <span style="display:block;font-size:.74rem;color:var(--muted);font-weight:500;">Tick කළොත් To-Do එකේ <b>Due වෙලාවට</b> Manager ලාගේ ✉️ Notification Center එකට alert එකක් එනවා (✔ Done / ⏰ Remind later බටන් එක්ක). Done කරන තෙක් Overdue alert දිගටම එනවා.</span></label>
+      </div>
       <div style="font-size:.78rem;color:var(--muted);line-height:1.5;">ℹ️ Due Time නොදුන්නොත් ඒ දවසේ උදේ 8:00 ට මතක් කරනවා. Repeat to-do එකක් <b>Done</b> කළාම <b>Finished Works වලට නොගොස්</b> 🔁 Repeated list එකේම ඉඳලා ඊළඟ දිනයට ස්වයංක්‍රීයව මාරු වෙනවා.</div>
     </div>
     <div class="modal-foot">
@@ -4650,7 +4673,7 @@ const DEFAULT_MANAGER_PERMS = {
   chart_purchasesBreakdown: true, chart_monthlySalesGrowth: true,
   chart_dailyTotalSales: true, chart_dailySalesComparison: true,
   chart_dailySalesMonthlyTrend: true, chart_topSuppliers: true, chart_dailySalesHeatmap: true,
-  chart_liquidityGauge: true, chart_chequeOutflowHeat: true
+  chart_liquidityGauge: true, chart_chequeOutflowHeat: true, chart_weekdayAvgSales: true
 };
 // Admin's own defaults — same key set as Manager's, all true (Admin sees
 // everything out of the box, same as before this per-role tick existed).
@@ -4703,6 +4726,7 @@ const DASHBOARD_CHARTS = [
   { key: 'chart_dailySalesMonthlyTrend', slideId: 'ov-slide-monthlyTrend',     dotsId: 'ov-carousel2-dots', label: '🐛 This Month vs Past Months (Day-by-Day)' },
   { key: 'chart_dailySalesHeatmap',    slideId: 'ov-slide-dailySalesHeatmap',  dotsId: 'ov-carousel2-dots', label: '🔥 Daily Sales Heatmap' },
   { key: 'chart_liquidityGauge',       slideId: 'ov-slide-liquidityGauge',     dotsId: 'ov-carousel2-dots', label: '🎯 Liquidity Runway Gauge' },
+  { key: 'chart_weekdayAvgSales',      slideId: 'ov-slide-weekdayAvg',         dotsId: 'ov-carousel2-dots', label: '📈 Day vs Average Sale' },
   { key: 'chart_topSuppliers',         slideId: 'ov-slide-topSuppliers',       dotsId: 'ov-carousel-dots',  label: '🏆 Top Suppliers by Purchase Value' },
   { key: 'chart_chequeOutflowHeat',    slideId: 'ov-slide-chequeHeat',         dotsId: 'ov-carousel-dots',  label: '🌡️ Cheque Outflow Heat Timeline' }
 ];
@@ -6052,10 +6076,39 @@ function openTodoModal(id) {
   $('td-early').value = t ? String(Number(t.earlyMins) || 0) : '1440';
   $('td-repeat').value = t ? (t.repeat || 'none') : 'none';
   $('td-overdue-alert').checked = t ? !todoMuted(t) : true;
+  $('td-mgr-alert').checked = t ? t.alertManager === true : false;
   // a brand-new to-do starts in whichever group you are currently viewing
   populateTodoGroupSelect(t ? (t.groupId || '') : (todoGroupById(todoGroupFilter) ? todoGroupFilter : ''));
   openModal('todoModal');
   setTimeout(() => $('td-title')?.focus(), 80);
+}
+
+/* ===== 👔 Manager Alert (To-Do) =====
+   Ticking "Manager Alert" arms ONE doc in cms_alerts (id = 'todo_<todoId>', to:'*' = every manager,
+   dueAt = the to-do's due moment). Nothing is shown to the manager at save time — the manager's
+   Notification Center (see the Manager Notification Center script at the bottom) reveals it at dueAt,
+   with ✔ Done / ⏰ Remind later buttons, and keeps nagging (hourly toast + red label) while it is
+   not Done. Re-saving with a new date/time re-arms it (clears Done); un-ticking, deleting or the
+   admin finishing a one-time to-do cancels it. */
+async function todoArmMgrAlert(t) {
+  if (!isAdmin() || !firebaseReady()) return false;
+  try {
+    const dueAt = Number(t.dueAt) || todoDueAtMs(t.dueDate, t.dueTime);
+    const when = todoFmtDate(t.dueDate) + (t.dueTime ? ' · ' + todoFmtTime(t.dueTime) : '');
+    const rp = t.repeat && t.repeat !== 'none' ? ' · 🔁 ' + (TODO_REPEAT_LABELS[t.repeat] || t.repeat) : '';
+    await fdb.collection('cms_alerts').doc('todo_' + t.id).set({
+      to: '*', type: 'todo', todoId: t.id, title: 'To-Do: ' + t.title,
+      body: ('📅 ' + when + rp + (t.notes ? ' · ' + t.notes : '')).slice(0, 300),
+      dueAt, from: DB.currentUsername || '', fromName: (DB.currentUser && DB.currentUser.name) || DB.currentUsername || '',
+      createdAt: new Date(dueAt).toISOString(), cancelled: false, readBy: {}, hiddenBy: {}, doneBy: {}
+    });
+    return true;
+  } catch (e) { console.error('todoArmMgrAlert', e); toast('⚠️ Manager alert set වුනේ නෑ — firestore.rules (cms_alerts) පරීක්ෂා කරන්න', 'red'); return false; }
+}
+async function todoCancelMgrAlert(id) {
+  if (!isAdmin() || !firebaseReady()) return;
+  try { await fdb.collection('cms_alerts').doc('todo_' + id).set({ cancelled: true }, { merge: true }); }
+  catch (e) { console.error('todoCancelMgrAlert', e); }
 }
 
 async function saveTodo() {
@@ -6066,6 +6119,7 @@ async function saveTodo() {
   const earlyMins = Number($('td-early').value) || 0;
   const repeat = $('td-repeat').value || 'none';
   const muteOverdue = !$('td-overdue-alert').checked;
+  const alertManager = !!$('td-mgr-alert')?.checked;
   const groupId = $('td-group')?.value || '';
   if (!title) { toast('⚠️ Title එක ඇතුල් කරන්න', 'red'); return; }
   if (!dueDate) { toast('⚠️ Due date එක තෝරන්න', 'red'); return; }
@@ -6079,17 +6133,23 @@ async function saveTodo() {
     if (!old) return;
     // Monthly/yearly keep the ORIGINAL day-of-month (e.g. the 31st) unless the date itself was changed.
     const repeatAnchorDay = (old.dueDate === dueDate && old.repeatAnchorDay) ? old.repeatAnchorDay : Number(dueDate.slice(8, 10));
-    const fields = { title, notes, dueDate, dueTime, dueAt, earlyMins, repeat, repeatAnchorDay, muteOverdue, groupId, updatedAt: new Date().toISOString() };
+    const fields = { title, notes, dueDate, dueTime, dueAt, earlyMins, repeat, repeatAnchorDay, muteOverdue, alertManager, groupId, updatedAt: new Date().toISOString() };
     const scheduleChanged = old.dueDate !== dueDate || (old.dueTime || '') !== dueTime || (Number(old.earlyMins) || 0) !== earlyMins;
     if (scheduleChanged) Object.assign(fields, todoInitialFlags(fields, nowMs), { quietUntil: 0 });
     closeModal('todoModal');
     await todoPatch(editId, fields);
     logActivity('TODO_EDIT', title);
-    toast('✅ To-Do update උනා');
+    // alert the manager when the box was just ticked, or a ticked to-do's details changed
+    // (re)arm the manager alert when just ticked or the details/schedule changed; cancel when un-ticked
+    const mgrRearm = alertManager && (old.alertManager !== true || old.title !== title || (old.notes || '') !== notes || scheduleChanged);
+    let armed = false;
+    if (mgrRearm) armed = await todoArmMgrAlert({ id: editId, title, notes, dueDate, dueTime, dueAt, repeat });
+    else if (!alertManager && old.alertManager === true) await todoCancelMgrAlert(editId);
+    toast(armed ? '✅ To-Do update උනා · 👔 Manager alert set' : '✅ To-Do update උනා');
     return;
   }
 
-  const t = { id: uid(), title, notes, dueDate, dueTime, dueAt, earlyMins, repeat, repeatAnchorDay: Number(dueDate.slice(8, 10)), muteOverdue, groupId, status: 'pending',
+  const t = { id: uid(), title, notes, dueDate, dueTime, dueAt, earlyMins, repeat, repeatAnchorDay: Number(dueDate.slice(8, 10)), muteOverdue, alertManager, groupId, status: 'pending',
     createdAt: new Date().toISOString(), createdBy: DB.currentUsername || '', doneAt: null, doneBy: null };
   Object.assign(t, todoInitialFlags(t, nowMs));
   TODOS.push(t);
@@ -6098,7 +6158,8 @@ async function saveTodo() {
   onTodosChanged();
   await todoCloudSet(t.id, t);
   logActivity('TODO_ADD', title);
-  toast('✅ To-Do එක add උනා');
+  const armedNew = alertManager && await todoArmMgrAlert(t);
+  toast(armedNew ? '✅ To-Do එක add උනා · 👔 Manager ට due වෙලාවේ alert යනවා' : '✅ To-Do එක add උනා');
 }
 
 async function todoMarkDone(id, fromPopup) {
@@ -6112,6 +6173,7 @@ async function todoMarkDone(id, fromPopup) {
   if (!next) {
     await todoPatch(id, { status: 'done', doneAt, doneBy });
     toast('✔️ Done — Finished Works වලට ගියා');
+    if (t.alertManager === true) todoCancelMgrAlert(id);
   } else {
     // Repeating to-dos are NEVER "finished": they stay in the 🔁 Repeated list and roll
     // forward to the next date (fresh reminders; hushed until tomorrow so a daily item
@@ -6123,6 +6185,7 @@ async function todoMarkDone(id, fromPopup) {
     Object.assign(nextFields, todoInitialFlags(Object.assign({}, t, nextFields), nowMs));
     await todoPatch(id, nextFields);
     toast(`✔️ Done · 🔁 next: ${todoFmtDate(next)}`);
+    if (t.alertManager === true) todoArmMgrAlert(Object.assign({}, t, nextFields));
   }
   logActivity('TODO_DONE', t.title);
   if (fromPopup) {
@@ -6158,6 +6221,7 @@ async function todoDelete(id) {
   TODOS = TODOS.filter(x => x.id !== id);
   saveTodosLocal();
   onTodosChanged();
+  if (t.alertManager === true) todoCancelMgrAlert(id);
   if (firebaseReady()) { try { await fdb.collection('cms_todos').doc(id).delete(); } catch (e) { console.error('todoDelete', e); toast('⚠️ Cloud delete වුනේ නෑ', 'red'); } }
   logActivity('TODO_DELETE', t.title);
 }
@@ -6250,6 +6314,7 @@ function todoOpenItemHTML(t, nowMs, repeated) {
         ${repeated && lastDone ? `<span class="todo-chip c-done">✔️ Last done ${todoEsc(lastDone)}</span>` : ''}
         ${repeated && Number(t.doneCount) > 0 ? `<span class="todo-chip">×${Number(t.doneCount)} done</span>` : ''}
         ${todoMuted(t) ? `<span class="todo-chip">🔕 Overdue alerts off</span>` : ''}
+        ${t.alertManager === true ? `<span class="todo-chip">👔 Manager alert</span>` : ''}
       </div>
     </div>
     <div class="todo-actions">
@@ -10312,7 +10377,8 @@ function renderOverview() {
       // re-rendering Monthly Sales Growth's Apex chart into a hidden
       // (0-width) container whenever the heatmap slide is the active one.
       'ov-slide-dailySalesHeatmap': renderDailySalesHeatmap,
-      'ov-slide-liquidityGauge': renderDashLiquidityGauge
+      'ov-slide-liquidityGauge': renderDashLiquidityGauge,
+      'ov-slide-weekdayAvg': renderWeekdayAvgSalesChart
     };
     const activeRenderer2 = renderers2[activeSlide2] || renderMonthlySalesGrowthChart;
     try { activeRenderer2(); } catch (e) { console.error('active carousel2 chart render failed:', e); }
@@ -10329,6 +10395,7 @@ function renderOverview() {
     let lrgOk = false;
     try { lrgOk = renderDashLiquidityGauge(); } catch (e) { console.error('renderDashLiquidityGauge failed:', e); }
     ovSetSlideAvailable('ov-slide-liquidityGauge', lrgOk && chartAllowed('chart_liquidityGauge'), 'ov-carousel2-dots');
+    ovSetSlideAvailable('ov-slide-weekdayAvg', chartAllowed('chart_weekdayAvgSales'), 'ov-carousel2-dots');
     const mSales = new Map();
     allCash.forEach(e => {
       if (!e.date) return;
@@ -10706,6 +10773,7 @@ function ovRefreshChartVisibility2(idx) {
     if (idx === 3) renderDailySalesMonthlyTrendChart();
     if (idx === 4) renderDailySalesHeatmap();
     if (idx === 5) renderDashLiquidityGauge();
+    if (idx === 6) renderWeekdayAvgSalesChart();
   } catch (e) { console.error('ovRefreshChartVisibility2 failed:', e); }
 }
 
@@ -15194,6 +15262,101 @@ function renderDailySalesChart() {
   ovPlayFadeIn(el);
 }
 
+// ===== DAY vs AVERAGE SALE (dashboard mini-chart, carousel 1) =====
+// Line chart of the month-to-date AVERAGE daily Total Sales, day by day, so you can see
+// the average rising/falling as each month goes on (it restarts at every month's 1st).
+// Range = last N calendar months (current + N-1 before; options 1 / 3 default / 6 / 12).
+// Per-date totals are summed across every user's cash entries; days with no entry
+// (closed / holiday) are skipped, same as Daily Total Sales. A side panel lists each
+// month's overall average sale (month total ÷ active days) with the change vs the
+// previous month. Uses getPLDataset() so archived months still count — if the range
+// reaches into archived months they're fetched once, then the chart redraws.
+const __wdAvgFetched = new Set();
+function renderWeekdayAvgSalesChart(afterFetch) {
+  const el = $('ov-weekday-avg-chart');
+  if (!el) return;
+  const months = Number($('ov-weekday-avg-range')?.value) || 3;
+  const now = new Date();
+  const pk = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  const startKey = `${pk(new Date(now.getFullYear(), now.getMonth() - (months - 1), 1))}-01`;
+  const keys = [];
+  for (let i = 0; i < months; i++) keys.push(pk(new Date(now.getFullYear(), now.getMonth() - i, 1)));
+
+  if (!afterFetch && typeof ensureArchivePeriodsLoaded === 'function' && keys.some(k => k < getArchiveLiveWindowStart()) && !__wdAvgFetched.has(months)) {
+    __wdAvgFetched.add(months);
+    ensureArchivePeriodsLoaded(keys).then(() => {
+      if (($('ov-weekday-avg-range')?.value || '3') === String(months) && $('ov-slide-weekdayAvg')?.classList.contains('active')) renderWeekdayAvgSalesChart(true);
+    }).catch(e => console.error('weekdayAvg archive fetch', e));
+  }
+
+  const dayMap = new Map();
+  getPLDataset().cashEntries.forEach(e => {
+    if (!e.date || e.date < startKey) return;
+    dayMap.set(e.date, (dayMap.get(e.date) || 0) + (Number(e.totalSales) || 0));
+  });
+  const dates = [...dayMap.keys()].sort();
+  const note = $('ov-weekday-avg-note'), side = $('ov-weekday-avg-months');
+  if (__ovApex['ov-weekday-avg-chart']) { try { __ovApex['ov-weekday-avg-chart'].destroy(); } catch (e) {} delete __ovApex['ov-weekday-avg-chart']; }
+  if (!dates.length) {
+    el.innerHTML = '<div class="no-data" style="padding:1.5rem;"><span class="ico">📭</span>No sales data for this period</div>';
+    if (side) side.innerHTML = '';
+    if (note) note.textContent = '';
+    return;
+  }
+
+  // running (month-to-date) average per active day + per-month totals
+  const items = [], mStats = new Map(), starts = [];
+  let curM = '', cumSum = 0, cumDays = 0;
+  dates.forEach(date => {
+    const mk = date.slice(0, 7), amt = dayMap.get(date);
+    if (mk !== curM) { curM = mk; cumSum = 0; cumDays = 0; }
+    cumSum += amt; cumDays++;
+    const [y, m, d] = date.split('-').map(Number);
+    const label = new Date(y, m - 1, d).toLocaleDateString('en-US', { day: '2-digit', month: 'short' });
+    if (cumDays === 1 && items.length) starts.push({ label, mk });
+    items.push({ label, value: Math.round(cumSum / cumDays), daySales: amt });
+    const st = mStats.get(mk) || { sum: 0, days: 0 }; st.sum += amt; st.days++; mStats.set(mk, st);
+  });
+
+  // side panel: monthly average sale (newest first) with ▲/▼ vs previous month
+  const mKeys = [...mStats.keys()].sort();
+  if (side) side.innerHTML = [...mKeys].reverse().map(mk => {
+    const st = mStats.get(mk), avg = st.sum / st.days;
+    const prev = mStats.get(mKeys[mKeys.indexOf(mk) - 1]);
+    const ch = prev ? ((avg - prev.sum / prev.days) / (prev.sum / prev.days)) * 100 : null;
+    const [y, m] = mk.split('-').map(Number);
+    const cur = mk === pk(now);
+    const chHtml = ch === null ? '' : `<span style="font-size:.7rem;font-weight:700;color:${ch >= 0 ? '#16a34a' : '#dc2626'};">${ch >= 0 ? '▲' : '▼'} ${Math.abs(ch).toFixed(1)}%</span>`;
+    return `<div style="background:var(--bg);border:1px solid ${cur ? 'var(--accent)' : 'var(--border)'};border-radius:10px;padding:.45rem .65rem;">
+      <div style="font-size:.7rem;color:var(--muted);font-weight:600;">${new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}${cur ? ' · so far' : ''}</div>
+      <div style="font-size:.88rem;font-weight:800;color:var(--navy);">${fmt(Math.round(avg))}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:.3rem;"><span style="font-size:.68rem;color:var(--muted);">${st.days} days</span>${chHtml}</div>
+    </div>`;
+  }).join('');
+  if (note) note.textContent = 'Line = month-to-date average sale per active day · side panel = each month\'s average sale';
+
+  el.innerHTML = '';
+  const tc = chartTextColors();
+  const dark = isDarkChartTheme();
+  __ovApex['ov-weekday-avg-chart'] = new ApexCharts(el, {
+    chart: { type: 'line', height: ovChartH(250), toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'inherit', foreColor: tc.muted, animations: { speed: 350, easing: 'easeinout' } },
+    theme: { mode: dark ? 'dark' : 'light' },
+    series: [{ name: 'Average Sale', data: items.map(i => i.value) }],
+    xaxis: { categories: items.map(i => i.label), tickAmount: Math.min(items.length - 1, 10) || undefined, labels: { style: { fontSize: '10px', colors: tc.muted }, rotate: -45, hideOverlappingLabels: true } },
+    yaxis: { labels: { style: { colors: tc.muted }, formatter: v => fmt(Math.round(v)) } },
+    colors: [tc.accent],
+    stroke: { curve: 'smooth', width: 2.75 },
+    markers: { size: items.length <= 35 ? 3 : 0, strokeColors: tc.surface, strokeWidth: 1.5, hover: { size: 6, sizeOffset: 2 } },
+    dataLabels: { enabled: false },
+    grid: { borderColor: tc.border, strokeDashArray: 3 },
+    annotations: { xaxis: starts.map(st => ({ x: st.label, borderColor: tc.muted, strokeDashArray: 4, opacity: .5,
+      label: { text: new Date(Number(st.mk.slice(0, 4)), Number(st.mk.slice(5)) - 1, 1).toLocaleDateString('en-US', { month: 'short' }), orientation: 'horizontal', borderWidth: 0, style: { fontSize: '10px', color: tc.text, background: 'transparent' } } })) },
+    tooltip: { theme: dark ? 'dark' : 'light', y: { formatter: (v, o) => `${fmt(v)} avg · day sale ${fmt(items[o.dataPointIndex].daySales)}` } }
+  });
+  __ovApex['ov-weekday-avg-chart'].render();
+  ovPlayFadeIn(el);
+}
+
 // ===== DAILY SALES HEATMAP (dashboard mini-chart) =====
 // Month-grid heatmap of Total Sales by day — same visual language (color
 // tiers None/Low/Medium/High, via the cdc-* classes) as the 📅 Cheque Due
@@ -19519,7 +19682,7 @@ restoreSidebarState();
 (function(){
 var ALR_COL='cms_alerts',CHAT_COL='cms_chat',SRV=[],ALR=[],unsubs=[],CHAT=[],chatUnsub=null,curThread=null,stick=true,REFS={};
 var ME=function(){return DB.currentUsername};
-Object.assign(NOTIF_ICON,{chat:'💬',cashIn:'💵',chequeBook:'🧾',reminder:'⏰',attendance:'🗓️'});
+Object.assign(NOTIF_ICON,{todo:'📝',todoDone:'✅',chat:'💬',cashIn:'💵',chequeBook:'🧾',reminder:'⏰',attendance:'🗓️'});
 var ms=function(c){return c&&c.toDate?c.toDate().getTime():(c?new Date(c).getTime():0)};
 var fmtT=function(c){var m=ms(c);return m?new Date(m).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):''};
 var mgrs=function(){return DB.users.filter(function(u){return u.role==='manager'||u.role==='user'})};
@@ -19530,22 +19693,60 @@ window.mgrAlert=function(to,type,title,body,extra){
   if(!fdb)return;
   try{fdb.collection(ALR_COL).add(Object.assign({to:to,type:type,title:title,body:body,from:ME(),fromName:(DB.currentUser&&DB.currentUser.name)||ME(),createdAt:new Date().toISOString(),readBy:{},hiddenBy:{}},extra||{})).catch(function(e){console.error('mgrAlert',e)});}catch(e){}
 };
+/* ---- To-Do manager alerts: hidden until dueAt, Done / Remind later, overdue nagging ---- */
+var TODO_GRACE=60*60000; /* after 1h past due → "Overdue" (red) */
+var lsGet=function(k){try{return JSON.parse(localStorage.getItem(k)||'{}')||{}}catch(e){return {}}};
+var lsSet=function(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+var isTodoDone=function(n){var me=ME();return !!((n.doneBy&&n.doneBy[me])||lsGet('cms_todo_mdone')[n.id]===n.dueAt)};
+var snoozeOf=function(n){return Number(lsGet('cms_todo_msnooze')[n.id])||0};
+var lastToast={};
 function merge(){
-  var me=ME();
-  var a=ALR.filter(function(n){return !(n.hiddenBy&&n.hiddenBy[me])}).map(function(n){return Object.assign({},n,{read:!unread(n,me),_col:ALR_COL})});
+  var me=ME(),now=Date.now();
+  var a=ALR.filter(function(n){return !(n.hiddenBy&&n.hiddenBy[me])})
+    .filter(function(n){return n.type!=='todo'||(!n.cancelled&&Number(n.dueAt)<=now&&snoozeOf(n)<=now)})
+    .map(function(n){
+      if(n.type==='todo'){var d=isTodoDone(n);return Object.assign({},n,{read:d,_done:d,_over:!d&&now>=Number(n.dueAt)+TODO_GRACE,_col:ALR_COL});}
+      return Object.assign({},n,{read:!unread(n,me),_col:ALR_COL});});
   var s=SRV.map(function(n){return Object.assign({},n,{_col:'cms_notifications'})});
   NOTIFS=s.concat(a).sort(function(x,y){return ms(y.createdAt)-ms(x.createdAt)});
 }
+function todoToasts(){
+  if(!isManager())return;var now=Date.now();
+  NOTIFS.forEach(function(n){
+    if(n.type!=='todo'||n._done)return;var k=n.id,last=lastToast[k]||0;
+    if(!last||now-last>=TODO_GRACE){lastToast[k]=now;
+      toast(n._over?'⚠️ Overdue To-Do: '+String(n.title).replace(/^To-Do:\s*/,''):'⏰ To-Do due now: '+String(n.title).replace(/^To-Do:\s*/,''),n._over?'red':'yellow');}
+  });
+}
+window.todoMgrDone=function(id){
+  var n=NOTIFS.find(function(x){return x.id===id});if(!n)return;
+  var d=lsGet('cms_todo_mdone');d[id]=n.dueAt;lsSet('cms_todo_mdone',d);
+  merge();renderNotifBadge();renderNotifPanel();
+  var me=ME(),nm=(DB.currentUser&&DB.currentUser.name)||me,t=String(n.title).replace(/^To-Do:\s*/,'');
+  fdb.collection(ALR_COL).doc(id).update({['doneBy.'+me]:true,['readBy.'+me]:true}).catch(function(e){console.error('todoMgrDone',e)});
+  try{mgrAlert('admin','todoDone','Done: '+t,nm+' marked this To-Do as done')}catch(e){}
+  toast('✔️ Done');
+};
+window.todoMgrSnooze=function(id,v){
+  if(!v)return;var n=NOTIFS.find(function(x){return x.id===id});if(!n)return;
+  var until=v==='tm'?todoDueAtMs(todoAddDays(todoColomboDate(Date.now()),1),'08:00'):Date.now()+Number(v)*60000;
+  var s=lsGet('cms_todo_msnooze');s[id]=until;lsSet('cms_todo_msnooze',s);delete lastToast[id];
+  merge();renderNotifBadge();renderNotifPanel();toast('⏰ Remind later set');
+};
 window.startNotifSync=function(){
   if(!(isAdmin()||isManager())||!firebaseReady()||notifUnsub)return;
   var me=ME(),err=function(e){console.error('notif sync',e)};
-  var upd=function(){merge();var un=NOTIFS.filter(function(n){return !n.read}).length;
+  var upd=function(){merge();todoToasts();var un=NOTIFS.filter(function(n){return !n.read}).length;
     if(notifRemindOn()&&un>0&&un>_notifPrevUnread)toast('📬 Unread notifications '+un+' ක් තියෙනවා','yellow');
     _notifPrevUnread=un;renderNotifBadge();renderNotifPanel();};
+  var sig='';
+  var tick=function(){merge();todoToasts();var un=NOTIFS.filter(function(n){return !n.read}).length;_notifPrevUnread=un;
+    var s2=NOTIFS.map(function(n){return n.id+(n.read?1:0)+(n._over?1:0)}).join('|');if(s2!==sig){sig=s2;renderNotifBadge();renderNotifPanel();}};
+  var tmr=isManager()?setInterval(tick,30000):null;
   var c=fdb.collection(ALR_COL),parts={},tos=isAdmin()?['admin']:[me,'*'];
   unsubs=tos.map(function(t){return c.where('to','==',t).limit(150).onSnapshot(function(s){parts[t]=s.docs.map(function(d){return Object.assign({},d.data(),{id:d.id})});ALR=[].concat.apply([],Object.keys(parts).map(function(k){return parts[k]}));upd();},err)});
   if(isAdmin())unsubs.push(fdb.collection('cms_notifications').orderBy('createdAt','desc').limit(150).onSnapshot(function(s){SRV=s.docs.map(function(d){return Object.assign({},d.data(),{id:d.id})});upd();},err));
-  notifUnsub=function(){unsubs.forEach(function(f){try{f()}catch(e){}});unsubs=[];};
+  notifUnsub=function(){unsubs.forEach(function(f){try{f()}catch(e){}});unsubs=[];if(tmr)clearInterval(tmr);};
 };
 var _stop=stopNotifSync;
 window.stopNotifSync=function(){_stop();SRV=[];ALR=[];CHAT=[];window.closeChat();};
@@ -19576,6 +19777,12 @@ window.renderNotifPanel=function(){
   var item=function(n){
     var ic=NOTIF_ICON[n.type]||'🔔';
     if(T==='rem')return '<div class="np-item"><div class="np-ico">'+ic+'</div><div class="np-main" onclick="notifGo(\''+n.go+'\')"><div class="np-title">'+_nEsc(n.title)+'</div><div class="np-body">'+_nEsc(n.body)+'</div></div></div>';
+    if(n.type==='todo'){
+      var el=Date.now()-Number(n.dueAt),lab=n._done?'✔ Done':(n._over?'⚠️ Overdue · '+(el>=86400000?Math.floor(el/86400000)+'d':el>=3600000?Math.floor(el/3600000)+'h':Math.max(1,Math.floor(el/60000))+'m'):'⏰ Due now');
+      return '<div class="np-item'+(n.read?' rd':'')+'"><div class="np-ico">'+ic+'</div><div class="np-main"><div class="np-title">'+_nEsc(n.title)+'</div><div class="np-body">'+_nEsc(n.body)+'</div><div class="np-time" style="'+(n._over?'color:var(--red);font-weight:700':'')+'">'+lab+' · '+fmtT(n.dueAt)+'</div>'
+        +(n._done?'':'<div style="display:flex;gap:.4rem;margin-top:.45rem;flex-wrap:wrap"><button class="btn btn-green btn-sm" onclick="todoMgrDone(\''+n.id+'\')">✔ Done</button><select class="btn btn-ghost btn-sm" onchange="todoMgrSnooze(\''+n.id+'\',this.value);this.value=\'\'"><option value="">⏰ Remind later</option><option value="30">30 minutes</option><option value="60">1 hour</option><option value="180">3 hours</option><option value="tm">Tomorrow 8:00 AM</option></select></div>')
+        +'</div>'+(n._done?'<div class="np-btns"><button title="Delete" onclick="notifDelete(\''+n.id+'\')">🗑</button></div>':'')+'</div>';
+    }
     var act=n.type==='chat'?"openChat('"+_nEsc(n.thread)+"')":"notifSetRead('"+n.id+"',true)";
     return '<div class="np-item'+(n.read?' rd':'')+'"><div class="np-ico">'+ic+'</div><div class="np-main" onclick="'+act+'"><div class="np-title">'+_nEsc(n.title)+'</div><div class="np-body">'+_nEsc(n.body)+'</div><div class="np-time">'+fmtT(n.createdAt)+'</div></div><div class="np-btns"><button title="'+(n.read?'Mark unread':'Mark read')+'" onclick="notifSetRead(\''+n.id+'\','+(!n.read)+')">'+(n.read?'↩':'✓')+'</button><button title="Delete" onclick="notifDelete(\''+n.id+'\')">🗑</button></div></div>';
   };
