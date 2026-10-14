@@ -4758,6 +4758,15 @@ function today() {
   return new Date().toISOString().split('T')[0];
 }
 
+// Earliest date a non-admin may give a NEW credit bill: Manager = today minus 3 days
+// (so today + the past 3 days), everyone else (cashier…) = today only. Admin has no limit.
+function creditMinDate() {
+  if (!isManager()) return today();
+  const d = new Date(today() + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() - 3);
+  return d.toISOString().split('T')[0];
+}
+
 function yesterday() {
   const d = new Date();
   d.setDate(d.getDate() - 1);
@@ -6099,7 +6108,7 @@ async function todoArmMgrAlert(t) {
     const dueAt = Number(t.dueAt) || todoDueAtMs(t.dueDate, t.dueTime);
     const when = todoFmtDate(t.dueDate) + (t.dueTime ? ' · ' + todoFmtTime(t.dueTime) : '');
     const rp = t.repeat && t.repeat !== 'none' ? ' · 🔁 ' + (TODO_REPEAT_LABELS[t.repeat] || t.repeat) : '';
-    await fdb.collection('cms_alerts').add({
+    await fastWrite('cms_alerts', {
       to: '*', type: 'todo', todoId: t.id, armedAt: Date.now(), title: 'To-Do: ' + t.title,
       body: ('📅 ' + when + rp + (t.notes ? ' · ' + t.notes : '')).slice(0, 300),
       dueAt, from: DB.currentUsername || '', fromName: (DB.currentUser && DB.currentUser.name) || DB.currentUsername || '',
@@ -6113,7 +6122,7 @@ async function todoCancelMgrAlert(id) {
   // A new "todoCancel" doc (create-only, so it works even if rules forbid editing existing alerts).
   // The manager's Notification Center drops every armed todo alert older than this marker.
   try {
-    await fdb.collection('cms_alerts').add({ to: '*', type: 'todoCancel', todoId: id, at: Date.now(), title: '', body: '',
+    await fastWrite('cms_alerts', { to: '*', type: 'todoCancel', todoId: id, at: Date.now(), title: '', body: '',
       from: DB.currentUsername || '', createdAt: new Date().toISOString(), readBy: {}, hiddenBy: {} });
   } catch (e) { console.error('todoCancelMgrAlert', e); }
 }
@@ -6647,11 +6656,55 @@ async function checkPushSubscriptionState() {
   }
 }
 
+// ===== fastWrite — send a NEW doc right now, independent of the Firestore SDK's write stream =====
+// The SDK queues writes behind its (long-polling) stream; when that stream is stalled or the
+// phone locks/suspends the page, notifications/alerts/chat sit in the queue and arrive minutes
+// or hours late. fastWrite posts the doc straight to the Firestore REST API with the user's
+// ID token (same security rules apply) using `keepalive`, so it goes out immediately and still
+// completes if the page is backgrounded or closed. If that fails it falls back to the normal SDK
+// write — with the SAME doc id, so a retry can never create a duplicate.
+function _fsVal(v) {
+  if (v === null || v === undefined) return { nullValue: null };
+  if (typeof v === 'string') return { stringValue: v };
+  if (typeof v === 'boolean') return { booleanValue: v };
+  if (typeof v === 'number') return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
+  if (Array.isArray(v)) return { arrayValue: { values: v.map(_fsVal) } };
+  if (typeof v === 'object') { const f = {}; Object.keys(v).forEach(k => { if (v[k] !== undefined) f[k] = _fsVal(v[k]); }); return { mapValue: { fields: f } }; }
+  return { stringValue: String(v) };
+}
+async function fastWrite(col, data) {
+  if (!fdb) return null;
+  const ref = fdb.collection(col).doc();   // local auto-id, no network
+  try {
+    if (!fauth || !fauth.currentUser || !navigator.onLine) throw new Error('offline/no-auth');
+    const token = await _withTimeout(fauth.currentUser.getIdToken(), 4000);
+    const fields = {}; Object.keys(data).forEach(k => { if (data[k] !== undefined) fields[k] = _fsVal(data[k]); });
+    const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 7000);
+    let res;
+    try {
+      res = await fetch(`https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents/${col}?documentId=${ref.id}`, {
+        method: 'POST', keepalive: true, signal: ctl.signal,
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ fields })
+      });
+    } finally { clearTimeout(t); }
+    if (!res.ok) throw new Error('REST ' + res.status);
+    return ref.id;
+  } catch (e) {
+    console.warn('fastWrite → SDK fallback', col, e && e.message);
+    try { await ref.set(data); return ref.id; }
+    catch (e2) {
+      if (e2 && e2.code === 'permission-denied') return ref.id;   // REST attempt had already created it
+      throw e2;
+    }
+  }
+}
+
 // Drops a lightweight event doc; Cloud Function `sendQueuedPush` sends the push then deletes this doc.
 async function queuePushEvent(type, title, body) {
   if (!fdb) return;
   try {
-    await fdb.collection('push_events').add({ type, title, body, createdAt: new Date().toISOString() });
+    await fastWrite('push_events', { type, title, body, createdAt: new Date().toISOString() });
   } catch (e) { console.error('queuePushEvent', e); }
 }
 
@@ -10925,10 +10978,10 @@ function openModal(id) {
     $('cr-edit-id').value = '';
     $('creditModalTitle').textContent = '➕ Add Credit Bill';
     $('cr-date').value = today();
-    // Non-admin users can only add today's date
+    // Non-admin: Manager may pick today or up to 3 days back; others today only
     if (!isAdmin()) {
       $('cr-date').max = today();
-      $('cr-date').min = today();
+      $('cr-date').min = creditMinDate();
     } else {
       $('cr-date').max = '';
       $('cr-date').min = '';
@@ -12666,9 +12719,11 @@ async function saveCredit() {
     return;
   }
   const editId = $('cr-edit-id').value;
-  // Non-admin users can only add credit bills for today
-  if (!editId && !isAdmin() && $('cr-date').value !== today()) {
-    toast('⚠️ ඔබට අදට පමණක් credit bill ඇතුළත් කළ හැකිය', 'red');
+  // Non-admin: Manager → today or the past 3 days; others → today only (no future dates)
+  if (!editId && !isAdmin() && ($('cr-date').value > today() || $('cr-date').value < creditMinDate())) {
+    toast(isManager()
+      ? `⚠️ ඔබට අද සහ පසුගිය දින 3ක් (${creditMinDate()} සිට) දක්වා credit bill ඇතුළත් කළ හැකිය`
+      : '⚠️ ඔබට අදට පමණක් credit bill ඇතුළත් කළ හැකිය', 'red');
     $('cr-date').value = today();
     return;
   }
@@ -19698,7 +19753,7 @@ var unread=function(n,me){return !(n.readBy&&n.readBy[me])};
 
 window.mgrAlert=function(to,type,title,body,extra){
   if(!fdb)return;
-  try{fdb.collection(ALR_COL).add(Object.assign({to:to,type:type,title:title,body:body,from:ME(),fromName:(DB.currentUser&&DB.currentUser.name)||ME(),createdAt:new Date().toISOString(),readBy:{},hiddenBy:{}},extra||{})).catch(function(e){console.error('mgrAlert',e)});}catch(e){}
+  try{fastWrite(ALR_COL,Object.assign({to:to,type:type,title:title,body:body,from:ME(),fromName:(DB.currentUser&&DB.currentUser.name)||ME(),createdAt:new Date().toISOString(),readBy:{},hiddenBy:{}},extra||{})).catch(function(e){console.error('mgrAlert',e)});}catch(e){}
 };
 /* ---- To-Do manager alerts: hidden until dueAt, Done / Remind later, overdue nagging ---- */
 var TODO_GRACE=60*60000; /* after 1h past due → "Overdue" (red) */
@@ -19760,11 +19815,29 @@ window.startNotifSync=function(){
   var tick=function(){merge();todoToasts();var un=NOTIFS.filter(function(n){return !n.read}).length;_notifPrevUnread=un;
     var s2=NOTIFS.map(function(n){return n.id+(n.read?1:0)+(n._over?1:0)}).join('|');if(s2!==sig){sig=s2;renderNotifBadge();renderNotifPanel();}};
   var tmr=isManager()?setInterval(tick,30000):null;
+  /* Watchdog: a long-polling listener can stall silently (sleep, network switch, QUIC idle timeout).
+     Every 20 s while the tab is visible, the admin does a 1-doc SERVER read of the newest notification;
+     if the live listener doesn't know about it yet, every listener is restarted at once instead of
+     waiting minutes for the SDK's own reconnect back-off. */
+  var wd=setInterval(function(){
+    if(document.hidden||!isAdmin()||!navigator.onLine)return;
+    fdb.collection('cms_notifications').orderBy('createdAt','desc').limit(1).get({source:'server'}).then(function(s){
+      if(!s.docs.length)return;var id=s.docs[0].id;
+      if(!SRV.some(function(n){return n.id===id}))window.restartNotifSync();
+    }).catch(function(){});
+  },20000);
   var c=fdb.collection(ALR_COL),parts={},tos=isAdmin()?['admin']:[me,'*'];
   unsubs=tos.map(function(t){return c.where('to','==',t).limit(400).onSnapshot(function(s){parts[t]=s.docs.map(function(d){return Object.assign({},d.data(),{id:d.id})});ALR=[].concat.apply([],Object.keys(parts).map(function(k){return parts[k]}));upd();},err)});
   if(isAdmin())unsubs.push(fdb.collection('cms_notifications').orderBy('createdAt','desc').limit(150).onSnapshot(function(s){SRV=s.docs.map(function(d){return Object.assign({},d.data(),{id:d.id})});upd();},err));
-  notifUnsub=function(){unsubs.forEach(function(f){try{f()}catch(e){}});unsubs=[];if(tmr)clearInterval(tmr);};
+  notifUnsub=function(){unsubs.forEach(function(f){try{f()}catch(e){}});unsubs=[];if(tmr)clearInterval(tmr);clearInterval(wd);};
 };
+window.restartNotifSync=function(){
+  if(!notifUnsub)return;var f=notifUnsub;notifUnsub=null;try{f()}catch(e){}
+  window.startNotifSync();
+};
+/* coming back to the tab / network returning → re-attach the listeners straight away */
+document.addEventListener('visibilitychange',function(){if(!document.hidden)window.restartNotifSync();});
+window.addEventListener('online',function(){window.restartNotifSync();});
 var _stop=stopNotifSync;
 window.stopNotifSync=function(){_stop();SRV=[];ALR=[];CHAT=[];window.closeChat();};
 /* col-aware read / delete */
@@ -19882,7 +19955,7 @@ window.chatSend=async function(){
   var inp=$('chatIn'),txt=inp.value.trim(),ref=REFS[$('chatRef').value]||null;
   if((!txt&&!ref)||!curThread)return;inp.value='';$('chatRef').value='';stick=true;
   var m={thread:curThread,from:ME(),fromName:(DB.currentUser&&DB.currentUser.name)||ME(),text:txt,ref:ref?{kind:ref.kind,id:String(ref.id),label:ref.label}:null,createdAt:new Date().toISOString()};
-  try{await fdb.collection(CHAT_COL).add(m);mgrAlert(isAdmin()?curThread:'admin','chat',m.fromName,(txt||'')+(ref?(txt?' · ':'')+'📎 '+ref.label:''),{thread:curThread});}
+  try{await fastWrite(CHAT_COL,m);mgrAlert(isAdmin()?curThread:'admin','chat',m.fromName,(txt||'')+(ref?(txt?' · ':'')+'📎 '+ref.label:''),{thread:curThread});}
   catch(e){console.error(e);toast('⚠️ පණිවිඩය යැවුවේ නෑ','red');inp.value=txt;}
 };
 setInterval(function(){try{if(typeof DB!=='undefined'&&DB.currentUser&&(isAdmin()||isManager())){var b=$('notifBtn');if(b)b.classList.remove('hidden');if(!notifUnsub&&firebaseReady())startNotifSync();}}catch(e){}},2500);
