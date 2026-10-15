@@ -3301,6 +3301,7 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
           <div class="card-title">🏦 Manager Cash-in-Hand Ledger</div>
           <div class="card-actions" style="display:flex;align-items:center;gap:.9rem;flex-wrap:wrap;">
             <span style="font-size:.78rem;color:var(--muted);">🗓️ Last 6 months</span>
+            <button class="btn btn-ghost btn-sm" id="mgrSyncCheckBtn" onclick="openCashSyncModal()" style="display:none;" title="Cash Disposal Log එකෙන් අඩු වී නැති (නැති වී ගිය) deductions තියෙනවද කියලා check කරලා Cash-in-Hand එක හරිගස්සන්න">🔧 Sync Check</button>
             <div style="font-size:.85rem;">✅ Current Balance: <strong id="mgrLedgerBalance" style="color:#16a34a;">LKR 0.00</strong></div>
           </div>
         </div>
@@ -3718,6 +3719,30 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
     <div class="modal-foot">
       <button class="btn btn-ghost" onclick="closeModal('reconcileModal')">Close</button>
       <button class="btn btn-green" id="reconcile-fixall-btn" onclick="fixAllCreditPaymentGaps()" style="display:none;">✅ Fix All</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ===== MANAGER CASH-IN-HAND SYNC-CHECK MODAL ===== -->
+<div id="cashSyncModal" class="overlay">
+  <div class="modal" style="max-width:640px;">
+    <div class="modal-head">
+      <h3>🔧 Cash-in-Hand Sync Check</h3>
+      <button class="modal-close" onclick="closeModal('cashSyncModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--muted);font-size:.85rem;margin-bottom:1rem;">
+        Cash-in-Hand එක ගණනය වෙන්නේ Day Sale Net Cash එකතුවෙන් Cash Disposal Log entries අඩු කිරීමෙන්. Log entry එකක් නැති වුනොත් (save fail / පරණ data overwrite වීම) ඒ මුදල තවමත් "අතේ තියෙනවා" කියලා පෙන්නනවා. මෙතනින් Supplier Cash Purchases, Credit Bill Payments, Payslips සහ Activity Log (අවසන් දින 30) එක්ක ගැලපෙන්නේ නැති ඒවා හොයලා, නැති entry එක ආරක්ෂිතව (දැනට තියෙන ඒවා overwrite/duplicate නොවී) නැවත එකතු කරන්න පුළුවන්.
+      </p>
+      <div id="cashsync-warn"></div>
+      <div id="cashsync-status" style="font-weight:700;margin-bottom:.8rem;">🔎 Checking...</div>
+      <div id="cashsync-list"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('cashSyncModal')">Close</button>
+      <button class="btn btn-ghost" onclick="runDailySyncCheck(true)" title="හැමදාම 11AM වෙද්දි auto run වෙන Daily Sync Check එක දැන්ම run කරලා Admin/Manager ට notify කරන්න (test)">🔔 Daily Check + Notify now</button>
+      <button class="btn btn-green" id="cashsync-fixall-btn" onclick="restoreAllCashSyncIssues()" style="display:none;">✅ Restore All</button>
     </div>
   </div>
 </div>
@@ -8205,6 +8230,7 @@ function initDashboard() {
   setTimeout(checkAttendanceReminder, 1900);
   setTimeout(checkReloadDataReminder, 2200);
   setTimeout(checkSalesEntryReminder, 2500);
+  startDailySyncCheck();
   if (isAdmin()) setTimeout(checkTodoReminders, 3200);
 }
 
@@ -16250,6 +16276,7 @@ function renderManagerCashLedger() {
   const tbody = $('mgrLedgerBody');
   const mobileEl = $('mgrLedgerMobile');
   if (!tbody) return;
+  if ($('mgrSyncCheckBtn')) $('mgrSyncCheckBtn').style.display = isAdmin() ? '' : 'none';
   if ($('mgrLedgerBalance')) $('mgrLedgerBalance').textContent = cashInHandDisplayText();
   const rows = getManagerCashLedger();
   const totalPages = Math.max(1, Math.ceil(rows.length / MGR_LEDGER_PAGE_SIZE));
@@ -16295,6 +16322,478 @@ function renderManagerCashLedger() {
       </div>
     </div>`).join('');
   }
+}
+
+/* ===== MANAGER CASH-IN-HAND SYNC CHECK =====
+   Cash-in-Hand is never stored as a number — calcCashInHand() adds up every day-sale Net Cash and
+   subtracts every Cash Disposal Log entry (admin.cashLog). So when a disposal entry silently goes
+   missing from admin.cashLog (a stale whole-array overwrite, a dropped write, a restore from an old
+   copy…), the money is still "in hand" on the dashboard even though it was really paid out.
+
+   This check hunts for those lost deductions using two independent pieces of evidence that survive
+   the loss:
+     1) MIRROR RECORDS (exact data) — a Cash Purchase on the supplier's ledger, a payment on a credit
+        bill, or a processed payslip that points at a Cash Disposal Log entry (cashLogId / payrollId)
+        which no longer exists.
+     2) ACTIVITY LOG — every Cash Disposal Log save writes a "CASH_LOG · type · LKR amount" activity
+        row. A row with no matching cashLog entry (and no DEL_CASH_LOG undoing it) is a lost entry.
+        (Activity logs are kept for 30 days, so this half only sees the last 30 days.)
+   "Restore" re-creates the missing entry inside ONE Firestore transaction that re-reads the server
+   copy first, so it can never overwrite or duplicate anything that is already there. */
+let _cashSyncIssues = [];
+let _cashSyncWarnings = [];
+let _cashSyncError = '';
+let _cashSyncBusy = false;
+const CASH_SYNC_WINDOW_MS = 30 * 60 * 1000;   // activity ↔ entry matching window (same type + amount)
+const CASH_SYNC_QUICK_MS  = 2 * 60 * 1000;    // looser match (type/amount may have been edited since)
+const CASH_SYNC_LINKED_TYPES = ['cash_purchase', 'credit_payment', 'salary'];
+const CASH_SYNC_LABELS = {
+  banked: '🏦 Banked', handed_owner: '🤝 Handed to Owner', owner_topup: '➕👑 Cash from Owner',
+  cash_purchase: '🛒 Cash Purchase', credit_payment: '🧾 Credit Bill Payment', salary: '💼 Salary',
+  other1: '📝 Other 1', other2: '📝 Other 2', other3: '📝 Other 3'
+};
+
+// uid() starts with Date.now().toString(36) (8 chars) — so an entry's id tells us when it was created.
+function _csIdTime(id) {
+  const n = parseInt(String(id || '').slice(0, 8), 36);
+  return (isFinite(n) && n > 1.5e12 && n < 4e12) ? n : NaN;
+}
+function _csLocalDate(ms) {
+  const d = new Date(ms);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+// Activity details look like "banked · LKR 113,980.00" (see saveCashLogEntry / processPayroll).
+function _csParseActivity(a) {
+  const m = /^\s*(\w+)\s*·\s*LKR\s*([\d,]+(?:\.\d+)?)/.exec((a && a.details) || '');
+  if (!m) return null;
+  const amount = parseFloat(m[2].replace(/,/g, ''));
+  return isFinite(amount) ? { type: m[1], amount } : null;
+}
+function _csSameAmount(a, b) { return Math.abs((Number(a) || 0) - (Number(b) || 0)) < 0.005; }
+
+function scanCashLogGaps() {
+  const out = { issues: [], warnings: [], error: '' };
+  const admin = getUserByUsername('admin');
+  if (!admin) { out.error = 'Admin data load වී නැත — refresh කර නැවත උත්සාහ කරන්න.'; return out; }
+  const log = Array.isArray(admin.cashLog) ? admin.cashLog : [];
+  const logIds = new Set(log.map(e => e.id));
+  const ack = new Set((admin.cashSyncAck || []).map(a => a.key));
+  const push = iss => { if (!ack.has(iss.key)) out.issues.push(iss); };
+
+  // ---- 1) Mirror records whose Cash Disposal Log entry is gone ------------------------------
+  // 1a) Cash purchases made from Cash-in-Hand (supplier ledger row → cashLogId)
+  DB.users.forEach(u => (u.cashPurchases || []).forEach(p => {
+    if (!p.cashLogId || logIds.has(p.cashLogId)) return;
+    const amount = Number(p.amount) || 0;
+    if (amount <= 0) return;
+    const supName = p.supplierName || getSupplierName(p.supplierId, u);
+    push({
+      key: 'mirror|' + p.cashLogId, group: 'exact', source: 'Supplier Cash Purchase record එක තියෙනවා, Log entry එක නෑ',
+      label: CASH_SYNC_LABELS.cash_purchase, detail: '🏪 ' + supName, date: p.date || today(), editDate: false,
+      amount, refTime: _csIdTime(p.cashLogId), type: 'cash_purchase',
+      entry: { id: p.cashLogId, date: p.date || today(), type: 'cash_purchase', amount, description: '',
+        supplierId: p.supplierId, supplierName: supName, supplierOwnerUsername: u.username,
+        actor: p.createdBy || u.username, actorName: p.createdByName || u.name || '' }
+    });
+  }));
+  // 1b) Credit bill payments made from Cash-in-Hand (payment on the bill → cashLogId)
+  DB.users.forEach(u => (u.credits || []).forEach(c => (c.payments || []).forEach(p => {
+    if (!p.cashLogId || logIds.has(p.cashLogId)) return;
+    const amount = Number(p.amount) || 0;
+    if (amount <= 0) return;
+    const supName = getSupplierName(c.supplierId, u);
+    push({
+      key: 'mirror|' + p.cashLogId, group: 'exact', source: 'Credit Bill එකේ payment එක තියෙනවා, Log entry එක නෑ',
+      label: CASH_SYNC_LABELS.credit_payment, detail: '🏪 ' + supName + (c.entryId ? ' — ' + c.entryId : ''),
+      date: p.date || today(), editDate: false, amount, refTime: _csIdTime(p.cashLogId), type: 'credit_payment',
+      entry: { id: p.cashLogId, date: p.date || today(), type: 'credit_payment', amount, description: '',
+        supplierId: c.supplierId, supplierName: supName, supplierOwnerUsername: u.username,
+        creditId: c.id, creditOwnerUsername: u.username, actor: u.username, actorName: u.name || '' }
+    });
+  })));
+  // 1c) Processed payslips with net pay > 0 (processPayroll always writes a 💼 Salary entry)
+  if (typeof PDB !== 'undefined' && Array.isArray(PDB.payrolls)) {
+    const paidPayrolls = new Set(log.filter(e => e.payrollId).map(e => e.payrollId));
+    PDB.payrolls.forEach(p => {
+      const amount = Number(p.netPay) || 0;
+      if (amount <= 0 || paidPayrolls.has(p.id)) return;
+      const t = Date.parse(p.processedAt || '');
+      const date = isFinite(t) ? _csLocalDate(t) : today();
+      push({
+        key: 'payroll|' + p.id, group: 'exact', source: 'Payslip එක තියෙනවා, Salary Log entry එක නෑ',
+        label: CASH_SYNC_LABELS.salary, detail: '👤 ' + (p.empName || p.empId || '—') + ' (' + (p.period || '') + ')',
+        date, editDate: false, amount, refTime: t, type: 'salary',
+        entry: { id: uid(), date, type: 'salary', amount, description: (p.empName || '') + ' (' + (p.period || '') + ')',
+          payrollId: p.id, empId: p.empId, empName: p.empName,
+          actor: p.processedBy || 'admin', actorName: p.processedByName || '' }
+      });
+    });
+  }
+
+  // ---- 2) Activity-log rows ("CASH_LOG · type · LKR x") with no matching cashLog entry --------
+  const acts = [];
+  DB.users.forEach(u => (u.activityLog || []).forEach(a => {
+    if (a.action !== 'CASH_LOG' && a.action !== 'DEL_CASH_LOG') return;
+    const p = _csParseActivity(a);
+    const ts = Date.parse(a.ts || '');
+    if (!p || !isFinite(ts)) return;
+    acts.push({ id: a.id, action: a.action, actor: a.actor || u.username, actorName: a.actorName || u.name || '', ts, type: p.type, amount: p.amount });
+  }));
+  const adds = acts.filter(a => a.action === 'CASH_LOG').sort((x, y) => x.ts - y.ts);
+  const dels = acts.filter(a => a.action === 'DEL_CASH_LOG').sort((x, y) => x.ts - y.ts);
+  const restoredActs = new Set(log.map(e => e.origActivityId).filter(Boolean));
+  const used = new Set();
+  const pending = adds.filter(a => !restoredActs.has(a.id));
+  // Pair activity rows with entries by CLOSEST creation time first (not in row order), so that when the
+  // same type + amount was saved, deleted and saved again, each row claims its own entry.
+  const assign = (acts, test, windowMs) => {
+    const pairs = [];
+    acts.forEach(a => log.forEach(e => {
+      if (used.has(e.id) || e.actor !== a.actor || !test(a, e)) return;
+      // entries re-created by this very tool carry a fresh id, so their id time says nothing — match them on type + amount only
+      const t = e.restoredBySync ? NaN : _csIdTime(e.id);
+      const d = isNaN(t) ? windowMs : Math.abs(t - a.ts);
+      if (d <= windowMs) pairs.push({ a, e, d });
+    }));
+    pairs.sort((x, y) => x.d - y.d);
+    const done = new Set();
+    pairs.forEach(p => {
+      if (done.has(p.a.id) || used.has(p.e.id)) return;
+      done.add(p.a.id); used.add(p.e.id);
+    });
+    return acts.filter(a => !done.has(a.id));
+  };
+  // pass 1: same actor + type + amount, created within 30 min of the activity row
+  const left = assign(pending, (a, e) => e.type === a.type && _csSameAmount(e.amount, a.amount), CASH_SYNC_WINDOW_MS);
+  // pass 2: same actor, created within 2 min — the entry was edited afterwards (type/amount changed)
+  const left2 = assign(left, (a, e) => !e.restoredBySync, CASH_SYNC_QUICK_MS);
+  // a DEL_CASH_LOG (same type + amount, later) legitimately cancels the add it undid
+  dels.forEach(d => {
+    for (let i = left2.length - 1; i >= 0; i--) {
+      const a = left2[i];
+      if (a.ts <= d.ts && a.type === d.type && _csSameAmount(a.amount, d.amount)) { left2.splice(i, 1); break; }
+    }
+  });
+  left2.forEach(a => {
+    // already explained (with exact data) by a mirror record found above?
+    const covered = out.issues.some(i => i.type === a.type && _csSameAmount(i.amount, a.amount) && isFinite(i.refTime) && Math.abs(i.refTime - a.ts) <= CASH_SYNC_WINDOW_MS);
+    if (covered) return;
+    const linked = CASH_SYNC_LINKED_TYPES.includes(a.type);
+    const date = _csLocalDate(a.ts);
+    const when = new Date(a.ts).toLocaleString('en-LK', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    push({
+      key: 'act|' + a.id, group: linked ? 'review' : 'exact', source: 'Activity Log එකේ සටහන තියෙනවා (' + when + '), Log entry එක නෑ',
+      label: CASH_SYNC_LABELS[a.type] || a.type, detail: '👤 ' + (a.actorName || a.actor) + (linked ? ' — Bill/Purchase/Payslip link එක හමු නොවුනි' : ''),
+      date, editDate: true, amount: a.amount, refTime: a.ts, type: a.type,
+      entry: linked
+        ? { id: uid(), date, type: 'other1', amount: a.amount, description: '⚠️ Restored lost ' + (CASH_SYNC_LABELS[a.type] || a.type).replace(/^\S+\s/, '') + ' entry — check manually',
+            actor: a.actor, actorName: a.actorName, origActivityId: a.id, restoredBySync: true }
+        : { id: uid(), date, type: a.type, amount: a.amount, description: '', actor: a.actor, actorName: a.actorName, origActivityId: a.id, restoredBySync: true }
+    });
+  });
+
+  // ---- 3) Integrity warnings (informational — nothing to auto-fix) ---------------------------
+  const seen = new Map();
+  log.forEach(e => seen.set(e.id, (seen.get(e.id) || 0) + 1));
+  const dupIds = [...seen.entries()].filter(([, n]) => n > 1).map(([id]) => id);
+  if (dupIds.length) out.warnings.push('⚠️ Cash Log එකේ ID දෙපාරක් ඇති entries ' + dupIds.length + ' ක් තියෙනවා (' + dupIds.slice(0, 3).join(', ') + ').');
+  const bad = log.filter(e => !e.date || !isFinite(Number(e.amount)) || Number(e.amount) <= 0);
+  if (bad.length) out.warnings.push('⚠️ දිනය හෝ මුදල වැරදි Cash Log entries ' + bad.length + ' ක් තියෙනවා — Cash Disposal Log එකේ බලන්න.');
+  // identical Day Sale entries saved twice (same date + cashier + amounts, ids created within 10 min)
+  const dayDup = [];
+  DB.users.forEach(u => {
+    const list = (u.cashEntries || []).slice().sort((x, y) => String(x.id).localeCompare(String(y.id)));
+    list.forEach((e, i) => {
+      for (let j = i + 1; j < list.length; j++) {
+        const f = list[j];
+        if (e.date === f.date && (Number(e.cashierIdx)||0) === (Number(f.cashierIdx)||0) && _csSameAmount(e.totalCash, f.totalCash)
+          && _csSameAmount(e.totalSales, f.totalSales) && _csSameAmount(e.netCash, f.netCash)
+          && Math.abs(_csIdTime(e.id) - _csIdTime(f.id)) < 10 * 60 * 1000) { dayDup.push(`${e.date} · Net ${fmt(e.netCash)} (${u.username})`); break; }
+      }
+    });
+  });
+  if (dayDup.length) out.warnings.push('⚠️ දෙපාරක් save වූ Day Sale entries ' + dayDup.length + ' ක් ඇති: ' + dayDup.slice(0, 3).join(' | ') + ' — Cash Sale History එකෙන් එකක් delete කරන්න (Net Cash දෙපාරක් එකතු වෙලා Cash-in-Hand වැඩියි).');
+  if (calcCashInHand() < -0.005) out.warnings.push('⚠️ Cash-in-Hand දැන් negative (' + fmt(calcCashInHand()) + ') — disposal entries වැඩියෙන් තියෙනවා හෝ day-sale entries අඩුයි.');
+  return out;
+}
+
+async function openCashSyncModal() {
+  if (!isAdmin()) { toast('Admin only', 'red'); return; }
+  if (_cashSyncBusy) return;
+  _cashSyncBusy = true;
+  openModal('cashSyncModal');
+  $('cashsync-status').textContent = '🔎 Server එකෙන් අලුත්ම data අරන් check කරනවා...';
+  $('cashsync-list').innerHTML = '';
+  $('cashsync-warn').innerHTML = '';
+  $('cashsync-fixall-btn').style.display = 'none';
+  try {
+    // Always scan against a fresh server read, never a possibly-stale local copy.
+    if (firebaseReady() && usersCol) {
+      const snap = await _withTimeout(usersCol.get({ source: 'server' }), 12000);
+      DB.users = snap.docs.map(d => d.data());
+      const me = getUserByUsername(DB.currentUsername);
+      if (me) DB.currentUser = me;
+      DB.dataIncomplete = false;
+    } else if (DB.dataIncomplete) {
+      throw new Error('incomplete');
+    }
+    const res = scanCashLogGaps();
+    _cashSyncError = res.error;
+    _cashSyncIssues = res.issues.map((g, i) => Object.assign({}, g, { _rid: i, fixed: false, ignored: false }));
+    _cashSyncWarnings = res.warnings;
+  } catch (e) {
+    console.error('openCashSyncModal', e);
+    _cashSyncIssues = []; _cashSyncWarnings = [];
+    _cashSyncError = '⏳ Server එකෙන් data කියවන්න බැරි වුනා (internet/connection බලන්න) — Sync නොවූ data වලින් check කිරීම අනතුරුයි, ඒ නිසා නවත්වා ඇත. නැවත උත්සාහ කරන්න.';
+  } finally {
+    _cashSyncBusy = false;
+  }
+  renderCashSyncResults();
+}
+
+function renderCashSyncResults() {
+  const statusEl = $('cashsync-status'), listEl = $('cashsync-list'), warnEl = $('cashsync-warn'), fixAllBtn = $('cashsync-fixall-btn');
+  if (!statusEl || !listEl) return;
+  warnEl.innerHTML = _cashSyncWarnings.map(w => `<div style="font-size:.82rem;color:#92400e;background:#fffbea;border:1px solid #fef08a;border-radius:8px;padding:.45rem .7rem;margin-bottom:.4rem;">${escHtml(w)}</div>`).join('');
+  if (_cashSyncError) {
+    statusEl.innerHTML = escHtml(_cashSyncError);
+    listEl.innerHTML = ''; fixAllBtn.style.display = 'none';
+    return;
+  }
+  const open = _cashSyncIssues.filter(g => !g.ignored);
+  const todo = open.filter(g => !g.fixed);
+  if (!open.length) {
+    statusEl.innerHTML = '✅ සියල්ල Sync වී ඇත — අඩු නොවී ඉතිරි වූ Cash-in-Hand deductions හමු නොවුනි.';
+    listEl.innerHTML = ''; fixAllBtn.style.display = 'none';
+    return;
+  }
+  const exact = todo.filter(g => g.group === 'exact');
+  const review = todo.filter(g => g.group === 'review');
+  const signed = g => (g.entry.type === 'owner_topup' ? -1 : 1) * g.amount;
+  const nowCash = calcCashInHand();
+  const afterAll = nowCash - exact.reduce((s, g) => s + signed(g), 0);
+  let html = '';
+  if (!todo.length) html = '✅ හමු වූ සියල්ල Restore කර ඇත.';
+  else {
+    html += `⚠️ අඩු වී නැති deduction <strong>${todo.length}</strong> ක් හමු වුනා.`;
+    if (exact.length) html += `<div style="font-weight:500;font-size:.85rem;margin-top:.3rem;">දැන් Cash-in-Hand: <strong>${fmt(nowCash)}</strong> → ✅ Restore All පසු: <strong style="color:#16a34a;">${fmt(afterAll)}</strong></div>`;
+    if (review.length) html += `<div style="font-weight:500;font-size:.82rem;color:var(--muted);margin-top:.3rem;">🔍 ${review.length} ක් Bill/Purchase/Payslip link නැති ඒවා — මුදල් අඩු කිරීම පමණක් "📝 Other 1" ලෙස Restore කළ හැක (Restore All එකට ඇතුළත් නෑ).</div>`;
+  }
+  statusEl.innerHTML = html;
+  fixAllBtn.style.display = exact.length ? '' : 'none';
+  fixAllBtn.textContent = `✅ Restore All (${exact.length})`;
+
+  listEl.innerHTML = open.map(g => {
+    const sign = g.entry.type === 'owner_topup' ? '+' : '−';
+    const dateCell = g.editDate && !g.fixed
+      ? `<input type="date" id="cs-date-${g._rid}" value="${escHtml(g.date)}" style="padding:.25rem .4rem;border:1.5px solid var(--border);border-radius:6px;font-size:.8rem;">`
+      : `<span>${escHtml(g.date)}</span>`;
+    let actions;
+    if (g.fixed) actions = `<span style="color:var(--green);font-weight:700;white-space:nowrap;">✅ Restored</span>`;
+    else actions = `<div style="display:flex;flex-direction:column;gap:.35rem;align-items:flex-end;">
+        <button class="btn btn-green btn-sm" onclick="restoreCashSyncIssue(${g._rid})">${g.group === 'review' ? 'Restore as Other' : 'Restore'}</button>
+        <button class="btn btn-ghost btn-sm" onclick="ignoreCashSyncIssue(${g._rid})" title="මේක දැනටමත් හරි / අවශ්‍ය නෑ — නැවත පෙන්වන්න එපා">🙈 Ignore</button>
+      </div>`;
+    return `<div style="display:flex;justify-content:space-between;align-items:center;gap:.6rem;padding:.65rem .2rem;border-bottom:1px solid var(--border);${g.fixed ? 'opacity:.55;' : ''}">
+      <div style="font-size:.85rem;min-width:0;">
+        <div><strong>${g.label}</strong> · <strong style="color:${sign === '+' ? '#16a34a' : '#dc2626'};">${sign} ${fmt(g.amount)}</strong></div>
+        <div style="color:var(--muted);overflow-wrap:anywhere;">${escHtml(g.detail)}</div>
+        <div style="color:var(--muted);margin-top:.15rem;">📅 ${dateCell}</div>
+        <div style="color:var(--muted);font-size:.78rem;margin-top:.15rem;">${escHtml(g.source)}</div>
+      </div>
+      ${actions}
+    </div>`;
+  }).join('');
+}
+
+// Re-creates ONE missing Cash Disposal Log entry. Admin's cashLog is read fresh from the server inside
+// a transaction, and the entry is only added if it (or its payslip / activity row) isn't already there.
+async function restoreCashLogEntry(rawEntry) {
+  const entry = clean(rawEntry);   // drops undefined fields — Firestore rejects them
+  entry.restoredBySync = true;
+  entry.restoredAt = new Date().toISOString();
+  entry.restoredBy = DB.currentUsername;
+  const isDup = list => list.some(e => e.id === entry.id
+    || (entry.payrollId && e.payrollId === entry.payrollId)
+    || (entry.origActivityId && e.origActivityId === entry.origActivityId));
+  const mirrorLocal = () => {
+    const a = getUserByUsername('admin');
+    if (!a) return;
+    if (!Array.isArray(a.cashLog)) a.cashLog = [];
+    if (!isDup(a.cashLog)) a.cashLog.unshift(entry);
+  };
+  if (!firebaseReady() || !usersCol) {
+    mirrorLocal();
+    const a = getUserByUsername('admin');
+    if (a) syncUser(a);
+    return { ok: true };
+  }
+  setSyncStatus('syncing');
+  try {
+    let dup = false;
+    await fdb.runTransaction(async tx => {
+      dup = false;
+      const ref = usersCol.doc('admin');
+      const snap = await tx.get(ref);
+      if (!snap.exists) throw new Error('ADMIN_NOT_FOUND');
+      const fresh = Array.isArray(snap.data().cashLog) ? snap.data().cashLog.slice() : [];
+      if (isDup(fresh)) { dup = true; return; }
+      fresh.unshift(entry);
+      tx.update(ref, { cashLog: fresh });
+    });
+    mirrorLocal();
+    try { saveDBLocal(); } catch (e) { console.error('restoreCashLogEntry local mirror', e); }
+    markSynced('cloud');
+    return { ok: true, dup };
+  } catch (e) {
+    console.error('restoreCashLogEntry', e);
+    setSyncStatus('offline');
+    return { ok: false, reason: e && e.message };
+  }
+}
+
+function _csRefreshAfterChange() {
+  try { renderManagerCashLedger(); } catch (e) {}
+  try { renderCashLog(); } catch (e) {}
+  try { renderOverview(); } catch (e) {}
+  renderCashSyncResults();
+}
+
+async function _csRestoreIssue(g) {
+  if (g.editDate) {
+    const v = $('cs-date-' + g._rid)?.value;
+    if (!v) { toast('⚠️ දිනය තෝරන්න', 'red'); return null; }
+    g.entry.date = v; g.date = v;
+  }
+  const r = await restoreCashLogEntry(g.entry);
+  if (!r.ok) return false;
+  g.fixed = true;
+  logActivity('CASH_LOG_RESTORE', `${g.entry.type} · ${fmt(g.amount)} · ${g.entry.date} (Sync Check)`);
+  return true;
+}
+
+async function restoreCashSyncIssue(rid) {
+  const g = _cashSyncIssues.find(x => x._rid === rid);
+  if (!g || g.fixed || g.ignored || _cashSyncBusy) return;
+  _cashSyncBusy = true;
+  try {
+    const ok = await _csRestoreIssue(g);
+    if (ok) toast('✅ Restored — Cash-in-Hand නැවත ගණනය කළා');
+    else if (ok === false) toast('⚠️ Restore failed — try again', 'red');
+  } finally { _cashSyncBusy = false; }
+  _csRefreshAfterChange();
+}
+
+async function restoreAllCashSyncIssues() {
+  if (_cashSyncBusy) return;
+  const pendingIssues = _cashSyncIssues.filter(g => !g.fixed && !g.ignored && g.group === 'exact');
+  if (!pendingIssues.length) return;
+  if (!confirm(`Cash Disposal Log එකට entries ${pendingIssues.length} ක් නැවත එකතු කරනවා (Cash-in-Hand අඩු වේ). Continue?`)) return;
+  _cashSyncBusy = true;
+  let n = 0;
+  try {
+    for (const g of pendingIssues) { if (await _csRestoreIssue(g)) n++; }
+  } finally { _cashSyncBusy = false; }
+  toast(n === pendingIssues.length ? `✅ ${n} restored` : `⚠️ ${n}/${pendingIssues.length} restored — remaining ones failed, try again`, n === pendingIssues.length ? 'green' : 'red');
+  _csRefreshAfterChange();
+}
+
+// "Ignore" is remembered on admin's doc (cashSyncAck) so the same finding is never listed again.
+function ignoreCashSyncIssue(rid) {
+  const g = _cashSyncIssues.find(x => x._rid === rid);
+  if (!g || g.fixed || !isAdmin()) return;
+  if (!confirm('මේක නැවත Sync Check එකේ පෙන්වන්න එපා?\n\n(Cash-in-Hand එකට කිසිම වෙනසක් වෙන්නේ නෑ)')) return;
+  const a = getUserByUsername('admin');
+  if (!a) return;
+  if (!Array.isArray(a.cashSyncAck)) a.cashSyncAck = [];
+  if (!a.cashSyncAck.some(x => x.key === g.key)) {
+    a.cashSyncAck.push({ key: g.key, ts: new Date().toISOString(), by: DB.currentUsername, note: `${g.entry.type} · ${g.date} · ${fmt(g.amount)}` });
+  }
+  syncUser(a);
+  g.ignored = true;
+  logActivity('CASH_SYNC_IGNORE', `${g.key} · ${fmt(g.amount)}`);
+  toast('🙈 Ignore කළා');
+  renderCashSyncResults();
+}
+
+/* ===== DAILY AUTO SYNC CHECK (~11:00 AM) =====
+   Once a day, the first Admin/Manager session that is open after 11:00 AM runs the same checks as the
+   🔧 Sync Check buttons — Credit bill payments (scanCreditPaymentGaps) and Cash-in-Hand deductions /
+   duplicate Day Sales (scanCashLogGaps) — on a FRESH server read. It only DETECTS and NOTIFIES, it never
+   changes any data. If anything is wrong it
+     • drops an in-app alert for the Admin ('admin') and for every Manager ('*') in the ✉️ Notification Center, and
+     • queues a push notification (Cloud Function sendQueuedPush),
+   and records { date, issues } on the runner's own user doc (dailySyncCheck) so the other devices skip it.
+   Re-checked every 15 min, so a session left open across 11:00 still catches it.
+   IMPORTANT — like the 11:00 AM cloud backup this is client-side, not a server cron job: it runs once
+   SOMEONE with the app open crosses 11:00. If nobody opens the app that day it is skipped (a guaranteed
+   wall-clock run would need a scheduled Cloud Function). */
+const DAILY_SYNC_HOUR = 11;
+let _dailySyncRunning = false;
+let _dailySyncTimer = null;
+
+function _dsCheckedToday(dateStr) {
+  return DB.users.some(u => (u.role === 'admin' || u.role === 'manager' || u.role === 'user')
+    && u.dailySyncCheck && u.dailySyncCheck.date === dateStr);
+}
+
+async function runDailySyncCheck(force) {
+  if (!(isAdmin() || isManager())) return;
+  if (!firebaseReady() || !usersCol || _dailySyncRunning) return;
+  if (!force && new Date().getHours() < DAILY_SYNC_HOUR) return;
+  const t = _csLocalDate(Date.now());
+  if (!force && _dsCheckedToday(t)) return;
+  _dailySyncRunning = true;
+  try {
+    // Never judge from a possibly-stale local copy: read everything fresh from the server first.
+    // If that fails (offline etc.) stay silent — a false alarm is worse than skipping until the next try.
+    const snap = await _withTimeout(usersCol.get({ source: 'server' }), 12000);
+    DB.users = snap.docs.map(d => d.data());
+    const me = getUserByUsername(DB.currentUsername);
+    if (!me) return;
+    DB.currentUser = me;
+    DB.dataIncomplete = false;
+    if (!force && _dsCheckedToday(t)) return;   // another device got there first
+
+    const gaps = await scanCreditPaymentGaps();
+    const creditOpen = gaps.filter(g => !isReconcileAcked(g) && !g.resolvedManually);
+    const cs = scanCashLogGaps();
+    if (cs.error) return;
+    const cashOpen = cs.issues;
+
+    const creditSum = creditOpen.reduce((s, g) => s + (Number(g.missing) || 0), 0);
+    const cashSum = cashOpen.reduce((s, g) => s + (g.entry.type === 'owner_topup' ? -1 : 1) * (Number(g.amount) || 0), 0);
+    const lines = [];
+    if (creditOpen.length) lines.push(`📒 Credit: bill payments ${creditOpen.length} ක් sync නෑ (${fmt(creditSum)})`);
+    if (cashOpen.length) lines.push(`💵 Cash-in-Hand: අඩු නොවී ඉතිරි වූ deductions ${cashOpen.length} ක් (${fmt(Math.abs(cashSum))} ${cashSum >= 0 ? 'වැඩියෙන්' : 'අඩුවෙන්'} පෙන්නන්න පුළුවන්)`);
+    cs.warnings.forEach(w => lines.push(w.replace(/^⚠️\s*/, '⚠️ ')));
+    const total = creditOpen.length + cashOpen.length + cs.warnings.length;
+
+    me.dailySyncCheck = { date: t, at: new Date().toISOString(), by: me.username, issues: total, credit: creditOpen.length, cash: cashOpen.length, warnings: cs.warnings.length };
+    syncUser(me);
+    logActivity('DAILY_SYNC_CHECK', total ? `ගැටළු ${total} ක් (credit ${creditOpen.length}, cash ${cashOpen.length}, warnings ${cs.warnings.length})` : 'ගැටළු නෑ — සියල්ල Sync');
+
+    if (total > 0) {
+      const title = `🔧 Daily Sync Check — ගැටළු ${total} ක් හමු වුනා`;
+      const body = lines.join(' | ') + ' — Owner (Admin) ට දැනුම් දී, Credits / Reports වල 🔧 Sync Check එකෙන් හදාගන්න.';
+      try { mgrAlert('admin', 'syncCheck', title, body); mgrAlert('*', 'syncCheck', title, body); } catch (e) { console.error('dailySync alert', e); }
+      queuePushEvent(cashOpen.length || cs.warnings.length ? 'disposal' : 'credit', title, body);
+      toast(title, 'red');
+    } else if (force) {
+      toast('✅ Daily Sync Check — ගැටළු කිසිවක් නෑ', 'green');
+    }
+  } catch (e) {
+    console.error('runDailySyncCheck', e);
+    if (force) toast('⚠️ Sync Check run කරන්න බැරි උනා — internet බලලා නැවත උත්සාහ කරන්න', 'red');
+  } finally {
+    _dailySyncRunning = false;
+  }
+}
+
+function startDailySyncCheck() {
+  if (!(isAdmin() || isManager())) return;
+  setTimeout(() => runDailySyncCheck(), 9000);
+  if (!_dailySyncTimer) _dailySyncTimer = setInterval(() => runDailySyncCheck(), 15 * 60 * 1000);
 }
 
 function getCashRows() {
@@ -16349,7 +16848,23 @@ function resetCashForm() {
   renderTempCashQueue();
 }
 
+// DOUBLE-SAVE FIX: saveCashEntry() awaits several Firestore transactions (credit-bill payments) BEFORE it
+// resets the form, so for a second or two the form still holds the old values. A second tap / click /
+// Enter in that window ran the whole save again with a brand-new id → the same day's entry saved twice
+// (and Cash-in-Hand counted its Net Cash twice). The wrapper below lets only ONE save run at a time and
+// greys out the save buttons meanwhile; _saveCashEntryImpl() also refuses an identical new entry that
+// was created in the last 5 minutes (covers a retry from another tab/device).
+let _cashEntrySaving = false;
 async function saveCashEntry(handoverTarget) {
+  if (_cashEntrySaving) { toast('⏳ Save වෙමින් පවතී — පොඩ්ඩක් ඉන්න', 'red'); return; }
+  _cashEntrySaving = true;
+  const btns = Array.from(document.querySelectorAll('#cashSaveBtnsRow button, #cashierHandoverBtns button'));
+  btns.forEach(b => { b.disabled = true; });
+  try { return await _saveCashEntryImpl(handoverTarget); }
+  finally { _cashEntrySaving = false; btns.forEach(b => { b.disabled = false; }); }
+}
+
+async function _saveCashEntryImpl(handoverTarget) {
   const date = $('cm-date')?.value;
   if (!date) { toast('Date required', 'red'); return; }
   if (isCashier()) {
@@ -16438,6 +16953,13 @@ async function saveCashEntry(handoverTarget) {
     ].filter(e=>e.amount>0||e.reason),
     cashierIdx, totalExpenses:totalExp, totalAdvances:totalAdv, totalPurchases:totalPurchase, totalCreditPayments:totalCreditPay, netCash
   };
+  if (!editId) {
+    const nowMs = Date.now();
+    const dupEntry = owner.cashEntries.find(e => e.date === date && (Number(e.cashierIdx)||0) === cashierIdx
+      && Math.abs((Number(e.totalCash)||0) - cash) < 0.005 && Math.abs((Number(e.totalSales)||0) - totalSales) < 0.005
+      && Math.abs((Number(e.netCash)||0) - netCash) < 0.005 && Math.abs(nowMs - _csIdTime(e.id)) < 5 * 60 * 1000);
+    if (dupEntry) { toast('⚠️ මේ වගේම Entry එකක් දැනටමත් save වී ඇත (මිනිත්තු 5ක් ඇතුළත) — දෙවරක් save වීම නවත්වා ඇත', 'red'); return; }
+  }
   if (editId) {
     const idx=owner.cashEntries.findIndex(e=>e.id===editId);
     if(idx!==-1)owner.cashEntries[idx]=rec; else owner.cashEntries.push(rec);
@@ -18422,7 +18944,7 @@ function renderDailySummary() {
   html += `<div class="card" style="margin:1.2rem 1.5rem;">
     <div class="card-head"><div class="card-title">💼 Manager Activity</div></div>`;
   if (data.managerActions.length) {
-    const icons = {ADD_CREDIT:'💳',EDIT_CREDIT:'✏️',DEL_CREDIT:'🗑️',ADD_CHEQUE:'✅',EDIT_CHEQUE:'✏️',DEL_CHEQUE:'🗑️',ADD_CHEQUE_BOOK:'🖐️',DEL_CHEQUE_BOOK:'🗑️',ADD_PAYMENT:'💰',DEL_PAYMENT:'💰',ADD_SUPPLIER:'🏪',EDIT_SUPPLIER:'✏️',DEL_SUPPLIER:'🗑️',ADD_USER:'👥',EDIT_USER:'✏️',DEL_USER:'🗑️',LOGIN:'🔓',LOGOUT:'🔒',REGISTER:'✨',BACKUP:'📥',CHEQUE_LINK:'🔗',ADD_EMPLOYEE:'💲',EDIT_EMPLOYEE:'✏️',DEL_EMPLOYEE:'🗑️',ADD_ADVANCE:'💸',DEL_ADVANCE:'🗑️',PROCESS_PAYROLL:'🧮',DEL_PAYROLL:'🗑️',DEL_CASH_PURCHASE:'🛒',MARK_ATTENDANCE:'🗓️',EDIT_ATTENDANCE:'✏️',DEL_ATTENDANCE:'🗑️',CASH_LOG:'💵',EDIT_CASH_LOG:'✏️',DEL_CASH_LOG:'🗑️',ADD_CASH:'💵',EDIT_CASH:'✏️',DEL_CASH:'🗑️',ADD_RELOAD:'📶',EDIT_RELOAD:'✏️',DEL_RELOAD:'🗑️',RELOAD_HANDOVER:'🤝',CASH_TEMP_SAVE:'🕓',CASH_TEMP_DELETE:'🗑️'};
+    const icons = {ADD_CREDIT:'💳',EDIT_CREDIT:'✏️',DEL_CREDIT:'🗑️',ADD_CHEQUE:'✅',EDIT_CHEQUE:'✏️',DEL_CHEQUE:'🗑️',ADD_CHEQUE_BOOK:'🖐️',DEL_CHEQUE_BOOK:'🗑️',ADD_PAYMENT:'💰',DEL_PAYMENT:'💰',ADD_SUPPLIER:'🏪',EDIT_SUPPLIER:'✏️',DEL_SUPPLIER:'🗑️',ADD_USER:'👥',EDIT_USER:'✏️',DEL_USER:'🗑️',LOGIN:'🔓',LOGOUT:'🔒',REGISTER:'✨',BACKUP:'📥',CHEQUE_LINK:'🔗',ADD_EMPLOYEE:'💲',EDIT_EMPLOYEE:'✏️',DEL_EMPLOYEE:'🗑️',ADD_ADVANCE:'💸',DEL_ADVANCE:'🗑️',PROCESS_PAYROLL:'🧮',DEL_PAYROLL:'🗑️',DEL_CASH_PURCHASE:'🛒',MARK_ATTENDANCE:'🗓️',EDIT_ATTENDANCE:'✏️',DEL_ATTENDANCE:'🗑️',CASH_LOG:'💵',EDIT_CASH_LOG:'✏️',DEL_CASH_LOG:'🗑️',CASH_LOG_RESTORE:'🔧',DAILY_SYNC_CHECK:'🔧',CASH_SYNC_IGNORE:'🙈',ADD_CASH:'💵',EDIT_CASH:'✏️',DEL_CASH:'🗑️',ADD_RELOAD:'📶',EDIT_RELOAD:'✏️',DEL_RELOAD:'🗑️',RELOAD_HANDOVER:'🤝',CASH_TEMP_SAVE:'🕓',CASH_TEMP_DELETE:'🗑️'};
     html += `<div class="table-wrap"><table>
       <thead><tr><th>🕐 Time</th><th>👤 Manager</th><th>📝 Action</th><th>ℹ️ Details</th></tr></thead>
       <tbody>${data.managerActions.map(e => `<tr><td style="white-space:nowrap;">${e.ts ? new Date(e.ts).toLocaleTimeString() : '—'}</td><td><span class="user-data-badge">${e.actor || '?'}</span> ${e._ownerName || ''}</td><td>${icons[e.action] || '📝'} ${(e.action || '—').replace(/_/g, ' ')}</td><td style="font-size:.82rem;color:var(--muted);">${e.details || ''}</td></tr>`).join('')}</tbody>
@@ -19519,7 +20041,7 @@ function renderActivityLog() {
     renderPagination('activityPagination', 0, activityLogPage, 'goActivityLogPage', ACTIVITY_PAGE_SIZE);
     return;
   }
-  const icons={ADD_CREDIT:'💳',EDIT_CREDIT:'✏️',DEL_CREDIT:'🗑️',ADD_CHEQUE:'✅',EDIT_CHEQUE:'✏️',DEL_CHEQUE:'🗑️',ADD_CHEQUE_BOOK:'🖐️',DEL_CHEQUE_BOOK:'🗑️',ADD_PAYMENT:'💰',DEL_PAYMENT:'💰',ADD_SUPPLIER:'🏪',EDIT_SUPPLIER:'✏️',DEL_SUPPLIER:'🗑️',ADD_USER:'👥',EDIT_USER:'✏️',DEL_USER:'🗑️',LOGIN:'🔓',LOGOUT:'🔒',REGISTER:'✨',BACKUP:'📥',CHEQUE_LINK:'🔗',ADD_EMPLOYEE:'💲',EDIT_EMPLOYEE:'✏️',DEL_EMPLOYEE:'🗑️',ADD_ADVANCE:'💸',DEL_ADVANCE:'🗑️',PROCESS_PAYROLL:'🧮',DEL_PAYROLL:'🗑️',DEL_CASH_PURCHASE:'🛒',MARK_ATTENDANCE:'🗓️',EDIT_ATTENDANCE:'✏️',DEL_ATTENDANCE:'🗑️',CASH_LOG:'💵',EDIT_CASH_LOG:'✏️',DEL_CASH_LOG:'🗑️',ADD_CASH:'💵',EDIT_CASH:'✏️',DEL_CASH:'🗑️',ADD_RELOAD:'📶',EDIT_RELOAD:'✏️',DEL_RELOAD:'🗑️',RELOAD_HANDOVER:'🤝',CASH_TEMP_SAVE:'🕓',CASH_TEMP_DELETE:'🗑️'};
+  const icons={ADD_CREDIT:'💳',EDIT_CREDIT:'✏️',DEL_CREDIT:'🗑️',ADD_CHEQUE:'✅',EDIT_CHEQUE:'✏️',DEL_CHEQUE:'🗑️',ADD_CHEQUE_BOOK:'🖐️',DEL_CHEQUE_BOOK:'🗑️',ADD_PAYMENT:'💰',DEL_PAYMENT:'💰',ADD_SUPPLIER:'🏪',EDIT_SUPPLIER:'✏️',DEL_SUPPLIER:'🗑️',ADD_USER:'👥',EDIT_USER:'✏️',DEL_USER:'🗑️',LOGIN:'🔓',LOGOUT:'🔒',REGISTER:'✨',BACKUP:'📥',CHEQUE_LINK:'🔗',ADD_EMPLOYEE:'💲',EDIT_EMPLOYEE:'✏️',DEL_EMPLOYEE:'🗑️',ADD_ADVANCE:'💸',DEL_ADVANCE:'🗑️',PROCESS_PAYROLL:'🧮',DEL_PAYROLL:'🗑️',DEL_CASH_PURCHASE:'🛒',MARK_ATTENDANCE:'🗓️',EDIT_ATTENDANCE:'✏️',DEL_ATTENDANCE:'🗑️',CASH_LOG:'💵',EDIT_CASH_LOG:'✏️',DEL_CASH_LOG:'🗑️',CASH_LOG_RESTORE:'🔧',DAILY_SYNC_CHECK:'🔧',CASH_SYNC_IGNORE:'🙈',ADD_CASH:'💵',EDIT_CASH:'✏️',DEL_CASH:'🗑️',ADD_RELOAD:'📶',EDIT_RELOAD:'✏️',DEL_RELOAD:'🗑️',RELOAD_HANDOVER:'🤝',CASH_TEMP_SAVE:'🕓',CASH_TEMP_DELETE:'🗑️'};
   const pageLogs = filtered.slice((activityLogPage-1)*ACTIVITY_PAGE_SIZE, activityLogPage*ACTIVITY_PAGE_SIZE);
   tbody.innerHTML = pageLogs.map(e=>`<tr>
     <td style="font-size:.78rem;white-space:nowrap;">${e.ts?new Date(e.ts).toLocaleString():'—'}</td>
@@ -19744,7 +20266,7 @@ restoreSidebarState();
 (function(){
 var ALR_COL='cms_alerts',CHAT_COL='cms_chat',SRV=[],ALR=[],unsubs=[],CHAT=[],chatUnsub=null,curThread=null,stick=true,REFS={};
 var ME=function(){return DB.currentUsername};
-Object.assign(NOTIF_ICON,{todo:'📝',todoDone:'✅',chat:'💬',cashIn:'💵',chequeBook:'🧾',reminder:'⏰',attendance:'🗓️'});
+Object.assign(NOTIF_ICON,{syncCheck:'🔧',todo:'📝',todoDone:'✅',chat:'💬',cashIn:'💵',chequeBook:'🧾',reminder:'⏰',attendance:'🗓️'});
 var ms=function(c){return c&&c.toDate?c.toDate().getTime():(c?new Date(c).getTime():0)};
 var fmtT=function(c){var m=ms(c);return m?new Date(m).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):''};
 var mgrs=function(){return DB.users.filter(function(u){return u.role==='manager'||u.role==='user'})};
