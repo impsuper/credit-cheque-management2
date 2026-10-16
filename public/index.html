@@ -1669,6 +1669,21 @@ html .btn.btn-ghost{border:1.5px solid color-mix(in srgb,var(--navy) 28%,transpa
 .lrg-conf.hi{color:var(--green);border-color:var(--green);} .lrg-conf.mid{color:var(--yellow);border-color:var(--yellow);} .lrg-conf.lo{color:var(--red);border-color:var(--red);}
 .lrg-ai-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:.7rem;}
 .lrg-ai-note{font-size:.76rem;color:var(--muted);margin-top:.8rem;line-height:1.55;}
+.lrg-sugg{margin-top:.9rem;padding:.7rem .85rem;border:1px solid var(--border);border-radius:12px;background:var(--surface);}
+.lrg-sugg-title{font-size:.7rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.45rem;}
+.lrg-sg{display:flex;gap:.5rem;align-items:flex-start;font-size:.78rem;line-height:1.5;padding:.32rem .5rem;border-radius:8px;margin-top:.25rem;border-left:3px solid var(--border);}
+.lrg-sg .ic{flex:0 0 auto;}
+.lrg-sg.hot{border-left-color:var(--yellow);background:rgba(201,162,39,.10);}
+.lrg-sg.bad{border-left-color:var(--red);background:rgba(200,60,60,.08);}
+.lrg-sg.good{border-left-color:var(--green);background:rgba(40,160,90,.08);}
+.lrg-sg.warn{border-left-color:var(--yellow);}
+.lrg-ss-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:.5rem;margin:.5rem 0 .3rem;}
+.lrg-ss{display:flex;flex-direction:column;gap:.2rem;padding:.35rem .5rem;border:1px solid var(--border);border-radius:9px;background:var(--surface);}
+.lrg-ss.flag{border-color:var(--yellow);}
+.lrg-ss label{font-size:.68rem;font-weight:800;color:var(--muted);}
+.lrg-ss-in{display:flex;align-items:center;gap:.25rem;}
+.lrg-ss-in input{width:100%;min-width:0;padding:.25rem .35rem;font-size:.8rem;border:1px solid var(--border);border-radius:6px;background:var(--bg,var(--surface));color:var(--text);}
+.lrg-ss-in i{font-style:normal;font-size:.72rem;color:var(--muted);}
 .lrg-days{display:flex;align-items:flex-end;gap:2px;height:100px;margin-top:.9rem;padding-top:4px;}
 .lrg-day{flex:1;min-width:0;border-radius:3px 3px 0 0;}
 .lrg-day.act{background:var(--navy3);}
@@ -3454,6 +3469,7 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
           <div class="lrg-planner" id="lrg-planner" oninput="LRG_PLAN_DIRTY=true"></div>
           <div class="lrg-plan-actions" id="lrg-plan-actions">
             <button class="btn btn-navy btn-sm" onclick="saveSalesTargetFromUI()">💾 Save All</button>
+            <button class="btn btn-ghost btn-sm" onclick="lrgFillAiTargets()" title="Fill the EMPTY months with the AI suggested target (nothing is saved until Save All)">🤖 Fill empty months with AI target</button>
             <button class="btn btn-ghost btn-sm" id="lrg-plan-more" onclick="lrgPlanMore()">➕ Show 12 months</button>
           </div>
         </div>
@@ -4666,7 +4682,14 @@ try { SALES_TARGETS = JSON.parse(localStorage.getItem('cms_sales_targets') || '{
 // Holidays the Admin marked per month { 'YYYY-MM': [dayNumbers] } (Sundays, Poya, festivals…). Missing / null = month not marked yet.
 let SALES_HOLIDAY_DAYS = {};
 try { SALES_HOLIDAY_DAYS = JSON.parse(localStorage.getItem('cms_sales_holiday_days') || '{}') || {}; } catch (e) { SALES_HOLIDAY_DAYS = {}; }
+// Seasonal factor the Admin typed per calendar month { '1'..'12': factor } (e.g. 1.15 = +15%). 0 / missing = not set → AI learns it.
+let SALES_SEASON = {};
+try { SALES_SEASON = JSON.parse(localStorage.getItem('cms_sales_season') || '{}') || {}; } catch (e) { SALES_SEASON = {}; }
 function _applySalesTargetsFrom(data) {
+  if (data && data.salesSeason && typeof data.salesSeason === 'object') {
+    SALES_SEASON = data.salesSeason;
+    try { localStorage.setItem('cms_sales_season', JSON.stringify(SALES_SEASON)); } catch (e) {}
+  }
   if (data && data.salesTargets && typeof data.salesTargets === 'object') {
     SALES_TARGETS = data.salesTargets;
     try { localStorage.setItem('cms_sales_targets', JSON.stringify(SALES_TARGETS)); } catch (e) {}
@@ -7227,20 +7250,48 @@ function lrgMonthLabel(key, withYear) {
 // LOCAL SMART FORECAST (runs on this device only — no data leaves the browser)
 // Learns from the daily sales history:
 //   • weekday pattern  — how strong each weekday is on days the shop actually traded
-//   • late-month boost — how much stronger days 25+ are than days 1–24
-//   • monthly trend    — slow month-to-month growth/decline of the base daily rate (damped)
+//   • boost windows    — days 12–15 and days 25–29 of every month. For each window the AI measures how much
+//                        stronger those days were than the other ("plain") days of the same month, after removing
+//                        the weekday effect. It only boosts a window when past months really show it (small
+//                        samples are shrunk towards ×1.00), so a window that is NOT stronger stays at ×1.00.
+//   • seasonal months  — a factor per calendar month (e.g. Dec / Mar / Apr). Priority: the % the Admin typed in
+//                        the planner → what the AI learned from earlier years (ratio to the surrounding months,
+//                        needs ≥ 5 consecutive months around that month) → ×1.00 (no information yet).
+//   • monthly trend    — slow month-to-month growth/decline of the (de-seasonalised) base daily rate (damped)
 //   • volatility       — day-to-day spread, used to turn the forecast into a hit-chance
 // HOLIDAYS come from the Admin only. A day the Admin marked is forecast as 0; every other day is a
 // trading day. A marked day that still has sales logged (e.g. a Sunday that was worked) simply counts
 // as actual sales. Only when a month has NOT been marked yet, the AI estimates closures from how often
 // each weekday had no sales in the past (and says so in the UI).
 // ---------------------------------------------------------------------------
+const LRG_WINDOWS = [
+  { id: 'mid',  from: 12, to: 15, label: '12–15' },
+  { id: 'late', from: 25, to: 29, label: '25–29' }
+];
+const LRG_SEASON_FLAG = [12, 3, 4];     // months the owner flagged as seasonal (Dec, Mar, Apr)
+const LRG_MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+function lrgWindowOf(d) { for (const w of LRG_WINDOWS) if (d >= w.from && d <= w.to) return w; return null; }
+function lrgWinFactor(h, d) { const w = lrgWindowOf(d); return w && h && h.win && h.win[w.id] ? h.win[w.id].f : 1; }
+// Seasonal factor of a calendar month (1–12): Admin's own % → learned from earlier years → none
+function lrgSeasonFactor(h, mo1) {
+  const man = Number((typeof SALES_SEASON !== 'undefined' && SALES_SEASON || {})[mo1]);
+  if (man > 0) return { f: man, src: 'manual', n: 0 };
+  const L = h && h.seasonLearned && h.seasonLearned[mo1];
+  if (L) return { f: L.f, src: 'learned', n: L.n };
+  return { f: 1, src: 'none', n: 0 };
+}
+// Everything that scales a normal day's sales on day d of (y, mo0): weekday × boost window × season
+function lrgDayMul(h, y, mo0, d) {
+  return (h.wd[new Date(y, mo0, d).getDay()] || 1) * lrgWinFactor(h, d) * lrgSeasonFactor(h, mo0 + 1).f;
+}
+
 function lrgHistory(now) {
   now = now || new Date();
   const curKey = lrgMonthKey(now);
   const pad = n => String(n).padStart(2, '0');
   const dowOf = (y, m1, d) => new Date(y, m1 - 1, d).getDay();
   const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
+  const clampN = (x, lo, hi) => Math.min(Math.max(x, lo), hi);
   const byDay = new Map();
   (typeof getAllCashEntries === 'function' ? getAllCashEntries() : []).forEach(e => {
     if (!e.date) return;
@@ -7264,47 +7315,101 @@ function lrgHistory(now) {
   }
   const pClosed = occ.map((n, i) => n >= 3 ? 1 - opn[i] / n : 0);
 
-  // 2) complete months
+  // 2) every complete month in the history (the engine uses the last 6 for the base rate, up to 12 for the
+  //    boost windows and ALL of them for learning seasonality)
   const months = new Map();
   posDates.forEach(d => {
     const k = d.slice(0, 7); if (k >= curKey) return;
     if (!months.has(k)) months.set(k, []);
     months.get(k).push({ day: +d.slice(8, 10), v: byDay.get(d) });
   });
-  let keys = [...months.keys()].sort().filter(k => {
+  const allKeys = [...months.keys()].sort().filter(k => {
     if (first && k === first.slice(0, 7) && +first.slice(8, 10) > 5) return false;   // partial first month
     return months.get(k).length >= 10;
   });
-  keys = keys.slice(-6);
-  const mInfo = keys.map(k => {
+  const mAll = allKeys.map(k => {
     const rows = months.get(k), y = +k.slice(0, 4), m = +k.slice(5, 7), dim = new Date(y, m, 0).getDate();
-    const early = rows.filter(r => r.day < 25), late = rows.filter(r => r.day >= 25);
-    return { key: k, y, m, dim, rows, logged: rows.length, closed: Math.max(dim - rows.length, 0),
-             earlyAvg: avg(early.map(r => r.v)), lateAvg: avg(late.map(r => r.v)), earlyN: early.length, lateN: late.length };
+    const plain = rows.filter(r => !lrgWindowOf(r.day));
+    return { key: k, y, m, dim, ord: y * 12 + m, rows, plain, logged: rows.length, closed: Math.max(dim - rows.length, 0),
+             plainAvg: avg(plain.map(r => r.v)), plainN: plain.length };
   });
+  const mInfo = mAll.slice(-6);
 
-  // 3) late-month uplift (median across months)
-  const ups = mInfo.filter(m => m.earlyN >= 5 && m.lateN >= 2 && m.earlyAvg > 0).map(m => m.lateAvg / m.earlyAvg).sort((a, b) => a - b);
-  let uplift = 1;
-  if (ups.length) uplift = ups.length % 2 ? ups[(ups.length - 1) / 2] : (ups[ups.length / 2 - 1] + ups[ups.length / 2]) / 2;
-  uplift = Math.min(Math.max(uplift, 0.8), 2.0);
-
-  // 4) weekday factors on days that traded, days 1–24 (so the 25th+ boost doesn't pollute them)
+  // 3) weekday factors on PLAIN days (outside the 12–15 / 25–29 windows, so the boosts don't pollute them)
   const wdSum = Array(7).fill(0), wdN = Array(7).fill(0);
-  mInfo.forEach(m => m.rows.forEach(r => {
-    if (r.day >= 25 || m.earlyAvg <= 0) return;
-    const w = dowOf(m.y, m.m, r.day); wdSum[w] += r.v / m.earlyAvg; wdN[w]++;
+  mInfo.forEach(m => m.plain.forEach(r => {
+    if (m.plainAvg <= 0) return;
+    const w = dowOf(m.y, m.m, r.day); wdSum[w] += r.v / m.plainAvg; wdN[w]++;
   }));
   let wd = wdSum.map((sum, i) => wdN[i] ? 1 + (sum / wdN[i] - 1) * (wdN[i] / (wdN[i] + 4)) : 1);
   const totN = wdN.reduce((a, b) => a + b, 0);
   const wMean = totN ? wd.reduce((s, f, i) => s + f * wdN[i], 0) / totN : 1;
   wd = wd.map(x => x / (wMean || 1));                                                // an average trading day = 1.0
 
-  // 5) volatility of a normal day around its expected value
+  // 4) per month: weekday-neutral daily rate on plain days + how strong each boost window was vs that rate
+  mAll.forEach(m => {
+    const wdOf = r => wd[dowOf(m.y, m.m, r.day)] || 1;
+    m.neutral = avg(m.plain.map(r => r.v / wdOf(r)));
+    m.winRatio = {};
+    LRG_WINDOWS.forEach(w => {
+      const arr = m.rows.filter(r => r.day >= w.from && r.day <= w.to).map(r => r.v / wdOf(r));
+      m.winRatio[w.id] = (arr.length >= 2 && m.neutral > 0) ? { r: avg(arr) / m.neutral, n: arr.length } : null;
+    });
+  });
+
+  // 5) boost-window factors = median ratio over the last ≤12 months, shrunk towards 1.00 for small samples
+  const win = {};
+  LRG_WINDOWS.forEach(w => {
+    const obs = mAll.slice(-12).map(m => m.winRatio[w.id]).filter(Boolean);
+    let f = 1, n = 0, up = 0, med = 1;
+    if (obs.length) {
+      const rs = obs.map(o => o.r).sort((a, b) => a - b);
+      med = rs.length % 2 ? rs[(rs.length - 1) / 2] : (rs[rs.length / 2 - 1] + rs[rs.length / 2]) / 2;
+      n = obs.reduce((s, o) => s + o.n, 0);
+      f = 1 + (med - 1) * (n / (n + 6));
+      up = obs.filter(o => o.r > 1.02).length;
+    }
+    win[w.id] = { id: w.id, label: w.label, from: w.from, to: w.to, f: clampN(f, 0.85, 1.8), n, months: obs.length, up, med };
+  });
+
+  // 6) seasonality learned from earlier years: a month's neutral rate ÷ the average of the months on both
+  //    sides of it (needs ≥ 2 consecutive months each side, up to 6). Averaged over the years, shrunk to 1.00.
+  const ordMap = new Map(mAll.map(m => [m.ord, m]));
+  const seasonRaw = {};
+  mAll.forEach(m => {
+    if (!(m.neutral > 0)) return;
+    let k = 0;
+    for (let j = 1; j <= 6; j++) {
+      const a = ordMap.get(m.ord - j), b = ordMap.get(m.ord + j);
+      if (a && b && a.neutral > 0 && b.neutral > 0) k = j; else break;
+    }
+    if (k < 2) return;
+    let s = 0, c = 0;
+    for (let j = 1; j <= k; j++) { s += ordMap.get(m.ord - j).neutral + ordMap.get(m.ord + j).neutral; c += 2; }
+    const ref = s / c; if (!(ref > 0)) return;
+    (seasonRaw[m.m] = seasonRaw[m.m] || []).push(m.neutral / ref);
+  });
+  const seasonLearned = {};
+  // normalise so the learned indices average 1.00 (peak months otherwise drag every other month's index down)
+  const rawMeans = Object.keys(seasonRaw).map(mo => avg(seasonRaw[mo]));
+  const norm = rawMeans.length >= 6 ? (avg(rawMeans) || 1) : 1;
+  Object.keys(seasonRaw).forEach(mo => {
+    const a = seasonRaw[mo], raw = avg(a) / norm;
+    let f = clampN(1 + (raw - 1) * (a.length / (a.length + 0.5)), 0.5, 2);
+    if (Math.abs(f - 1) < 0.04) f = 1;                                   // within normal noise → not a season
+    seasonLearned[mo] = { f, n: a.length, raw };
+  });
+  const seasOf = mo1 => {
+    const man = Number((typeof SALES_SEASON !== 'undefined' && SALES_SEASON || {})[mo1]);
+    return man > 0 ? man : (seasonLearned[mo1] ? seasonLearned[mo1].f : 1);
+  };
+  mAll.forEach(m => { m.base = m.neutral / (seasOf(m.m) || 1); });      // base rate with the season removed
+
+  // 7) volatility of a normal day around its expected value
   const devs = [];
-  mInfo.forEach(m => m.rows.forEach(r => {
-    if (r.day >= 25 || m.earlyAvg <= 0) return;
-    const f = wd[dowOf(m.y, m.m, r.day)]; if (f > 0) devs.push(r.v / (m.earlyAvg * f));
+  mInfo.forEach(m => m.plain.forEach(r => {
+    if (!(m.neutral > 0)) return;
+    const f = wd[dowOf(m.y, m.m, r.day)]; if (f > 0) devs.push(r.v / (m.neutral * f));
   }));
   let cv = 0.25;
   if (devs.length >= 15) {
@@ -7312,20 +7417,20 @@ function lrgHistory(now) {
     cv = Math.min(Math.max(mu > 0 ? sd / mu : 0.25, 0.08), 0.6);
   }
 
-  // 6) base daily rate (recency weighted) + damped monthly trend
+  // 8) base daily rate (recency weighted, season removed) + damped monthly trend
   let baseHist = 0;
-  const recent = mInfo.slice(-3).filter(m => m.earlyAvg > 0);
-  if (recent.length) { let w = 0, t = 0; recent.forEach((m, i) => { w += i + 1; t += m.earlyAvg * (i + 1); }); baseHist = t / w; }
+  const recent = mInfo.slice(-3).filter(m => m.base > 0);
+  if (recent.length) { let w = 0, t = 0; recent.forEach((m, i) => { w += i + 1; t += m.base * (i + 1); }); baseHist = t / w; }
   let growth = 0;
-  const series = mInfo.filter(m => m.earlyAvg > 0).map(m => m.earlyAvg);
+  const series = mInfo.filter(m => m.base > 0).map(m => m.base);
   if (series.length >= 2) {
     const n = series.length, xm = (n - 1) / 2, ym = avg(series);
     let num = 0, den = 0; series.forEach((y, i) => { num += (i - xm) * (y - ym); den += (i - xm) * (i - xm); });
     growth = Math.min(Math.max((den ? num / den : 0) / (ym || 1) * 0.6, -0.03), 0.04);
   }
   const n = mInfo.length;
-  return { months: mInfo, nMonths: n, uplift, wd, wdN, pClosed, cv, baseHist, growth, monthTotals,
-           avgClosed: n ? avg(mInfo.map(m => m.closed)) : null,
+  return { months: mInfo, allMonths: mAll, nMonths: n, nAllMonths: mAll.length, win, uplift: win.late.f, wd, wdN, pClosed, cv, baseHist, growth,
+           monthTotals, seasonLearned, avgClosed: n ? avg(mInfo.map(m => m.closed)) : null,
            confidence: n >= 4 ? 'hi' : n >= 2 ? 'mid' : 'lo' };
 }
 
@@ -7340,13 +7445,13 @@ function lrgDayOpen(h, y, mo0, d, key) {
 // Forecast for the current month's remaining days (+ target hit chance + expected pace)
 function lrgPredict(now, h, c) {
   const y = now.getFullYear(), mo = now.getMonth(), dim = c.dim, key = c.key;
-  const wdAt = d => h.wd[new Date(y, mo, d).getDay()] || 1;
-  const upAt = d => d >= 25 ? h.uplift : 1;
-  // this month's own "neutral" daily rate (weekday + late boost removed) from days that traded
+  const sf = lrgSeasonFactor(h, mo + 1);
+  const mulAt = d => lrgDayMul(h, y, mo, d);                  // weekday × boost window × season
+  // this month's own "neutral" daily rate (weekday + boost window + season removed) from days that traded
   let curSum = 0, curN = 0;
   c.byDay.forEach((v, dt) => {
     if (dt.slice(0, 7) !== key || !(v > 0)) return;
-    const d = +dt.slice(8, 10); curSum += v / (wdAt(d) * upAt(d)); curN++;
+    const d = +dt.slice(8, 10); curSum += v / mulAt(d); curN++;
   });
   const curBase = curN ? curSum / curN : 0;
   let base;
@@ -7354,14 +7459,15 @@ function lrgPredict(now, h, c) {
   else base = curN ? curBase : (h.baseHist || 0);
   const monthMarked = lrgMarkedDays(key) !== null;
   // day-by-day forecast for the days still to come
-  const preds = []; let R = 0, nSum = 0, nN = 0, lSum = 0, lN = 0, workExact = 0, markedLeft = 0, markedAll = 0;
+  const preds = []; let R = 0, workExact = 0, markedLeft = 0, markedAll = 0;
+  const cat = { normal: { s: 0, n: 0 } }; LRG_WINDOWS.forEach(w => { cat[w.id] = { s: 0, n: 0 }; });
   for (let d = 1; d <= dim; d++) if (lrgIsMarked(key, d)) markedAll++;
   for (let d = c.daysElapsed + 1; d <= dim; d++) {
-    const dm = lrgDayOpen(h, y, mo, d, key);
-    const v = base * wdAt(d) * upAt(d) * dm.open;
-    preds.push({ day: d, v, marked: dm.marked, est: dm.est }); R += v; workExact += dm.open;
+    const dm = lrgDayOpen(h, y, mo, d, key), w = lrgWindowOf(d);
+    const v = base * mulAt(d) * dm.open;
+    preds.push({ day: d, v, marked: dm.marked, est: dm.est, win: w ? w.id : null }); R += v; workExact += dm.open;
     if (dm.marked) markedLeft++;
-    if (dm.open > 0) { if (d >= 25) { lSum += v; lN += dm.open; } else { nSum += v; nN += dm.open; } }
+    if (dm.open > 0) { const k = cat[w ? w.id : 'normal']; k.s += v; k.n += dm.open; }
   }
   const remCalendar = Math.max(dim - c.daysElapsed, 0);
   const workLeft = Math.round(workExact);
@@ -7379,37 +7485,53 @@ function lrgPredict(now, h, c) {
       for (const p of preds) { cum += p.v; if (cum >= c.target) { hitDay = p.day; break; } }
     }
   }
-  // share of the month's sales expected to be done by now (weekday + late-boost + holiday aware)
+  // share of the month's sales expected to be done by now (weekday + boost-window + holiday aware)
   let wTot = 0, wCum = 0;
   for (let d = 1; d <= dim; d++) {
     const traded = (c.byDay.get(lrgDayKey(key, d)) || 0) > 0;
-    const w = d <= c.daysElapsed ? (traded ? wdAt(d) * upAt(d) : wdAt(d) * upAt(d) * lrgDayOpen(h, y, mo, d, key).open)
-                                 : wdAt(d) * upAt(d) * lrgDayOpen(h, y, mo, d, key).open;
+    const w = d <= c.daysElapsed ? (traded ? mulAt(d) : mulAt(d) * lrgDayOpen(h, y, mo, d, key).open)
+                                 : mulAt(d) * lrgDayOpen(h, y, mo, d, key).open;
     wTot += w; if (d <= c.daysElapsed) wCum += w;
   }
+  const avgOf = k => k.n > 0 ? k.s / k.n : null;
   return {
-    base, uplift: h.uplift, monthMarked, markedAll, markedLeft, workLeft, workExact, remCalendar, preds, R, projected,
+    base, uplift: h.uplift, season: sf, monthMarked, markedAll, markedLeft, workLeft, workExact, remCalendar, preds, R, projected,
     prob, hitDay, sd, idealShare: wTot ? wCum / wTot : 0,
-    avgNormal: nN > 0 ? nSum / nN : null,       // per trading day, days 1–24
-    avgLate:   lN > 0 ? lSum / lN : null,       // per trading day, days 25+
+    avgNormal: avgOf(cat.normal),     // per trading day outside the boost windows
+    avgMid:    avgOf(cat.mid),        // per trading day, days 12–15
+    avgLate:   avgOf(cat.late),       // per trading day, days 25–29
     avgPred:   workExact > 0 ? R / workExact : 0,
     nMonths: h.nMonths, confidence: h.confidence, curDays: curN
   };
 }
 
-// Forecast for a whole FUTURE month, `ahead` months after the current one (trend-adjusted)
+// Forecast for a whole FUTURE month, `ahead` months after the current one (trend + season adjusted)
 function lrgForecastMonth(y, mo0, h, anchor, ahead) {
   const key = y + '-' + String(mo0 + 1).padStart(2, '0'), dim = new Date(y, mo0 + 1, 0).getDate();
+  const sf = lrgSeasonFactor(h, mo0 + 1);
   let open = 0, wsum = 0, marked = 0;
   for (let d = 1; d <= dim; d++) {
     const dm = lrgDayOpen(h, y, mo0, d, key); if (dm.marked) marked++;
-    open += dm.open; wsum += dm.open * (h.wd[new Date(y, mo0, d).getDay()] || 1) * (d >= 25 ? h.uplift : 1);
+    open += dm.open; wsum += dm.open * lrgDayMul(h, y, mo0, d);
   }
   const base = anchor * Math.pow(1 + (h.growth || 0), ahead);
   const total = base * wsum;
   const sdDay = base * h.cv;
   const sd = Math.sqrt(open * sdDay * sdDay + Math.pow(0.06 * total, 2) + Math.pow(0.04 * ahead * total, 2));
-  return { key, dim, total, sd, openDays: open, marked, monthMarked: lrgMarkedDays(key) !== null };
+  return { key, dim, total, sd, openDays: open, marked, monthMarked: lrgMarkedDays(key) !== null, season: sf };
+}
+
+// Expected sales per trading day in a (future) month: a normal day, and a day inside each boost window
+function lrgDailyPlan(y, mo0, h, anchor, ahead) {
+  const sf = lrgSeasonFactor(h, mo0 + 1), b = anchor * Math.pow(1 + (h.growth || 0), ahead) * sf.f;
+  const o = { season: sf, normal: b };
+  LRG_WINDOWS.forEach(w => { o[w.id] = b * h.win[w.id].f; });
+  return o;
+}
+// AI sales target = forecast + a 5% stretch, rounded to the nearest 10,000
+function lrgSuggestTarget(forecast) {
+  const f = Number(forecast) || 0; if (!(f > 0)) return 0;
+  return Math.max(Math.round(f * 1.05 / 10000) * 10000, 10000);
 }
 
 function computeSalesTargetStats(now) {
@@ -7452,6 +7574,120 @@ function lrgColor(status) {
   return status === 'bad' ? 'var(--red)' : status === 'warn' ? 'var(--yellow)' : status === 'done' ? 'var(--navy3)' : 'var(--green)';
 }
 
+// ---------------------------------------------------------------------------
+// AI SUGGESTIONS — plain-language, actionable tips built from the same forecast engine
+// (seasonal months, 12–15 / 25–29 boost windows, pace vs target, target realism)
+// ---------------------------------------------------------------------------
+function lrgAiSuggestions(st) {
+  const out = [], ai = st.ai, h = st.hist, now = new Date(), y = now.getFullYear(), mo = now.getMonth();
+  const mon = now.toLocaleDateString('en-US', { month: 'short' });
+  const add = (icon, html, lvl) => out.push({ icon, html, lvl: lvl || 'info' });
+  const srcTxt = s => s === 'manual' ? 'ඔබ ලබාදුන් %' : 'පෙර වසරවල දත්ත';
+
+  // 1) seasonal months — this month and the next two
+  for (let k = 0; k <= 2; k++) {
+    const mo1 = new Date(y, mo + k, 1).getMonth() + 1, sf = lrgSeasonFactor(h, mo1), name = LRG_MONTH_NAMES[mo1 - 1];
+    const when = k === 0 ? 'මේ මාසය' : k === 1 ? 'ඉදිරි මාසය' : 'මාස 2කින්';
+    if (sf.src !== 'none' && Math.abs(sf.f - 1) >= (sf.src === 'learned' && !LRG_SEASON_FLAG.includes(mo1) ? 0.08 : 0.03)) {
+      add('📅', `<b>${when} (${name})</b> සීසනල් මාසයක් — සාමාන්‍ය මාසයකට වඩා විකුණුම් ~<b>${Math.abs((sf.f - 1) * 100).toFixed(0)}%</b> ${sf.f > 1 ? 'වැඩි' : 'අඩු'} වෙයි කියා ${srcTxt(sf.src)} අනුව AI ගණනය කරනවා (×${sf.f.toFixed(2)}).` + (sf.f > 1 ? ' Stock, cash float සහ staff ඒ අනුව සූදානම් කරන්න.' : ''), 'info');
+    } else if (sf.src === 'none' && LRG_SEASON_FLAG.includes(mo1)) {
+      add('📅', `<b>${when} (${name})</b> සීසනල් මාසයක් — නමුත් පෙර වසරේ ඒ මාසයේ දත්ත තවම නෑ. පහළ planner එකේ “Seasonal %” ඇතුල් කළොත් AI forecast/target එක ඒ අනුව වෙනස් වෙනවා.`, 'warn');
+    }
+  }
+
+  // 2) boost windows (12–15, 25–29) coming up in the next ~10 days
+  LRG_WINDOWS.forEach(w => {
+    const wf = h.win[w.id]; if (!wf || wf.f < 1.03) return;
+    const days = [];
+    for (let d = Math.max(w.from, st.daysElapsed + 1); d <= Math.min(w.to, st.dim); d++) if (!lrgIsMarked(st.key, d)) days.push(d);
+    if (!days.length || days[0] - st.today > 10) return;
+    const ps = ai.preds.filter(p => days.indexOf(p.day) >= 0), exp = ps.length ? ps.reduce((s, p) => s + p.v, 0) / ps.length : 0;
+    add('🔥', `<b>${mon} ${days[0]}${days.length > 1 ? '–' + days[days.length - 1] : ''}</b> (${w.label} කාල සීමාව) — පෙර මාස ${wf.months}ක දත්ත අනුව සාමාන්‍ය දිනකට වඩා ~<b>${((wf.f - 1) * 100).toFixed(0)}%</b> විකුණුම් වැඩියි; AI අපේක්ෂාව දිනකට ~<b>${fmt(exp)}</b>. මේ දින වලට stock, cashier සහ cash float සූදානම් කරන්න.`, 'hot');
+  });
+
+  // 3) pace vs target
+  if (st.target > 0 && st.sales < st.target && st.daysLeft > 0 && ai.workExact > 0) {
+    const winLeft = LRG_WINDOWS.filter(w => h.win[w.id].f >= 1.03 && ai.preds.some(p => p.win === w.id && !p.marked)).map(w => w.label);
+    if (ai.prob !== null && ai.prob < 50) {
+      add('⚠️', `Target එකට ඉතිරි <b>${fmt(st.remaining)}</b> — trading day ${ai.workLeft}ක් ඇත; දිනකට <b>${fmt(st.reqDaily)}</b> ඕනේ, AI අපේක්ෂාව ~${fmt(ai.avgPred)}.` + (winLeft.length ? ` ${winLeft.join(' සහ ')} දින වල විකුණුම් වැඩි වෙන නිසා ඒ දින වලට විශේෂ අවධානය යොමු කරන්න.` : ''), 'bad');
+    } else if (ai.prob !== null) {
+      add('✅', `මේ pace එකෙන් target එක ළඟා කරගැනීමේ අවස්ථාව <b>${ai.prob.toFixed(0)}%</b>` + (ai.hitDay ? ` (${mon} ${ai.hitDay} පමණ)` : '') + '.', 'good');
+    }
+  }
+
+  // 4) is the target realistic compared with the AI forecast?
+  if (st.target > 0 && ai.R > 0 && st.daysElapsed >= 3) {
+    const hi = st.projected + 1.28 * ai.sd, lo = Math.max(st.projected - 1.28 * ai.sd, 0), sug = lrgSuggestTarget(st.projected);
+    if (st.target > hi) add('🎯', `Target එක (${fmt(st.target)}) AI 80% range එකේ ඉහළ සීමාව (${fmt(hi)}) ඉක්මවයි — ළඟා කරගැනීම අපහසුයි. AI යෝජිත target: <b>${fmt(sug)}</b>.`, 'warn');
+    else if (st.target < lo) add('🎯', `Target එක (${fmt(st.target)}) AI forecast range එකට වඩා පහළයි — තවත් ඉහළ target එකක් තැබිය හැක. AI යෝජිත target: <b>${fmt(sug)}</b>.`, 'info');
+  }
+
+  // 5) next month's AI target (when none typed yet)
+  if (ai.base > 0) {
+    const d1 = new Date(y, mo + 1, 1), f = lrgForecastMonth(d1.getFullYear(), d1.getMonth(), h, ai.base, 1);
+    if (f.total > 0 && !lrgExplicitTarget(f.key)) add('🎯', `<b>${lrgMonthLabel(f.key, true)}</b> සඳහා AI forecast <b>${fmt(f.total)}</b> — AI යෝජිත target <b>${fmt(lrgSuggestTarget(f.total))}</b> (planner එකේ “Use” එබීමෙන් යොදාගන්න).`, 'info');
+  }
+
+  // 6) how much has the AI learned so far
+  const weak = LRG_WINDOWS.filter(w => h.win[w.id].f < 1.03).map(w => w.label);
+  if (h.nAllMonths < 3) add('ℹ️', `සම්පූර්ණ මාස ${h.nAllMonths}ක දත්ත පමණයි — 12–15 / 25–29 රටාව සහ සීසනල් (Dec / Mar / Apr) බලපෑම ඉගෙනගන්න තවත් මාස/වසර දත්ත ඕනේ. එතෙක් AI වඩා ප්‍රවේශම් වෙනවා.`, 'info');
+  else if (weak.length) add('ℹ️', `${weak.join(' සහ ')} දින වල විශේෂ වැඩිවීමක් දැනට ඇති දත්තවල පේන්නේ නෑ — එනිසා ඒවාට boost එකක් යොදන්නේ නෑ (දත්ත වැඩි වන විට ස්වයංක්‍රීයව වෙනස් වෙයි).`, 'info');
+  return out;
+}
+function lrgSuggestionsHtml(st) {
+  let s = []; try { s = lrgAiSuggestions(st); } catch (e) { console.error('lrgAiSuggestions', e); }
+  if (!s.length) return '';
+  return `<div class="lrg-sugg"><div class="lrg-sugg-title">💡 AI Suggestions</div>${s.map(x => `<div class="lrg-sg ${x.lvl}"><span class="ic">${x.icon}</span><span>${x.html}</span></div>`).join('')}</div>`;
+}
+// chips for the two boost windows + this month's seasonal factor (Sales Target page)
+function lrgWindowChips(h, sf) {
+  const chips = LRG_WINDOWS.map(w => {
+    const x = h.win[w.id], cls = x.f >= 1.03 ? 'up' : x.f <= 0.97 ? 'dn' : '';
+    const sub = x.months ? `${x.months} month${x.months === 1 ? '' : 's'} of data` : 'no data yet';
+    return `<span class="lrg-wd ${cls}" title="Days ${w.label}: ${(x.f * 100).toFixed(0)}% of a plain day (${sub})">Days ${w.label}<b>×${x.f.toFixed(2)}</b></span>`;
+  }).join('');
+  const seas = sf && sf.src !== 'none'
+    ? `<span class="lrg-wd ${sf.f >= 1.03 ? 'up' : sf.f <= 0.97 ? 'dn' : ''}" title="Seasonal factor of this month (${sf.src === 'manual' ? 'typed by Admin' : 'learned from earlier years'})">Season<b>×${sf.f.toFixed(2)}</b></span>` : '';
+  return chips + seas;
+}
+
+// Seasonal-month editor + learned day-pattern, shown at the top of the planner (inside #lrg-planner)
+function lrgSeasonEditorHtml(st, admin) {
+  const h = st && st.hist, dis = admin ? '' : 'disabled';
+  const cells = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => {
+    const man = Number((SALES_SEASON || {})[m]), L = h && h.seasonLearned ? h.seasonLearned[m] : null, flag = LRG_SEASON_FLAG.includes(m);
+    const val = man > 0 ? String(Math.round((man - 1) * 1000) / 10) : '';
+    const ph = L ? ((L.f - 1) * 100).toFixed(0) + ' (AI)' : '0';
+    return `<div class="lrg-ss${flag ? ' flag' : ''}"><label for="lrg-ss-${m}">${flag ? '⭐ ' : ''}${LRG_MONTH_NAMES[m - 1].slice(0, 3)}</label><span class="lrg-ss-in"><input type="number" id="lrg-ss-${m}" step="any" min="-60" max="200" ${dis} value="${val}" placeholder="${ph}"><i>%</i></span></div>`;
+  }).join('');
+  const winTxt = h ? LRG_WINDOWS.map(w => {
+    const x = h.win[w.id];
+    return x.f >= 1.03 ? `<b>${w.label}</b> දින: ×${x.f.toFixed(2)} (මාස ${x.months}ක දත්ත අනුව ~${((x.f - 1) * 100).toFixed(0)}% වැඩි)` : `<b>${w.label}</b> දින: විශේෂ වැඩිවීමක් නෑ (×${x.f.toFixed(2)})`;
+  }).join(' · ') : '';
+  return `<div class="lrg-plan-row lrg-season-row">
+    <div class="lrg-hd-head"><span class="lrg-hd-title">📅 Seasonal months — සාමාන්‍ය මාසයකට සාපේක්ෂව විකුණුම් % (ඉහළ = +, පහළ = −)</span></div>
+    <div class="lrg-ss-grid">${cells}</div>
+    <div class="lrg-hd-status">⭐ Dec / Mar / Apr සීසනල් මාස. හිස් තැබුවොත් AI වසර ගණනක දත්ත තිබෙන විට ස්වයංක්‍රීයව ඉගෙනගන්නවා (placeholder = AI ඉගෙනගත් %). ඔබ % එකක් ඇතුල් කළොත් ඒක AI එකට වඩා ප්‍රමුඛයි. “Save All” එබුවම forecast / AI target ඒ අනුව යාවත්කාලීන වෙනවා.</div>
+    ${winTxt ? `<div class="lrg-hd-status" style="margin-top:.3rem;">📈 මාසය තුළ දින රටාව (AI ඉගෙනගත්): ${winTxt}</div>` : ''}
+  </div>`;
+}
+function lrgUseAiTarget(key) {
+  if (!isAdmin()) return;
+  const el = document.getElementById('lrg-pl-t-' + key), v = (LRG_PLAN_AI || {})[key];
+  if (!el || !(v > 0)) return;
+  el.value = v; LRG_PLAN_DIRTY = true;
+}
+function lrgFillAiTargets() {
+  if (!isAdmin()) return;
+  let n = 0;
+  Object.keys(LRG_PLAN_AI || {}).forEach(key => {
+    const el = document.getElementById('lrg-pl-t-' + key), v = LRG_PLAN_AI[key];
+    if (el && v > 0 && el.value === '') { el.value = v; n++; }
+  });
+  if (n) { LRG_PLAN_DIRTY = true; toast(`🤖 හිස් මාස ${n}කට AI target යෙදුවා — “Save All” එබුවම save වෙනවා`); }
+  else toast('හිස් මාස නැහැ (හෝ AI forecast තවම නැහැ)');
+}
+
 function lrgWeekdayChips(h) {
   return [1, 2, 3, 4, 5, 6, 0].map(i => {
     if (h.pClosed[i] > 0.65) return `<span class="lrg-wd closed" title="${LRG_DOW[i]}: usually no sales in the history (mark it as a holiday in the planner)">${LRG_DOW[i]}<b>Rarely open</b></span>`;
@@ -7466,8 +7702,9 @@ function lrgAiPanel(st) {
   const gap = st.projected - st.target;
   const probClr = ai.prob >= 70 ? 'c-green' : ai.prob >= 40 ? 'c-yellow' : 'c-red';
   const hitTxt = ai.hitDay === 0 ? 'Achieved 🎉' : ai.hitDay ? `${monthShort} ${ai.hitDay}` : 'Not this month';
-  const hitSub = ai.hitDay === 0 ? 'Target already reached' : ai.hitDay ? (ai.hitDay >= 25 ? 'Helped by the 25th+ boost' : 'At the predicted daily rate') : 'Forecast falls short of target';
-  const upPct = (ai.uplift - 1) * 100;
+  const hitWin = ai.hitDay > 0 ? lrgWindowOf(ai.hitDay) : null;
+  const hitSub = ai.hitDay === 0 ? 'Target already reached' : ai.hitDay ? (hitWin && lrgWinFactor(h, ai.hitDay) >= 1.03 ? 'Helped by the ' + hitWin.label + ' boost' : 'At the predicted daily rate') : 'Forecast falls short of target';
+  const sfm = ai.season || { f: 1, src: 'none' };
   // day-by-day bars: actual (past) + AI forecast (future)
   const y = new Date().getFullYear(), mo = new Date().getMonth();
   const vals = [], bars = [];
@@ -7483,12 +7720,12 @@ function lrgAiPanel(st) {
       const p = ai.preds[d - st.daysElapsed - 1]; v = p ? p.v : 0;
       if (p && p.marked) { cls = 'cl'; tip = `${dn} ${d}: holiday (marked)`; } else { cls = 'pred'; tip = `${dn} ${d}: ~${fmt(v)} (AI forecast${p && p.est ? ', closure estimated' : ''})`; }
     }
-    if (d >= 25 && cls !== 'cl') cls += ' late';
+    if (lrgWinFactor(h, d) >= 1.03 && cls !== 'cl') cls += ' late';
     vals.push(v); bars.push({ cls, v, tip });
   }
   const maxV = Math.max(1, ...vals);
   const barsHtml = bars.map(b => `<div class="lrg-day ${b.cls}" style="height:${(b.cls.startsWith('off') || b.cls.startsWith('cl')) ? 0 : Math.max((b.v / maxV) * 100, 2).toFixed(1)}%" title="${b.tip}"></div>`).join('');
-  const upLine = upPct >= 3 ? `25 වෙනිදාට පසු දෛනික විකුණුම් සාමාන්‍යයෙන් <b>${upPct.toFixed(0)}%</b> කින් වැඩි වෙනවා` : '25 වෙනිදාට පසු විශේෂ වැඩිවීමක් දත්තවල පේන්නේ නෑ';
+  const upLine = LRG_WINDOWS.map(w => { const x = h.win[w.id]; return x.f >= 1.03 ? `${w.label} දින වල සාමාන්‍යයෙන් <b>${((x.f - 1) * 100).toFixed(0)}%</b> කින් වැඩියි` : `${w.label} දින වල විශේෂ වැඩිවීමක් තවම පේන්නේ නෑ`; }).join('; ') + (sfm.src !== 'none' ? `; මේ මාසයට සීසනල් ගැලපුම ×${sfm.f.toFixed(2)} (${sfm.src === 'manual' ? 'ඔබ ලබාදුන්' : 'AI ඉගෙනගත්'})` : '');
   const holLine = ai.monthMarked || ai.markedAll > 0
     ? `ඔබ ලකුණු කළ නිවාඩු දින <b>${ai.markedAll}</b>ක් (ඉතිරි දින වල <b>${ai.markedLeft}</b>ක්) සලකා ඉතිරි දිනවල විකුණුම් ගණනය කළා`
     : 'මේ මාසයේ නිවාඩු දින තවම ලකුණු කරලා නෑ — ගිය මාස වල විකුණුම් නොතිබූ දින pattern එකෙන් AI ඇස්තමේන්තුවක් යොදාගත්තා. නිවාඩු දින (ඉරිදා, පෝය ඇතුළුව) පහළ planner එකේ ලකුණු කළොත් වඩා නිවැරදි වෙනවා';
@@ -7503,12 +7740,14 @@ function lrgAiPanel(st) {
       <div class="lrg-m ${st.projPct >= 100 ? 'c-green' : 'c-yellow'}"><div class="lrg-m-label">Predicted Month-End</div><div class="lrg-m-val">${fmt(st.projected)}</div><div class="lrg-m-sub">${st.projPct.toFixed(0)}% of target · ${gap >= 0 ? '+' : '−'} ${fmt(Math.abs(gap))}</div></div>
       <div class="lrg-m ${probClr}"><div class="lrg-m-label">Chance to Hit Target</div><div class="lrg-m-val">${ai.prob === null ? '—' : ai.prob.toFixed(0) + '%'}</div><div class="lrg-m-sub">Based on day-to-day variation</div></div>
       <div class="lrg-m c-accent"><div class="lrg-m-label">Predicted Target Date</div><div class="lrg-m-val">${hitTxt}</div><div class="lrg-m-sub">${hitSub}</div></div>
-      <div class="lrg-m"><div class="lrg-m-label">Expected Daily Sale</div><div class="lrg-m-val">${ai.avgNormal !== null ? fmt(ai.avgNormal) : '—'}${ai.avgLate !== null ? `<div style="font-size:.78rem;font-weight:700;color:var(--yellow);margin-top:.15rem;">25th+ : ${fmt(ai.avgLate)}</div>` : ''}</div><div class="lrg-m-sub">${ai.avgNormal !== null ? 'Avg trading day, days 1–24' : 'Only 25th+ days remain'}</div></div>
+      <div class="lrg-m"><div class="lrg-m-label">Expected Daily Sale</div><div class="lrg-m-val">${ai.avgNormal !== null ? fmt(ai.avgNormal) : '—'}${ai.avgMid !== null ? `<div style="font-size:.78rem;font-weight:700;color:var(--yellow);margin-top:.15rem;">12–15 : ${fmt(ai.avgMid)}</div>` : ''}${ai.avgLate !== null ? `<div style="font-size:.78rem;font-weight:700;color:var(--yellow);margin-top:.15rem;">25–29 : ${fmt(ai.avgLate)}</div>` : ''}</div><div class="lrg-m-sub">${ai.avgNormal !== null ? 'Avg normal trading day (outside 12–15 / 25–29)' : 'Only boost-window days remain'}</div></div>
       <div class="lrg-m"><div class="lrg-m-label">Trading Days Left</div><div class="lrg-m-val">${ai.workLeft} <span style="font-size:.75rem;font-weight:600;color:var(--muted)">of ${st.dim - st.daysElapsed}</span></div><div class="lrg-m-sub">${ai.markedLeft} holiday${ai.markedLeft === 1 ? '' : 's'} marked${!ai.monthMarked && closedLeft > ai.markedLeft ? ' · rest AI-estimated' : ''}</div></div>
     </div>
     <div class="lrg-wd-row"><span class="lrg-wd-title">Weekday pattern (AI learned)</span>${lrgWeekdayChips(h)}</div>
+    <div class="lrg-wd-row"><span class="lrg-wd-title">Day-of-month &amp; season (AI learned)</span>${lrgWindowChips(h, sfm)}</div>
     <div class="lrg-days">${barsHtml}</div>
-    <div class="lrg-days-cap"><span><i style="background:var(--navy3)"></i>Actual</span><span><i style="background:var(--accent);opacity:.6"></i>AI forecast</span><span><i style="background:var(--yellow)"></i>25th+ boost days</span><span><i style="background:var(--border)"></i>No sales / holiday</span><span style="margin-left:auto;">Day 1 → ${st.dim}</span></div>
+    <div class="lrg-days-cap"><span><i style="background:var(--navy3)"></i>Actual</span><span><i style="background:var(--accent);opacity:.6"></i>AI forecast</span><span><i style="background:var(--yellow)"></i>12–15 / 25–29 boost days</span><span><i style="background:var(--border)"></i>No sales / holiday</span><span style="margin-left:auto;">Day 1 → ${st.dim}</span></div>
+    ${lrgSuggestionsHtml(st)}
     <div class="lrg-ai-note">${note}</div>
   </div></div>`;
 }
@@ -7753,7 +7992,7 @@ function lrgChartRows(st) {
     for (let k = 1; k <= 5; k++) {
       const d = new Date(now.getFullYear(), now.getMonth() + k, 1);
       const f = lrgForecastMonth(d.getFullYear(), d.getMonth(), h, ai.base, k);
-      rows.push({ key: f.key, type: 'future', actual: 0, fc: f.total, sd: f.sd, target: lrgExplicitTarget(f.key), monthMarked: f.monthMarked });
+      rows.push({ key: f.key, type: 'future', actual: 0, fc: f.total, sd: f.sd, target: lrgExplicitTarget(f.key), monthMarked: f.monthMarked, season: f.season });
     }
   }
   return rows;
@@ -7775,7 +8014,7 @@ function renderMonthForecastChart(st) {
     if (d <= de) { const a = st.byDay.get(lrgDayKey(key, d)) || 0; c += a; dayV.push(a); band.push(0); }
     else {
       const p = ai.preds[d - de - 1], v = p ? p.v : 0, dow = new Date(y, mo, d).getDay();
-      const f = ai.base * (h.wd[dow] || 1) * (d >= 25 ? h.uplift : 1);
+      const f = ai.base * (h.wd[dow] || 1) * lrgWinFactor(h, d) * ((ai.season && ai.season.f) || 1);
       work += f > 0 ? Math.min(v / f, 1) : 0; fr += v; c += v; dayV.push(v);
       band.push(Math.sqrt(work * sdDaily * sdDaily + Math.pow(0.06 * fr, 2)));
     }
@@ -7794,8 +8033,12 @@ function renderMonthForecastChart(st) {
   for (let d = 1; d <= dim; d++) if (d === 1 || d % 5 === 0 || d === dim) xl += `<text x="${px(d).toFixed(1)}" y="${H - mb + 16}" text-anchor="middle" font-size="10" fill="var(--muted)">${d}</text>`;
   xl += `<text x="${ml + plotW / 2}" y="${H - 6}" text-anchor="middle" font-size="10" fill="var(--muted)">Day of month</text>`;
   let g = '';
-  // 25th+ boost zone
-  if (dim >= 25 && ai.uplift >= 1.03) g += `<rect x="${px(24.5).toFixed(1)}" y="${mt}" width="${(px(dim) - px(24.5)).toFixed(1)}" height="${plotH}" fill="var(--yellow)" opacity=".10"/><text x="${((px(24.5) + px(dim)) / 2).toFixed(1)}" y="${mt + 11}" text-anchor="middle" font-size="9" fill="var(--yellow)" font-weight="700">25th+ boost</text>`;
+  // boost-window zones (12–15, 25–29) — only shown when the history really shows a boost
+  LRG_WINDOWS.forEach(w => {
+    if (dim < w.from || h.win[w.id].f < 1.03) return;
+    const x1 = px(w.from - 0.5), x2 = px(Math.min(w.to, dim) + 0.5);
+    g += `<rect x="${x1.toFixed(1)}" y="${mt}" width="${(x2 - x1).toFixed(1)}" height="${plotH}" fill="var(--yellow)" opacity=".10"/><text x="${((x1 + x2) / 2).toFixed(1)}" y="${mt + 11}" text-anchor="middle" font-size="9" fill="var(--yellow)" font-weight="700">${w.label} boost</text>`;
+  });
   // 80% confidence band
   if (de < dim) {
     const up = [], lo = [];
@@ -7875,7 +8118,7 @@ function renderSalesTargetChart(st) {
     }
     const yy = String(r.key.slice(2, 4)), isCur = r.type === 'current';
     bars += `<text x="${cx.toFixed(1)}" y="${H - mb + 18}" text-anchor="middle" font-size="11.5" font-weight="${isCur ? 800 : 600}" fill="${isCur ? 'var(--accent)' : 'var(--text)'}">${lrgMonthLabel(r.key)} ’${yy}</text>`;
-    const tag = r.type === 'current' ? 'This month' : r.type === 'future' ? 'Forecast' : 'Actual';
+    const tag = r.type === 'current' ? 'This month' : r.type === 'future' ? 'Forecast' + (r.season && r.season.src !== 'none' && Math.abs(r.season.f - 1) >= 0.03 ? ' · season ×' + r.season.f.toFixed(2) : '') : 'Actual';
     bars += `<text x="${cx.toFixed(1)}" y="${H - mb + 31}" text-anchor="middle" font-size="9.5" fill="var(--muted)">${tag}</text>`;
     if (r.target > 0) {
       const pct = total / r.target * 100, ok = pct >= 100;
@@ -7904,6 +8147,7 @@ function renderSalesTargetChart(st) {
 // ---------------------------------------------------------------------------
 let LRG_PLAN_COUNT = 6;
 let LRG_PLAN_FC = {};
+let LRG_PLAN_AI = {};         // key → AI suggested target (forecast + 5% stretch)
 let LRG_PLAN_MARKS = {};      // working copy: key → [days] | null (null = not marked yet → AI estimates)
 let LRG_PLAN_DIRTY = false;   // unsaved edits exist → live-sync refreshes must not wipe them
 function initSalesTargetSection() {
@@ -7960,7 +8204,7 @@ function renderSalesTargetAdmin(force) {
   if (!force && (LRG_PLAN_DIRTY || (planner.contains(document.activeElement) && /INPUT|BUTTON/.test(document.activeElement.tagName)))) return;
   let st = null;
   try { st = computeSalesTargetStats(); } catch (e) { console.error('planner stats', e); }
-  LRG_PLAN_FC = {};
+  LRG_PLAN_FC = {}; LRG_PLAN_AI = {};
   let html = '';
   for (let i = 0; i < LRG_PLAN_COUNT; i++) {
     const d0 = new Date(now.getFullYear(), now.getMonth() + i, 1), key = lrgMonthKey(d0);
@@ -7971,6 +8215,12 @@ function renderSalesTargetAdmin(force) {
     let fc = 0;
     if (st) { if (i === 0) fc = st.projected; else if (st.ai.base > 0) fc = lrgForecastMonth(y, m0, st.hist, st.ai.base, i).total; }
     LRG_PLAN_FC[key] = fc;
+    const aiT = fc > 0 ? lrgSuggestTarget(fc) : 0;
+    LRG_PLAN_AI[key] = aiT;
+    const plan = st && st.ai.base > 0 ? lrgDailyPlan(y, m0, st.hist, st.ai.base, i) : null;
+    const sfp = plan ? plan.season : null;
+    const planLine = plan ? `Per trading day: normal ~${lrgShort(plan.normal)}` + LRG_WINDOWS.map(w => (st.hist.win[w.id].f >= 1.03 ? ` · ${w.label} ~${lrgShort(plan[w.id])}` : '')).join('') : '';
+    const seasonBadge = sfp && sfp.src !== 'none' && Math.abs(sfp.f - 1) >= 0.03 ? `<br><span style="font-weight:600;color:var(--yellow);">📅 Seasonal ×${sfp.f.toFixed(2)} (${sfp.src === 'manual' ? 'typed' : 'AI learned'})</span>` : (sfp && sfp.src === 'none' && LRG_SEASON_FLAG.includes(m0 + 1) ? '<br><span style="font-weight:600;color:var(--yellow);">📅 Seasonal month — % not set yet</span>' : '');
     const carried = i === 0 && !curT ? getSalesTargetFor(key) : null;
     const dis = admin ? '' : 'disabled';
     let chips = '';
@@ -7983,7 +8233,7 @@ function renderSalesTargetAdmin(force) {
       <div class="lrg-plan-top">
         <div class="lrg-plan-month">${lrgMonthLabel(key, true)}${i === 0 ? ' <span class="lrg-plan-tag">This month</span>' : ''}</div>
         <div><label for="lrg-pl-t-${key}">Target (LKR) — any amount you need</label><input type="number" id="lrg-pl-t-${key}" min="0" step="any" ${dis} value="${curT > 0 ? curT : ''}" placeholder="${carried && carried.amount ? 'carried ' + carried.amount : 'e.g. 5000000'}" onkeydown="if(event.key==='Enter')saveSalesTargetFromUI()"></div>
-        <div class="lrg-plan-ai">🤖 AI forecast <b>${fc > 0 ? fmt(fc) : '—'}</b><br><span style="font-weight:500;">(for comparison only)</span></div>
+        <div class="lrg-plan-ai">🤖 AI forecast <b>${fc > 0 ? fmt(fc) : '—'}</b><br>🎯 AI target <b>${aiT > 0 ? fmt(aiT) : '—'}</b>${admin && aiT > 0 ? ` <button type="button" class="lrg-setbtn" onclick="lrgUseAiTarget('${key}')">Use</button>` : ''}<br><span style="font-weight:500;">${planLine || '(forecast + 5% stretch)'}</span>${seasonBadge}</div>
       </div>
       <div>
         <div class="lrg-hd-head">
@@ -7995,7 +8245,7 @@ function renderSalesTargetAdmin(force) {
       </div>
     </div>`;
   }
-  planner.innerHTML = html;
+  planner.innerHTML = lrgSeasonEditorHtml(st, admin) + html;
   $('lrg-plan-actions').classList.toggle('hidden', !admin);
   if ($('lrg-plan-more')) $('lrg-plan-more').textContent = LRG_PLAN_COUNT >= 12 ? '➖ Show fewer months' : '➕ Show 12 months';
   const cur = lrgExplicitTarget(curKey), curMarks = lrgMarkedDays(curKey);
@@ -8005,10 +8255,10 @@ function renderSalesTargetAdmin(force) {
     : (cur > 0 ? 'Target එක Admin විසින් set කරලා තියෙන්නේ. (View only)' : 'Admin විසින් තවම target එකක් set කරලා නෑ.');
 }
 async function persistSalesTargets() {
-  try { localStorage.setItem('cms_sales_targets', JSON.stringify(SALES_TARGETS)); localStorage.setItem('cms_sales_holiday_days', JSON.stringify(SALES_HOLIDAY_DAYS)); } catch (e) { console.error('sales targets local mirror', e); }
+  try { localStorage.setItem('cms_sales_targets', JSON.stringify(SALES_TARGETS)); localStorage.setItem('cms_sales_holiday_days', JSON.stringify(SALES_HOLIDAY_DAYS)); localStorage.setItem('cms_sales_season', JSON.stringify(SALES_SEASON)); } catch (e) { console.error('sales targets local mirror', e); }
   if (!firebaseReady() || !rolePermDocRef) { toast('✅ Saved locally (offline mode)'); return true; }
   try {
-    await rolePermDocRef.set({ salesTargets: SALES_TARGETS, salesHolidayDays: SALES_HOLIDAY_DAYS }, { merge: true });
+    await rolePermDocRef.set({ salesTargets: SALES_TARGETS, salesHolidayDays: SALES_HOLIDAY_DAYS, salesSeason: SALES_SEASON }, { merge: true });
     return true;
   } catch (e) {
     console.error('persistSalesTargets', e);
@@ -8019,7 +8269,14 @@ async function persistSalesTargets() {
 // Saves every month row in the planner at once — the target is stored EXACTLY as typed
 async function saveSalesTargetFromUI() {
   if (!isAdmin()) { toast('⚠️ Admin only', 'red'); return; }
-  const now = new Date(), updT = {}, updH = {}; let clearing = 0, saved = 0;
+  const now = new Date(), updT = {}, updH = {}, updS = {}; let clearing = 0, saved = 0;
+  for (let m = 1; m <= 12; m++) {
+    const el = $('lrg-ss-' + m); if (!el) continue;
+    if (el.value === '') { updS[m] = 0; continue; }
+    const p = Number(el.value);
+    if (!isFinite(p) || p < -60 || p > 200) { toast(`⚠️ ${LRG_MONTH_NAMES[m - 1]}: Seasonal % එක −60 සිට 200 දක්වා විය යුතුයි`, 'red'); return; }
+    updS[m] = Math.round((1 + p / 100) * 1000) / 1000;
+  }
   for (let i = 0; i < LRG_PLAN_COUNT; i++) {
     const d0 = new Date(now.getFullYear(), now.getMonth() + i, 1), key = lrgMonthKey(d0);
     const tRaw = $('lrg-pl-t-' + key)?.value;
@@ -8037,6 +8294,7 @@ async function saveSalesTargetFromUI() {
   if (clearing && !confirm(`Target හිස් කළ මාස ${clearing}ක target ඉවත් කරන්නද?`)) return;
   SALES_TARGETS = { ...SALES_TARGETS, ...updT };            // 0 = not set (keeps Firestore merge simple)
   SALES_HOLIDAY_DAYS = { ...SALES_HOLIDAY_DAYS, ...updH };  // null = not marked
+  SALES_SEASON = { ...SALES_SEASON, ...updS };              // 0 = not set (AI learns it), otherwise factor e.g. 1.15
   const ok = await persistSalesTargets();
   LRG_PLAN_DIRTY = false;
   renderSalesTargetAdmin(true); try { renderSalesTargetGauge(); } catch (e) {}
@@ -13136,6 +13394,17 @@ function daysInCalendarMonth(yyyyMm) {
 // dragging the whole trend down/up just because it has fewer days of data.
 // The forecast average is then scaled up by however many days are actually in
 // the upcoming calendar month to produce a total figure.
+// Seasonal correction for the next-month forecast: season factor of the NEXT calendar month ÷ the average
+// season factor of the months the trend line was fitted on (Admin's % → AI learned → 1.00). Neutral until
+// a seasonal factor exists, so nothing changes without information.
+function aiSeasonAdj(pts, nextMonthKey) {
+  try {
+    const h = lrgHistory(), sN = lrgSeasonFactor(h, +nextMonthKey.slice(5, 7)).f;
+    const sP = pts.reduce((s, p) => s + lrgSeasonFactor(h, +p.month.slice(5, 7)).f, 0) / (pts.length || 1);
+    const adj = sN / (sP || 1);
+    return isFinite(adj) ? Math.min(Math.max(adj, 0.6), 1.6) : 1;
+  } catch (e) { return 1; }
+}
 function aiForecastNextMonth(series, maxPoints = 6) {
   const pts = series.slice(-maxPoints);
   if (!pts.length) return null;
@@ -13143,7 +13412,7 @@ function aiForecastNextMonth(series, maxPoints = 6) {
   const nd = new Date(ly, lm - 1, 1); nd.setMonth(nd.getMonth() + 1);
   const nextMonthKey = `${nd.getFullYear()}-${String(nd.getMonth() + 1).padStart(2, '0')}`;
   const nextMonthDays = daysInCalendarMonth(nextMonthKey);
-  if (pts.length === 1) return pts[0].avgNet * nextMonthDays;
+  if (pts.length === 1) return pts[0].avgNet * nextMonthDays * aiSeasonAdj(pts, nextMonthKey);
   const n = pts.length;
   const xs = pts.map((_, i) => i);
   const ys = pts.map(p => p.avgNet);
@@ -13155,7 +13424,7 @@ function aiForecastNextMonth(series, maxPoints = 6) {
   const slope = (n * sumXY - sumX * sumY) / denom;
   const intercept = (sumY - slope * sumX) / n;
   const forecastAvgNet = intercept + slope * n; // predict at x = n (the month right after the window)
-  return forecastAvgNet * nextMonthDays;
+  return forecastAvgNet * nextMonthDays * aiSeasonAdj(pts, nextMonthKey);
 }
 
 // Risk alerts: overdue cheques, cheques due within 7 days, and credit bills
@@ -13711,7 +13980,11 @@ function renderAIInsights() {
     </div>`).join('');
 
   // Summary
-  if ($('ai-summary-text')) $('ai-summary-text').innerHTML = aiGenerateSummary(series, alerts, curMonthLabel);
+  if ($('ai-summary-text')) {
+    let sg = '';
+    try { if (!isCashier()) sg = lrgSuggestionsHtml(computeSalesTargetStats()); } catch (e) { console.error('ai sales suggestions', e); }
+    $('ai-summary-text').innerHTML = aiGenerateSummary(series, alerts, curMonthLabel) + sg;
+  }
 
   // Risk alerts list
   if ($('ai-risk-count')) $('ai-risk-count').textContent = String(alerts.length);
