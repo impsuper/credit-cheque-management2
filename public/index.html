@@ -1051,6 +1051,20 @@ tr:hover td{background:var(--row-hover);}
 #supGrid tr:nth-child(even) td{background:var(--zebra-even);}
 #supGrid tr:hover td{background:var(--hover-tint)!important;}
 
+/* ===== CREDITS & CHEQUES TABLE ZEBRA STRIPING (same two-tone as Suppliers) ===== */
+#creditsActiveBody tr:not(.summary-row):nth-child(odd) td{background:var(--surface);}
+#creditsSettledBody tr:not(.summary-row):nth-child(odd) td{background:var(--surface);}
+#activeChequesBody tr:not(.summary-row):nth-child(odd) td{background:var(--surface);}
+#settledChequesBody tr:not(.summary-row):nth-child(odd) td{background:var(--surface);}
+#creditsActiveBody tr:not(.summary-row):nth-child(even) td{background:var(--zebra-even);}
+#creditsSettledBody tr:not(.summary-row):nth-child(even) td{background:var(--zebra-even);}
+#activeChequesBody tr:not(.summary-row):nth-child(even) td{background:var(--zebra-even);}
+#settledChequesBody tr:not(.summary-row):nth-child(even) td{background:var(--zebra-even);}
+#creditsActiveBody tr:not(.summary-row):hover td{background:var(--hover-tint)!important;}
+#creditsSettledBody tr:not(.summary-row):hover td{background:var(--hover-tint)!important;}
+#activeChequesBody tr:not(.summary-row):hover td{background:var(--hover-tint)!important;}
+#settledChequesBody tr:not(.summary-row):hover td{background:var(--hover-tint)!important;}
+
 /* ===== CASH IN HAND BREAKDOWN ===== */
 .cih-breakdown{margin-top:.6rem;}
 .cih-row{display:flex;align-items:center;gap:.45rem;padding:.3rem 0;font-size:.82rem;}
@@ -1181,7 +1195,8 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
 
 /* ===== DASHBOARD ROTATING CHART CAROUSEL ===== */
 .ov-carousel{position:relative;}
-.ov-carousel-slides{position:relative;min-height:220px;}
+.ov-carousel-slides{position:relative;min-height:220px;min-width:0;}
+.ov-carousel-slide{min-width:0;max-width:100%;}
 .ov-carousel-slide{display:none;}
 .ov-carousel-slide.active{display:block;animation:ovSlideFade .55s ease;}
 @keyframes ovSlideFade{
@@ -1252,6 +1267,36 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
   .ov-carousel.ov-zoomed .ov-carousel-slide>.card-head:first-child{padding-right:1.5rem;}
 }
 @media(max-width:768px){.ov-carousel.ov-zoomed .ov-zoom-btn{top:.55rem;right:.6rem;width:32px;height:32px;}}
+
+
+/* ===== ✅ Cheques Management — compact header + filters ===== */
+#chequesSection .ch-head{padding:.7rem 1.2rem;gap:.6rem 1rem;}
+#chequesSection .ch-head-left{display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;min-width:0;}
+#chequesSection .ch-stats{display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;}
+#chequesSection .ch-stat{display:inline-flex;align-items:center;gap:.35rem;padding:.28rem .75rem;border-radius:999px;background:var(--hover-tint);border:1.5px solid var(--accent);color:var(--navy);font-size:.8rem;font-weight:600;white-space:nowrap;}
+#chequesSection .ch-stat small{font-size:.72rem;font-weight:600;color:var(--muted);}
+#chequesSection .ch-stat b{font-weight:800;}
+#chequesSection .ch-head .card-actions{gap:.45rem;}
+#chequesSection .ch-head .ch-quick-btn{padding:.32rem .75rem;font-size:.78rem;}
+#chequesSection .tab-bar{padding:.45rem 1.2rem 0;}
+#chequesSection .tab{padding:.45rem 1rem;font-size:.85rem;}
+/* filters: two tight rows that read as ONE panel */
+#chequesSection .ch-toolbar{padding:.55rem 1.2rem .35rem;gap:.45rem;border-bottom:none;}
+#chequesSection .ch-toolbar input[type=text]{flex:1 1 200px;min-width:150px;max-width:300px;padding:.38rem .8rem;}
+#chequesSection .ch-toolbar select{padding:.38rem .6rem;font-size:.82rem;max-width:180px;}
+#chequesSection .ch-toolbar .clear-btn,#chequesSection .ch-date-bar .clear-btn{padding:.3rem .7rem;font-size:.78rem;}
+#chequesSection .ch-date-bar{padding:.2rem 1.2rem .6rem;gap:.45rem .9rem;}
+#chequesSection .ch-date-group{display:inline-flex;align-items:center;gap:.35rem;padding:.2rem .5rem;background:var(--surface);border:1.5px solid var(--border);border-radius:9px;}
+#chequesSection .ch-date-lbl{font-weight:700;font-size:.76rem;color:var(--navy);white-space:nowrap;}
+#chequesSection .ch-date-to{color:var(--muted);font-size:.8rem;}
+#chequesSection .ch-date-group input[type=date]{padding:.22rem .4rem;border:1.5px solid var(--border);border-radius:6px;font-size:.78rem;background:var(--surface-2);}
+@media(max-width:768px){
+  #chequesSection .ch-head{padding:.6rem .8rem;}
+  #chequesSection .ch-toolbar,#chequesSection .ch-date-bar{padding-left:.8rem;padding-right:.8rem;}
+  #chequesSection .ch-toolbar input[type=text]{max-width:none;flex-basis:100%;}
+  #chequesSection .ch-toolbar select{flex:1 1 130px;max-width:none;}
+  #chequesSection .ch-date-group{flex:1 1 100%;justify-content:space-between;}
+}
 
 /* ===== 💰 Daily Cash Entry — organised step layout ===== */
 .ce-layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:1.2rem;align-items:start;padding:1.2rem;}
@@ -1385,8 +1430,11 @@ body.ov-zoom-open .ov-zoom-backdrop{display:block;}
 .ov-carousels-row{display:flex;flex-direction:column;gap:1.2rem;margin-top:.6rem;}
 .ov-carousels-row>.ov-carousel{margin:0;}
 @media(min-width:1100px){
-  .ov-carousels-row{flex-direction:row;align-items:stretch;gap:1rem;margin-bottom:1.2rem;}
-  .ov-carousels-row>.ov-carousel{flex:1 1 0;min-width:0;margin:0;}
+  /* Two EQUAL columns that never resize with slide content (minmax(0,1fr) stops wide charts
+     from stretching a column). If one carousel is hidden by permissions the other takes the row. */
+  .ov-carousels-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch;gap:1rem;margin-bottom:1.2rem;}
+  .ov-carousels-row:has(>.ov-carousel.hidden){grid-template-columns:minmax(0,1fr);}
+  .ov-carousels-row>.ov-carousel{width:auto;min-width:0;max-width:100%;margin:0;}
   .ov-carousel{padding-top:2.9rem;}
   /* top bar: dots strip sits just left of the lock button */
   .ov-carousel .ov-carousel-dots{
@@ -2329,19 +2377,21 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
     <!-- CHEQUES -->
     <div id="chequesSection" class="section">
       <div class="card">
-        <div class="card-head">
-          <div class="card-title">✅ Cheques Management</div>
+        <div class="card-head ch-head">
+          <div class="ch-head-left">
+            <div class="card-title">✅ Cheques Management</div>
+            <div id="ch-total-bar" class="ch-stats">
+              <span class="ch-stat" title="Active cheques">🧾 <small>Active</small> <b id="ch-total-count">0</b></span>
+              <span class="ch-stat" title="Total active amount">💵 <b id="ch-total-amount">LKR 0</b></span>
+            </div>
+          </div>
           <div class="card-actions">
-            <span class="ch-quick-filter-label">⚡ Quick Filters:</span>
+            <span class="ch-quick-filter-label">⚡ Quick:</span>
             <button class="ch-quick-btn" id="ch-quick-1" data-tone="red" onclick="applyChequeQuickFilter(1)">🔴 This Week (incl. Overdue)</button>
             <button class="ch-quick-btn" id="ch-quick-2" data-tone="yellow" onclick="applyChequeQuickFilter(2)">🟡 Next Week</button>
             <button class="ch-quick-btn" id="ch-quick-3" data-tone="blue" onclick="applyChequeQuickFilter(3)">🔵 Week After Next</button>
             <button class="btn btn-navy btn-sm" onclick="openModal('chequeModal')">➕ Add Cheque</button>
           </div>
-        </div>
-        <div id="ch-total-bar" style="margin:1rem 1.5rem 0;padding:.75rem 1.1rem;background:var(--hover-tint);border:1.5px solid var(--accent);border-radius:10px;display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">
-          <span style="font-weight:700;color:var(--navy);font-size:.9rem;">🧾 Active Cheques: <span id="ch-total-count">0</span></span>
-          <span style="font-weight:700;color:var(--navy);font-size:.9rem;">💵 Active Amount: <span id="ch-total-amount">LKR 0</span></span>
         </div>
         <div class="tab-bar">
           <div class="tab active" onclick="switchChequeTab('active')" id="cheque-tab-active">⏳ Active <span class="tab-count" id="cnt-active">0</span></div>
@@ -2349,7 +2399,7 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
           <div class="tab" onclick="switchChequeTab('inhand')" id="cheque-tab-inhand">🖐️ In Manager's Hand <span class="tab-count" id="cnt-inhand">0</span></div>
           <div class="tab" onclick="switchChequeTab('charts')" id="cheque-tab-charts">📊 Charts</div>
         </div>
-        <div class="toolbar">
+        <div class="toolbar ch-toolbar">
           <input type="text" id="ch-search" placeholder="🔍 Search..." oninput="renderCheques()">
           <select id="ch-filter-sup" onchange="renderCheques()">
             <option value="">All Suppliers</option>
@@ -2368,15 +2418,15 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
           </select>
           <button class="clear-btn" onclick="clearFilters('ch')">✕ Clear</button>
         </div>
-        <div class="sa-filter-bar" style="flex-wrap:wrap;">
-          <span style="font-weight:700;font-size:.8rem;color:var(--navy);">📅 Entered Date:</span>
-          <input type="date" id="ch-filter-date-from" onchange="renderCheques()" style="padding:.4rem .6rem;border:1.5px solid var(--border);border-radius:7px;font-size:.82rem;">
-          <span style="color:var(--muted);font-size:.8rem;">to</span>
-          <input type="date" id="ch-filter-date-to" onchange="renderCheques()" style="padding:.4rem .6rem;border:1.5px solid var(--border);border-radius:7px;font-size:.82rem;">
-          <span style="font-weight:700;font-size:.8rem;color:var(--navy);margin-left:.6rem;">📅 Due Date:</span>
-          <input type="date" id="ch-filter-due-from" onchange="renderCheques()" style="padding:.4rem .6rem;border:1.5px solid var(--border);border-radius:7px;font-size:.82rem;">
-          <span style="color:var(--muted);font-size:.8rem;">to</span>
-          <input type="date" id="ch-filter-due-to" onchange="renderCheques()" style="padding:.4rem .6rem;border:1.5px solid var(--border);border-radius:7px;font-size:.82rem;">
+        <div class="sa-filter-bar ch-date-bar">
+          <div class="ch-date-group"><span class="ch-date-lbl">📅 Entered</span>
+            <input type="date" id="ch-filter-date-from" onchange="renderCheques()" title="Entered from">
+            <span class="ch-date-to">→</span>
+            <input type="date" id="ch-filter-date-to" onchange="renderCheques()" title="Entered to"></div>
+          <div class="ch-date-group"><span class="ch-date-lbl">⏰ Due</span>
+            <input type="date" id="ch-filter-due-from" onchange="renderCheques()" title="Due from">
+            <span class="ch-date-to">→</span>
+            <input type="date" id="ch-filter-due-to" onchange="renderCheques()" title="Due to"></div>
           <button class="clear-btn" onclick="clearChequeDateRange()">✕ Clear Dates</button>
         </div>
         <div class="hidden" id="ch-range-summary" style="margin:0 1.5rem 1rem;padding:.75rem 1.1rem;background:var(--hover-tint);border:1.5px solid var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;">
@@ -2403,7 +2453,6 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
                   <th onclick="sortTable('cheques','bank')" data-col="bank">🏦 Bank<span class="sort-ico"></span></th>
                   <th onclick="sortTable('cheques','amount')" data-col="amount">💵 Amount<span class="sort-ico"></span></th>
                   <th onclick="sortTable('cheques','dueDate')" data-col="dueDate">📅 Due Date<span class="sort-ico"></span></th>
-                  <th>📊 Status</th>
                   <th>⚙️ Actions</th>
                 </tr>
               </thead>
@@ -2425,7 +2474,6 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
                   <th onclick="sortTable('cheques','bank')" data-col="bank">🏦 Bank<span class="sort-ico"></span></th>
                   <th onclick="sortTable('cheques','amount')" data-col="amount">💵 Amount<span class="sort-ico"></span></th>
                   <th onclick="sortTable('cheques','dueDate')" data-col="dueDate">📅 Due Date<span class="sort-ico"></span></th>
-                  <th>📊 Status</th>
                   <th>⚙️ Actions</th>
                 </tr>
               </thead>
@@ -2512,13 +2560,11 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
           <div class="card-title">🏪 Suppliers</div>
           <div class="card-actions">
             <input type="text" id="sup-search" placeholder="🔍 Search suppliers..." oninput="renderSuppliers()" style="padding:.45rem .9rem;border:1.5px solid var(--border);border-radius:7px;font-size:.87rem;">
+            <span style="font-weight:700;font-size:.85rem;color:var(--navy);">⚡ Quick Sort:</span>
+            <button class="quick-pill" id="sup-quick-invoices" onclick="supQuickSort('invoices')">🧾 Most Invoices Added</button>
+            <button class="quick-pill" id="sup-quick-value" onclick="supQuickSort('value')">💰 Highest Value Purchases</button>
             <button id="addSupplierBtn" class="btn btn-navy btn-sm" onclick="openModal('supplierModal')">➕ Add Supplier</button>
           </div>
-        </div>
-        <div class="sa-filter-bar" style="border-bottom:1px solid var(--border);">
-          <span style="font-weight:700;font-size:.85rem;color:var(--navy);">⚡ Quick Sort:</span>
-          <button class="quick-pill" id="sup-quick-invoices" onclick="supQuickSort('invoices')">🧾 Most Invoices Added</button>
-          <button class="quick-pill" id="sup-quick-value" onclick="supQuickSort('value')">💰 Highest Value Purchases</button>
         </div>
         <div class="table-wrap">
           <table>
@@ -9260,7 +9306,6 @@ function renderCheques() {
       <td>${c.bank || '—'}</td>
       <td class="fw700">${fmt(c.amount)}</td>
       <td>${(()=>{ if(!c.dueDate||c.status!=='pending')return c.dueDate||'—'; const t=new Date();t.setHours(0,0,0,0);const d=new Date(c.dueDate);d.setHours(0,0,0,0);const days=Math.round((d-t)/864e5);if(days<0)return c.dueDate+' <span class="badge badge-red">⚠️'+Math.abs(days)+'d late</span>';if(days===0)return c.dueDate+' <span class="badge badge-red">🔥 Today!</span>';if(days<=3)return c.dueDate+' <span class="badge badge-yellow">⏰ '+days+'d</span>';if(days<=7)return c.dueDate+' <span class="badge badge-blue">📅 '+days+'d</span>';return c.dueDate;})()}</td>
-      <td>${statusMap[c.status] || c.status || '—'}</td>
       <td>
         ${isAdmin() ? `<div class="flex gap1" style="justify-content:flex-end;flex-wrap:wrap;">
           ${c.status === 'pending' ? `<button class="btn-clear" onclick="quickClearCheque('${c.id}','${c._ownerUsername}')" title="Mark as Cleared">✅ Clear</button>` : ''}
@@ -9312,7 +9357,7 @@ function renderCheques() {
     const mobileEl = $(mobileId);
     if (!tbody) return;
     if (!arr.length) {
-      tbody.innerHTML = `<tr><td colspan="9" class="no-data"><span class="ico">✅</span>No records</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8" class="no-data"><span class="ico">✅</span>No records</td></tr>`;
       if (mobileEl) mobileEl.innerHTML = '<div class="mob-no-data"><span class="ico">✅</span>No records</div>';
       if (pageOpts) renderPagination(pageOpts.containerId, 0, pageOpts.page, pageOpts.fnName, pageOpts.pageSize);
       return;
@@ -9322,7 +9367,7 @@ function renderCheques() {
     // Total always reflects every record in this tab, even when only one page is shown below
     sorted.forEach(c => { tot += Number(c.amount) || 0; });
     const displayArr = pageOpts ? sorted.slice((pageOpts.page - 1) * pageOpts.pageSize, pageOpts.page * pageOpts.pageSize) : sorted;
-    tbody.innerHTML = displayArr.map(renderRow).join('') + `<tr class="summary-row"><td colspan="4">📊 Total (${arr.length})</td><td></td><td>${fmt(tot)}</td><td colspan="3"></td></tr>`;
+    tbody.innerHTML = displayArr.map(renderRow).join('') + `<tr class="summary-row"><td colspan="4">📊 Total (${arr.length})</td><td></td><td>${fmt(tot)}</td><td colspan="2"></td></tr>`;
     if (mobileEl) mobileEl.innerHTML = displayArr.map(renderMobileCheque).join('');
     if (pageOpts) renderPagination(pageOpts.containerId, arr.length, pageOpts.page, pageOpts.fnName, pageOpts.pageSize);
   };
@@ -11005,14 +11050,16 @@ function ovSetSlideAvailable(slideId, available, dotsId) {
   }
 }
 
-function ovShowSlide(idx) {
+function ovShowSlide(idx, dir) {
   const slides = [...document.querySelectorAll('#ov-carousel-slides .ov-carousel-slide')];
   const dots = [...document.querySelectorAll('#ov-carousel-dots .ov-dot')];
   if (!slides.length) return;
   // Skip unavailable (no-data) slides
   let tries = 0;
+  const step = dir < 0 ? -1 : 1;   // ‹ must skip BACKWARD past no-data slides, otherwise it bounces straight back
+  idx = ((idx % slides.length) + slides.length) % slides.length;
   while (slides[idx] && slides[idx].getAttribute('data-nodata') === '1' && tries < slides.length) {
-    idx = (idx + 1) % slides.length;
+    idx = (idx + step + slides.length) % slides.length;
     tries++;
   }
   slides.forEach((s, i) => s.classList.toggle('active', i === idx));
@@ -11024,8 +11071,8 @@ function ovShowSlide(idx) {
   setTimeout(ovZoomedCardId === 'ov-carousel-card' ? ovZoomFitCharts : ovRestoreStaleApex, 150);
 }
 
-function ovGoToSlide(idx) {
-  ovShowSlide(idx);
+function ovGoToSlide(idx, dir) {
+  ovShowSlide(idx, dir);
   ovResetCarouselTimer();
 }
 
@@ -11034,7 +11081,7 @@ function ovGoToSlide(idx) {
 function ovPrevSlide() {
   const slides = document.querySelectorAll('#ov-carousel-slides .ov-carousel-slide');
   if (!slides.length) return;
-  ovGoToSlide((ovCarouselIndex - 1 + slides.length) % slides.length);
+  ovGoToSlide((ovCarouselIndex - 1 + slides.length) % slides.length, -1);
 }
 function ovNextSlide() {
   const slides = document.querySelectorAll('#ov-carousel-slides .ov-carousel-slide');
@@ -11103,14 +11150,16 @@ let ovCarousel2Timer = null;
 let ovCarousel2Started = false;
 let ovCarousel2Locked = false;
 
-function ovShowSlide2(idx) {
+function ovShowSlide2(idx, dir) {
   const slides = [...document.querySelectorAll('#ov-carousel2-slides .ov-carousel-slide')];
   const dots = [...document.querySelectorAll('#ov-carousel2-dots .ov-dot')];
   if (!slides.length) return;
   // Skip unavailable (no-data / permission-off) slides — same mechanism as carousel 1.
   let tries = 0;
+  const step = dir < 0 ? -1 : 1;   // ‹ must skip BACKWARD past no-data slides, otherwise it bounces straight back
+  idx = ((idx % slides.length) + slides.length) % slides.length;
   while (slides[idx] && slides[idx].getAttribute('data-nodata') === '1' && tries < slides.length) {
-    idx = (idx + 1) % slides.length;
+    idx = (idx + step + slides.length) % slides.length;
     tries++;
   }
   slides.forEach((s, i) => s.classList.toggle('active', i === idx));
@@ -11122,15 +11171,15 @@ function ovShowSlide2(idx) {
   setTimeout(ovZoomedCardId === 'ov-carousel2-card' ? ovZoomFitCharts : ovRestoreStaleApex, 150);
 }
 
-function ovGoToSlide2(idx) {
-  ovShowSlide2(idx);
+function ovGoToSlide2(idx, dir) {
+  ovShowSlide2(idx, dir);
   ovResetCarouselTimer2();
 }
 
 function ovPrevSlide2() {
   const slides = document.querySelectorAll('#ov-carousel2-slides .ov-carousel-slide');
   if (!slides.length) return;
-  ovGoToSlide2((ovCarousel2Index - 1 + slides.length) % slides.length);
+  ovGoToSlide2((ovCarousel2Index - 1 + slides.length) % slides.length, -1);
 }
 function ovNextSlide2() {
   const slides = document.querySelectorAll('#ov-carousel2-slides .ov-carousel-slide');
