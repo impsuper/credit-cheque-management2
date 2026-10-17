@@ -1305,7 +1305,23 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
 @media(max-width:1000px){.ce-layout{grid-template-columns:1fr;padding:.9rem;}.ce-side{position:static;}}
 .ce-sec{--ce-c:var(--navy3,#2563eb);background:var(--surface);border:1.5px solid var(--border);border-left:5px solid var(--ce-c);border-radius:14px;overflow:hidden;}
 .ce-sec.ce-green{--ce-c:#16a34a;}.ce-sec.ce-amber{--ce-c:#d97706;}.ce-sec.ce-violet{--ce-c:#7c3aed;}
-.ce-sec.ce-teal{--ce-c:#0f766e;}.ce-sec.ce-red{--ce-c:#dc2626;}
+.ce-sec.ce-teal{--ce-c:#0f766e;}.ce-sec.ce-red{--ce-c:#dc2626;}.ce-sec.ce-navy{--ce-c:#1d4ed8;}
+.ce-bk-row{display:grid;grid-template-columns:minmax(0,1fr) 150px minmax(0,1.3fr) auto;gap:.6rem;margin-bottom:.6rem;align-items:end;}
+.ce-ex-row{display:grid;grid-template-columns:150px minmax(0,1fr) auto;gap:.6rem;margin-bottom:.6rem;align-items:end;}
+@media(max-width:640px){.ce-bk-row,.ce-ex-row{grid-template-columns:1fr 1fr;}.ce-bk-row>.form-group:nth-child(3),.ce-ex-row>.form-group:nth-child(2){grid-column:1/-1;}}
+.bk-warn{background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:10px;padding:.65rem .9rem;font-size:.82rem;margin-bottom:.7rem;line-height:1.5;}
+.bk-warn button{margin-left:.5rem;}
+.bk-reg-add{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:.6rem .9rem;margin-bottom:1rem;padding:.9rem;border:1px dashed var(--border);border-radius:12px;background:var(--surface-2,var(--bg));}
+.bk-reg-add .bk-reg-checks{display:flex;gap:1.1rem;flex-wrap:wrap;align-items:center;font-size:.85rem;font-weight:600;}
+.bk-reg-add .bk-reg-checks label{display:flex;gap:.35rem;align-items:center;cursor:pointer;margin:0;}
+.bk-reg-add .bk-reg-btn{display:flex;justify-content:flex-end;align-items:center;}
+@media(max-width:640px){.bk-reg-add{grid-template-columns:1fr;}}
+.bk-reg-tbl{width:100%;border-collapse:collapse;font-size:.88rem;}
+.bk-reg-tbl th,.bk-reg-tbl td{padding:.55rem .6rem;border-bottom:1px solid var(--border);text-align:left;vertical-align:middle;}
+.bk-reg-tbl th{font-size:.74rem;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);}
+.bk-reg-tbl input[type=checkbox]{width:18px;height:18px;cursor:pointer;}
+.bk-off{opacity:.5;}
+
 .ce-sec-head{display:flex;align-items:center;gap:.8rem;padding:.8rem 1.1rem;background:color-mix(in srgb,var(--ce-c) 8%,var(--surface));border-bottom:1px solid var(--border);}
 .ce-step{width:28px;height:28px;border-radius:50%;background:var(--ce-c);color:#fff;font-weight:800;font-size:.85rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .ce-sec-title h4{margin:0;font-size:.95rem;font-weight:800;color:var(--text);}
@@ -2601,6 +2617,7 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
           <div class="tab" onclick="switchSettingsTab('backups')" id="set-tab-backups">☁️ Cloud Backup</div>
           <div class="tab" onclick="switchSettingsTab('localbackup')" id="set-tab-localbackup">💾 Backup &amp; Restore</div>
           <div class="tab" onclick="switchSettingsTab('alerts')" id="set-tab-alerts">🔔 Alerts</div>
+          <div class="tab" onclick="switchSettingsTab('banks')" id="set-tab-banks">🏦 Banks</div>
           <div class="tab" onclick="switchSettingsTab('theme')" id="set-tab-theme">🎨 Theme</div>
         </div>
 
@@ -2703,6 +2720,17 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
               <button id="pushToggleBtnSettings" class="btn btn-ghost btn-sm" onclick="togglePushNotifications()" data-on="0">🔕 Enable Alerts</button>
               <button class="btn btn-ghost btn-sm" onclick="openNotifSettings()">⚙️ Notification Preferences</button>
             </div>
+          </div>
+        </div>
+
+        <!-- BANK REGISTRY -->
+        <div id="settings-tab-content-banks" class="tab-content">
+          <div class="card-head">
+            <div class="card-title">🏦 Bank Registry</div>
+          </div>
+          <div style="padding:1.2rem 1.5rem;">
+            <p style="color:var(--muted);font-size:.85rem;margin-bottom:1rem;">🏦 බැංකු මෙතන කලින් Register කරන්න. <b>Banking</b> tick කළ බැංකු Cash Entry හි 🏦 Banking එකේ තෝරන්න පුළුවන්; <b>Card machine</b> tick කළ බැංකු Sales Breakdown හි 💳 Card Sale field ලෙස එයි. මේක සියලුම users ලාට අදාළයි.</p>
+            <div class="bank-registry-host"></div>
           </div>
         </div>
 
@@ -2887,10 +2915,13 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
               <header class="ce-sec-head"><span class="ce-step">2</span><div class="ce-sec-title"><h4>💵 Sales Breakdown</h4><p>Record the day's takings by payment type</p></div></header>
               <div class="ce-sec-body"><div class="ce-grid">
                 <div class="form-group ce-key"><label>💵 Cash (LKR)</label><input type="number" id="cm-cash" placeholder="0.00" step="0.01" min="0" oninput="calcCashNet()"></div>
-                <div class="form-group"><label>💳 Card Sale SDB (LKR)</label><input type="number" id="cm-credit" placeholder="0.00" step="0.01" min="0" oninput="calcCashNet()"></div>
-                <div class="form-group"><label>💳 Card Sale DFCC (LKR)</label><input type="number" id="cm-card" placeholder="0.00" step="0.01" min="0" oninput="calcCashNet()"></div>
+                <div id="cm-card-fields" style="display:contents;"></div>
                 <div class="form-group"><label>📱 QR Payment (LKR)</label><input type="number" id="cm-qr" placeholder="0.00" step="0.01" min="0" oninput="calcCashNet()"></div>
                 <div class="form-group"><label>🏦 Cheque Recv. (LKR)</label><input type="number" id="cm-cheque" placeholder="0.00" step="0.01" min="0" oninput="calcCashNet()"></div>
+              </div>
+              <div id="cm-card-addbar" style="display:none;margin-top:.5rem;font-size:.78rem;color:var(--muted);">
+                <button type="button" class="btn btn-ghost btn-sm" onclick="openBankRegistry()">➕ Add Bank / Card Machine</button>
+                <span style="margin-left:.4rem;">අලුත් බැංකුවක් Register කර "💳 Card machine" tick කළ විට, ඒ බැංකුවේ Card Sale field එක මෙතනට ස්වයංක්‍රීයව එයි.</span>
               </div></div>
               <footer class="ce-sec-foot"><span>💰 Total Sales</span><b id="cm-total-sales">LKR 0.00</b></footer>
             </section>
@@ -2925,24 +2956,25 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
               <footer class="ce-sec-foot"><span>🧾 Total Credit Bill Payments</span><b id="cm-total-creditpay">LKR 0.00</b></footer>
             </section>
 
-            <!-- 6 · Banking / expenses -->
-            <section class="ce-sec ce-red">
-              <header class="ce-sec-head"><span class="ce-step">6</span><div class="ce-sec-title"><h4>🏦 Banking, Expenses &amp; Withdrawals</h4><p>Up to 3 lines — enter an amount and a reason</p></div></header>
+            <!-- 6 · Banking -->
+            <section class="ce-sec ce-navy">
+              <header class="ce-sec-head"><span class="ce-step">6</span><div class="ce-sec-title"><h4>🏦 Banking</h4><p>Cash deposited to a registered bank — pick the bank, enter the amount</p></div></header>
               <div class="ce-sec-body">
-                <div class="ce-exp-row">
-                  <div class="form-group"><label>Banked (PB)</label><input type="number" id="cm-exp1" placeholder="0.00" step="0.01" min="0" oninput="calcCashNet()"></div>
-                  <div class="form-group"><label>Reason</label><input type="text" id="cm-expr1" placeholder="Reason..."></div>
-                </div>
-                <div class="ce-exp-row">
-                  <div class="form-group"><label>Banked (SDB)</label><input type="number" id="cm-exp2" placeholder="0.00" step="0.01" min="0" oninput="calcCashNet()"></div>
-                  <div class="form-group"><label>Reason</label><input type="text" id="cm-expr2" placeholder="Reason..."></div>
-                </div>
-                <div class="ce-exp-row">
-                  <div class="form-group"><label>Other expenses and withdraws</label><input type="number" id="cm-exp3" placeholder="0.00" step="0.01" min="0" oninput="calcCashNet()"></div>
-                  <div class="form-group"><label>Reason</label><input type="text" id="cm-expr3" placeholder="Reason..."></div>
-                </div>
+                <div id="cash-bank-rows"></div>
+                <button type="button" class="btn btn-ghost btn-sm ce-add" onclick="addBankingRow()">➕ Add Banking</button>
+                <button type="button" class="btn btn-ghost btn-sm ce-add" id="cm-bank-manage-btn" style="display:none;" onclick="openBankRegistry()">🏦 Register / Manage Banks</button>
               </div>
-              <footer class="ce-sec-foot"><span>💸 Total Banked, Withdraws &amp; Expenses</span><b id="cm-total-exp">LKR 0.00</b></footer>
+              <footer class="ce-sec-foot"><span>🏦 Total Banked</span><b id="cm-total-bank">LKR 0.00</b></footer>
+            </section>
+
+            <!-- 7 · Expenses & withdrawals -->
+            <section class="ce-sec ce-red">
+              <header class="ce-sec-head"><span class="ce-step">7</span><div class="ce-sec-title"><h4>📤 Expenses &amp; Withdrawals</h4><p>Other expenses and withdrawals — enter an amount and a reason</p></div></header>
+              <div class="ce-sec-body">
+                <div id="cash-expense-rows"></div>
+                <button type="button" class="btn btn-ghost btn-sm ce-add" onclick="addExpenseRow()">➕ Add Expense / Withdrawal</button>
+              </div>
+              <footer class="ce-sec-foot"><span>📤 Total Expenses &amp; Withdrawals</span><b id="cm-total-exp">LKR 0.00</b></footer>
             </section>
 
           </div><!-- /ce-main -->
@@ -2955,9 +2987,10 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
               <div class="ce-sum-line minus"><span>− Cash Advances</span><b id="cs-adv">LKR 0.00</b></div>
               <div class="ce-sum-line minus"><span>− Cash Purchases</span><b id="cs-purchase">LKR 0.00</b></div>
               <div class="ce-sum-line minus"><span>− Credit Bill Payments</span><b id="cs-creditpay">LKR 0.00</b></div>
-              <div class="ce-sum-line minus"><span>− Banking &amp; Expenses</span><b id="cs-exp">LKR 0.00</b></div>
+              <div class="ce-sum-line minus"><span>− Banking</span><b id="cs-bank">LKR 0.00</b></div>
+              <div class="ce-sum-line minus"><span>− Expenses &amp; Withdrawals</span><b id="cs-exp">LKR 0.00</b></div>
               <div class="ce-sum-net"><span>✅ Net Cash</span><b id="cm-net-cash">LKR 0.00</b></div>
-              <div class="ce-sum-eq">Cash − Advances − Purchases − Credit Bill Payments − Expenses</div>
+              <div class="ce-sum-eq">Cash − Advances − Purchases − Credit Bill Payments − Banking − Expenses &amp; Withdrawals</div>
             </div>
 
             <!-- Actions -->
@@ -3008,7 +3041,7 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
             <table>
               <thead><tr>
                 <th>📅 Date</th><th>👤 Cashier</th><th>💵 Payments</th><th>💳 Card Sale</th>
-                <th>💰 Total</th><th>💸 Advance</th><th>🏦 Total Banked Cash</th><th>🛒 Total Purchase</th><th>🧾 Pay Credit Bills (Cash)</th><th>✅ Net Cash</th><th>⚙️</th>
+                <th>💰 Total</th><th>💸 Advance</th><th>🏦 Banking</th><th>🛒 Total Purchase</th><th>🧾 Pay Credit Bills (Cash)</th><th>📤 Expenses &amp; Withdrawals</th><th>✅ Net Cash</th><th>⚙️</th>
               </tr></thead>
               <tbody id="cashBody"></tbody>
             </table>
@@ -3043,6 +3076,13 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
               </select>
             </div>
             <div class="form-group"><label>📝 Description</label><input type="text" id="cl-desc" placeholder="Optional details..."></div>
+          </div>
+          <div class="form-group" id="cl-bank-group" style="max-width:420px;">
+            <label>🏦 Bank <span style="font-weight:500;color:var(--muted);">(Register කළ බැංකුවක් තෝරන්න)</span></label>
+            <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
+              <select id="cl-bank" style="flex:1;min-width:180px;"></select>
+              <button type="button" class="btn btn-ghost btn-sm" id="cl-bank-manage-btn" style="display:none;" onclick="openBankRegistry()">➕ Register Bank</button>
+            </div>
           </div>
           <div class="form-group hidden" id="cl-supplier-group" style="max-width:420px;">
             <label>🏪 Supplier</label>
@@ -3469,7 +3509,7 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
           <table>
             <thead><tr>
               <th>📅 Date</th><th>👤 Cashier</th><th>💵 Payments</th><th>💳 Card Sale</th>
-              <th>💰 Total</th><th>💸 Advance</th><th>🧾 Pay Credit Bills (Cash)</th><th>🏦 Banked (PB)</th><th>🏦 Banked (SDB)</th><th>📝 Other</th><th>✅ Net Cash</th><th>👤 By</th><th>⚙️</th>
+              <th>💰 Total</th><th>💸 Advance</th><th>🧾 Pay Credit Bills (Cash)</th><th>🏦 Banking</th><th>📤 Expenses &amp; Withdrawals</th><th>✅ Net Cash</th><th>👤 By</th><th>⚙️</th>
             </tr></thead>
             <tbody id="cashHistBody"></tbody>
           </table>
@@ -3680,6 +3720,7 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
                 <th class="sa-sortable" data-key="qr" onclick="saTableSort('qr')">📱 QR<span class="sa-sort-ico"></span></th>
                 <th class="sa-sortable" data-key="cheque" onclick="saTableSort('cheque')">🏦 Cheque<span class="sa-sort-ico"></span></th>
                 <th class="sa-sortable" data-key="credit" onclick="saTableSort('credit')">💳 Card SDB<span class="sa-sort-ico"></span></th>
+                <th class="sa-sortable" data-key="cardx" onclick="saTableSort('cardx')">💳 Card (Other Banks)<span class="sa-sort-ico"></span></th>
                 <th class="sa-sortable" data-key="exp" onclick="saTableSort('exp')">📉 Expenses<span class="sa-sort-ico"></span></th>
                 <th class="sa-sortable" data-key="net" onclick="saTableSort('net')">💹 Net Cash<span class="sa-sort-ico"></span></th>
               </tr></thead>
@@ -3838,6 +3879,24 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
     <div class="modal-foot">
       <button class="btn btn-ghost" onclick="closeModal('creditModal')">Cancel</button>
       <button class="btn btn-green" onclick="saveCredit()">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ===== BANK REGISTRY MODAL ===== -->
+<div id="bankRegistryModal" class="overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>🏦 Bank Registry</h3>
+      <button class="modal-close" onclick="closeModal('bankRegistryModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--muted);font-size:.85rem;margin-bottom:1rem;">බැංකුව Register කර, <b>🏦 Banking</b> (තැන්පත් කිරීම්) සහ/හෝ <b>💳 Card machine</b> (Card Sale) ලෙස tick කරන්න. Register වූ විට Cash Entry form එකේ ස්වයංක්‍රීයව පෙන්වයි.</p>
+      <div class="bank-registry-host"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('bankRegistryModal')">Close</button>
     </div>
   </div>
 </div>
@@ -10900,7 +10959,7 @@ function renderOverview() {
     const totQR2    = payCash.reduce((a,e)=>a+(Number(e.qrPayments)||0),0);
     const totChq2   = payCash.reduce((a,e)=>a+(Number(e.chequeReceived)||0),0);
     const totCr2    = payCash.reduce((a,e)=>a+(Number(e.creditSales)||0),0);
-    const ptypes2 = [{label:'💵 Cash',value:totCash2,color:'#2563eb'},{label:'💳 Card DFCC',value:totCard2,color:'#0e7490'},{label:'📱 QR',value:totQR2,color:'#f59e0b'},{label:'🏦 Cheque',value:totChq2,color:'#8b5cf6'},{label:'💳 Card SDB',value:totCr2,color:'#e63946'}].filter(p=>p.value>0);
+    const ptypes2 = [{label:'💵 Cash',value:totCash2,color:'#2563eb'},{label:'💳 Card DFCC',value:totCard2,color:'#0e7490'},{label:'📱 QR',value:totQR2,color:'#f59e0b'},{label:'🏦 Cheque',value:totChq2,color:'#8b5cf6'},{label:'💳 Card SDB',value:totCr2,color:'#e63946'}, ...cardExtraItems(payCash,'value')].filter(p=>p.value>0);
     __ovLastPaymentItems = ptypes2;
     if (document.getElementById('ov-payment-row')?.classList.contains('active')) {
       try { renderDonutApex('ov-payment-chart', ptypes2); } catch (e) { console.error('ov-payment-chart failed:', e); }
@@ -12348,6 +12407,7 @@ function switchSettingsTab(tab) {
   else if (tab === 'backups') renderBackupsSection();
   else if (tab === 'alerts') checkPushSubscriptionState();
   else if (tab === 'theme') renderThemeSettings();
+  else if (tab === 'banks') renderBankRegistry();
 }
 
 function initSettingsSection() {
@@ -14673,6 +14733,7 @@ function initCashSection() {
   if ($('cash-purchase-rows') && !$('cash-purchase-rows').innerHTML.trim()) renderCashPurchaseRows();
   if ($('cash-creditpay-rows') && !$('cash-creditpay-rows').innerHTML.trim()) renderCashCreditPayRows();
   if ($('cash-advance-rows') && !$('cash-advance-rows').innerHTML.trim()) renderCashAdvanceRows();
+  refreshBankDependentForm();
   const cm=$('cm-date');
   if (cm) {
     if (!cm.value) cm.value=today();
@@ -14717,8 +14778,18 @@ function getCashLog() {
   return (admin?.cashLog||[]).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
 }
 
+// Bank picker for the Cash Disposal Log "Banked" type — only registered, enabled Banking banks.
+function renderCashLogBankSelect(selectedId, selectedName) {
+  const sel = $('cl-bank');
+  if (!sel) return;
+  const keep = selectedId !== undefined ? selectedId : sel.value;
+  sel.innerHTML = bankOptionsHtml(keep, selectedName);
+  const btn = $('cl-bank-manage-btn'); if (btn) btn.style.display = canManageBanks() ? '' : 'none';
+}
 function onCashLogTypeChange() {
   const type = $('cl-type')?.value || 'banked';
+  const bankGrp = $('cl-bank-group');
+  if (bankGrp) { bankGrp.classList.toggle('hidden', type !== 'banked'); if (type === 'banked') renderCashLogBankSelect(); }
   const grp = $('cl-supplier-group');
   const cgrp = $('cl-credit-supplier-group');
   const bgrp = $('cl-credit-bill-wrap');
@@ -14752,6 +14823,7 @@ function editCashLogEntry(id) {
   if ($('cl-type')) $('cl-type').value = entry.type || 'banked';
   if ($('cl-desc')) $('cl-desc').value = entry.description || '';
   onCashLogTypeChange();
+  if (entry.type === 'banked') renderCashLogBankSelect(entry.bankId || '', entry.bankName || '');
   if (entry.type === 'cash_purchase' && entry.supplierId) {
     selectSupplier('clp', entry.supplierId, entry.supplierName || '', entry.supplierOwnerUsername || DB.currentUsername);
   } else if (entry.type === 'credit_payment' && entry.supplierId) {
@@ -14773,6 +14845,7 @@ function cancelEditCashLogEntry() {
   if ($('cl-desc')) $('cl-desc').value = '';
   if ($('cl-type')) $('cl-type').value = 'banked';
   onCashLogTypeChange();
+  renderCashLogBankSelect('');
   clearSupSelection('clp');
   if ($('cl-save-btn')) $('cl-save-btn').innerHTML = '➕ Add to Log';
   $('cl-cancel-btn')?.classList.add('hidden');
@@ -14783,6 +14856,14 @@ async function saveCashLogEntry() {
   const type=$('cl-type')?.value||'banked', desc=$('cl-desc')?.value||'';
   if (!date||!amount){toast('Date and Amount required','red');return;}
   if (type === 'owner_topup' && !isAdmin()) { toast('⚠️ Owner (Admin) විසින් පමණක් Cash-in-Hand එකට මුදල් එකතු කළ හැක', 'red'); return; }
+  // Banked: the bank must be one of the registered ones
+  let bankId = '', bankName = '';
+  if (type === 'banked') {
+    bankId = $('cl-bank')?.value || '';
+    if (!bankId) { toast('⚠️ Banked සඳහා බැංකුව තෝරන්න (බැංකුව කලින් Register කර තිබිය යුතුයි)', 'red'); return; }
+    if (!getBanks().some(b => b.id === bankId)) { toast('⚠️ තෝරාගත් බැංකුව Registry එකේ නැත — නැවත තෝරන්න', 'red'); return; }
+    bankName = bankNameById(bankId);
+  }
 
   const admin=getUserByUsername('admin');
   if (!admin) { toast('⚠️ Admin data not loaded yet — please wait a moment and try again, or refresh', 'red'); return; }
@@ -14861,6 +14942,7 @@ async function saveCashLogEntry() {
   // updating an existing one, by both branches below.
   const logFieldsPatch = {
     date, type, amount, description: desc,
+    bankId: bankId||undefined, bankName: bankName||undefined,
     supplierId: supplierId||undefined, supplierName: supplierName||undefined, supplierOwnerUsername: supplierOwnerUsername||undefined,
     creditId: creditId||undefined, creditOwnerUsername: creditOwnerUsername||undefined,
   };
@@ -15022,7 +15104,7 @@ async function saveCashLogEntry() {
   // Settings, instead of the two sharing a single switch.
   if (!editId && type !== 'owner_topup') {
     const disposalPushLabels = { banked: '🏦 Banked', handed_owner: '🤝 Handed to Owner', cash_purchase: '🛒 Cash Purchase', credit_payment: '🧾 Credit Bill Payment', salary: '💼 Salary', other1: '📝 Other Reason 1', other2: '📝 Other Reason 2', other3: '📝 Other Reason 3' };
-    queuePushEvent('disposal', '📤 Cash Disposal Log', `${DB.currentUser?.name||DB.currentUsername} · ${disposalPushLabels[type]||type} · ${date} · ${fmt(amount)}${desc ? ' · '+desc : ''}`);
+    queuePushEvent('disposal', '📤 Cash Disposal Log', `${DB.currentUser?.name||DB.currentUsername} · ${disposalPushLabels[type]||type}${bankName ? ' (' + bankName + ')' : ''} · ${date} · ${fmt(amount)}${desc ? ' · '+desc : ''}`);
   }
 
   // If Manager hands to Owner — create confirmation notification for Admin
@@ -15469,6 +15551,7 @@ async function renderAnalytics() {
     {ico:'📱',val:fmt(totQR),     label:'QR Payments'},
     {ico:'🏦',val:fmt(totCheque), label:'Cheques'},
     {ico:'💳',val:fmt(totCredit), label:'Card Sale SDB'},
+    ...Object.entries(cardExtraByBank(kpiEntries)).map(([n,v])=>({ico:'💳',val:fmt(v),label:'Card Sale '+escHtml(n)})),
     {ico:'📅',val:String(days),   label:'Active Days'},
   ].map(k=>`<div class="sa-kpi"><div class="sa-kpi-icon">${k.ico}</div><div class="sa-kpi-val">${k.val}</div><div class="sa-kpi-label">${k.label}</div></div>`).join('');
 
@@ -15523,6 +15606,7 @@ async function renderAnalytics() {
     {label:'📱 QR',      val:totQR,     color:'#f59e0b'},
     {label:'🏦 Cheque',  val:totCheque, color:'#8b5cf6'},
     {label:'💳 Card SDB', val:totCredit, color:'#e63946'},
+    ...cardExtraItems(kpiEntries,'val'),
   ].filter(p=>p.val>0);
   const ptMax = Math.max(...ptypes.map(p=>p.val),1);
   const ptTotal = ptypes.reduce((a,p)=>a+p.val,0)||1;
@@ -15592,7 +15676,7 @@ async function renderMonthlySalesTable() {
   if (monthInput) monthInput.value = saTableMonth;
 
   if (saTableMonth < getArchiveLiveWindowStart()) {
-    if ($('sa-top-body')) $('sa-top-body').innerHTML = `<tr><td colspan="10" class="sa-no-data"><span class="ico">🗄️</span>Loading archived records…</td></tr>`;
+    if ($('sa-top-body')) $('sa-top-body').innerHTML = `<tr><td colspan="11" class="sa-no-data"><span class="ico">🗄️</span>Loading archived records…</td></tr>`;
     await ensureArchivePeriodsLoaded([saTableMonth]);
     if (($('sa-table-month')?.value || saTableMonth) !== saTableMonth) return;
     if (!document.getElementById('sa-top-body')) return;
@@ -15602,7 +15686,7 @@ async function renderMonthlySalesTable() {
   const dayMap=new Map();
   monthEntries.forEach(e=>{
     if(!e.date) return;
-    const p=dayMap.get(e.date)||{date:e.date,sales:0,cash:0,card:0,qr:0,cheque:0,credit:0,exp:0,net:0};
+    const p=dayMap.get(e.date)||{date:e.date,sales:0,cash:0,card:0,qr:0,cheque:0,credit:0,cardx:0,exp:0,net:0};
     dayMap.set(e.date,{
       date:e.date,
       sales:  p.sales +(Number(e.totalSales)||0),
@@ -15611,6 +15695,7 @@ async function renderMonthlySalesTable() {
       qr:     p.qr    +(Number(e.qrPayments)||0),
       cheque: p.cheque+(Number(e.chequeReceived)||0),
       credit: p.credit+(Number(e.creditSales)||0),
+      cardx:  p.cardx +cardExtraTotal(e),
       exp:    p.exp   +(Number(e.expenses)||0),
       net:    p.net   +(Number(e.netCash)||0),
     });
@@ -15632,10 +15717,11 @@ async function renderMonthlySalesTable() {
         <td>${fmt(d.qr)}</td>
         <td>${fmt(d.cheque)}</td>
         <td>${fmt(d.credit)}</td>
+        <td>${fmt(d.cardx)}</td>
         <td style="color:var(--red);">${fmt(d.exp)}</td>
         <td style="color:var(--green);font-weight:700;">${fmt(d.net)}</td>
       </tr>`).join('')
-    : `<tr><td colspan="10" class="no-data" style="padding:2rem;"><span class="ico">📭</span>No entries for this month</td></tr>`;
+    : `<tr><td colspan="11" class="no-data" style="padding:2rem;"><span class="ico">📭</span>No entries for this month</td></tr>`;
 
   const [yy,mm] = saTableMonth.split('-');
   const monthLabel = new Date(Number(yy), Number(mm)-1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
@@ -16221,9 +16307,11 @@ function computePL(yr, mo) {
   const incCash = cashEntries.reduce((a, e) => a + (Number(e.totalCash) || 0), 0);
   const incCredit = cashEntries.reduce((a, e) => a + (Number(e.creditSales) || 0), 0);
   const incCard = cashEntries.reduce((a, e) => a + (Number(e.cardPayments) || 0), 0);
+  const cardXMap = cardExtraByBank(cashEntries);
+  const incCardX = Object.values(cardXMap).reduce((a, v) => a + v, 0);
   const incQR = cashEntries.reduce((a, e) => a + (Number(e.qrPayments) || 0), 0);
   const incCheque = cashEntries.reduce((a, e) => a + (Number(e.chequeReceived) || 0), 0);
-  const totalIncome = incCash + incCredit + incCard + incQR + incCheque;
+  const totalIncome = incCash + incCredit + incCard + incCardX + incQR + incCheque;
 
   const purchCash = cashPurchaseRecords.reduce((a, p) => a + (Number(p.amount) || 0), 0);
   // Credit bills settled by a linked Cheque no longer count under Credit — that
@@ -16254,7 +16342,7 @@ function computePL(yr, mo) {
   const netProfit = grossProfit - totalExpenses;
 
   return {
-    incCash, incCredit, incCard, incQR, incCheque, totalIncome,
+    incCash, incCredit, incCard, incCardX, cardXRows: Object.entries(cardXMap), incQR, incCheque, totalIncome,
     purchCash, purchCredit, purchCheque, totalPurchases,
     grossProfit, salaryGross, salaryEmpEPF, salaryETF, totalSalaryExpense, otherExpenses, totalExpenses,
     netProfit
@@ -16385,6 +16473,7 @@ async function renderPL() {
       ${plRow('💵 Cash Sales', r.incCash)}
       ${plRow('💳 Card Sale SDB', r.incCredit)}
       ${plRow('💳 Card Sale DFCC', r.incCard)}
+      ${(r.cardXRows || []).map(([n, v]) => plRow('💳 Card Sale ' + escHtml(n), v)).join('')}
       ${plRow('📱 QR Payments', r.incQR)}
       ${plRow('🏦 Cheque Received', r.incCheque)}
       ${plRow('Total Income', r.totalIncome, { bold: true, color: 'var(--navy)' })}
@@ -16412,13 +16501,14 @@ async function renderPL() {
     `;
   }
   if ($('pl-statement-note')) {
-    $('pl-statement-note').innerHTML = 'ℹ️ මෙය cash-basis statement එකකි — bill/sale දිනය අනුව ගණන් කෙරේ. 📦 Gross Profit එක Total Income (Sales) හි 10%ක් ලෙස උපකල්පනය කර ගණන් කෙරේ (Total Purchases වලින් අඩු කිරීමකින් නොවේ) — පහත Purchases breakdown එක reference එකකට විතරක් පෙන්වා ඇත. 🏦 Bank Deposits (PB/SDB) සහ 💸 Cash Advances Expense ලෙස ගණන් නොකෙරේ (ඒවා ගිණුම් අතර මාරු කිරීම් / recoverable receivables නිසා). 📱 Reload ව්‍යාපාරයේ margin එක මෙයට ඇතුළත් නොවේ.';
+    $('pl-statement-note').innerHTML = 'ℹ️ මෙය cash-basis statement එකකි — bill/sale දිනය අනුව ගණන් කෙරේ. 📦 Gross Profit එක Total Income (Sales) හි 10%ක් ලෙස උපකල්පනය කර ගණන් කෙරේ (Total Purchases වලින් අඩු කිරීමකින් නොවේ) — පහත Purchases breakdown එක reference එකකට විතරක් පෙන්වා ඇත. 🏦 Bank Deposits (Banking) සහ 💸 Cash Advances Expense ලෙස ගණන් නොකෙරේ (ඒවා ගිණුම් අතර මාරු කිරීම් / recoverable receivables නිසා). 📱 Reload ව්‍යාපාරයේ margin එක මෙයට ඇතුළත් නොවේ.';
   }
 
   renderBarChart('pl-income-chart', [
     { label: '💵 Cash', value: r.incCash },
     { label: '💳 Card Sale SDB', value: r.incCredit },
     { label: '💳 Card Sale DFCC', value: r.incCard },
+    ...(r.cardXRows || []).map(([n, v]) => ({ label: '💳 Card Sale ' + n, value: v })),
     { label: '📱 QR', value: r.incQR },
     { label: '🏦 Cheque', value: r.incCheque },
   ].filter(i => i.value > 0), v => fmt(v));
@@ -16548,6 +16638,8 @@ function buildCashLogRowHtml(e, labels) {
     descText = `🏪 ${e.supplierName||'—'}${credit ? ` <span class="entry-id">${credit.entryId}</span>` : ''}${isAdmin() && e.creditOwnerUsername ? ` <span class="user-data-badge">${e.creditOwnerUsername}</span>` : ''}${e.description ? ` — ${e.description}` : ''}`;
   } else if (e.type === 'salary') {
     descText = `👤 ${e.empName||'—'}${e.description ? ` — ${e.description}` : ''}`;
+  } else if (e.type === 'banked' && e.bankName) {
+    descText = `🏦 ${escHtml(e.bankName)}${e.description ? ` — ${e.description}` : ''}`;
   } else {
     descText = e.description||'—';
   }
@@ -16655,7 +16747,7 @@ function getManagerCashLedger() {
     items.push({
       date: e.date, id: e.id||'', kind: e.type==='owner_topup' ? 'in' : 'out', amount: Number(e.amount)||0,
       label: disposalLabels[e.type]||e.type,
-      detail: (e.type==='cash_purchase' || e.type==='credit_payment') ? `🏪 ${e.supplierName||'—'}${e.description?' — '+e.description:''}` : (e.type==='salary' ? `👤 ${e.empName||'—'}${e.description?' — '+e.description:''}` : (e.description||'—')),
+      detail: (e.type==='cash_purchase' || e.type==='credit_payment') ? `🏪 ${e.supplierName||'—'}${e.description?' — '+e.description:''}` : (e.type==='salary' ? `👤 ${e.empName||'—'}${e.description?' — '+e.description:''}` : (e.type==='banked' && e.bankName ? `🏦 ${e.bankName}${e.description?' — '+e.description:''}` : (e.description||'—'))),
       by: e.actor||'—', byName: e.actorName||''
     });
   });
@@ -17208,32 +17300,348 @@ function daysInMonth(year, month) {
   return new Date(year, month, 0).getDate();
 }
 
+/* =====================================================================
+   🏦 BANK REGISTRY
+   Banks are registered once (Settings → Banks, or the "Register / Manage Banks" button on the
+   Cash Entry form) and flagged as:
+     • 🏦 Banking       — selectable when cash is banked (Cash Entry → Banking)
+     • 💳 Card machine  — gets its own "Card Sale <bank>" field in Sales Breakdown
+   Stored on the admin user's settings (settings.banks) so every user/device shares one list.
+   PB, SDB and DFCC are built in (they match every existing entry), others can be added freely.
+   ===================================================================== */
+const CORE_CARD_FIELD = { sdb: 'cm-credit', dfcc: 'cm-card' };   // legacy fields: creditSales = SDB card, cardPayments = DFCC card
+const DEFAULT_BANKS = [
+  { id: 'pb',   name: 'PB',   note: "People's Bank", deposit: true,  card: false, active: true, core: true },
+  { id: 'sdb',  name: 'SDB',  note: '',              deposit: true,  card: true,  active: true, core: true },
+  { id: 'dfcc', name: 'DFCC', note: '',              deposit: false, card: true,  active: true, core: true }
+];
+
+function canManageBanks() { return isAdmin(); }   // registering / editing banks is Admin only
+
+function getBanks() {
+  const admin = getUserByUsername('admin');
+  const stored = admin && admin.settings && Array.isArray(admin.settings.banks) ? admin.settings.banks : null;
+  const list = (stored || []).filter(b => b && b.id).map(b => ({ ...b }));
+  DEFAULT_BANKS.forEach(d => { if (!list.some(b => b.id === d.id)) list.push({ ...d }); });
+  return list;
+}
+
+function saveBanks(list) {
+  const admin = getUserByUsername('admin');
+  if (!admin) { toast('⚠️ Admin account not found', 'red'); return false; }
+  if (!admin.settings) admin.settings = {};
+  admin.settings.banks = list;
+  syncUser(admin);
+  return true;
+}
+
+function bankNameById(id) {
+  const b = getBanks().find(x => x.id === id);
+  if (b) return b.name;
+  return id ? String(id).toUpperCase() : '';
+}
+
+// ---- Expense helpers (understand old PB/SDB/Other entries AND new bank/other entries) ----
+function normalizeExpenses(expenses) {
+  const list = (expenses || []).filter(Boolean);
+  const hasTypes = list.some(x => x.type);
+  const out = [];
+  list.forEach((x, i) => {
+    const amount = Number(x.amount) || 0, reason = x.reason || '';
+    if (!amount && !reason) return;
+    const type = hasTypes ? x.type : (['pb', 'sdb', 'other'][i] || 'other');
+    if (type === 'bank' || type === 'pb' || type === 'sdb') {
+      const bankId = type === 'bank' ? (x.bankId || '') : type;
+      out.push({ kind: 'bank', bankId, bankName: x.bankName || bankNameById(bankId) || 'Bank', amount, reason });
+    } else {
+      out.push({ kind: 'other', amount, reason });
+    }
+  });
+  return out;
+}
+function splitExpenses(expenses) {
+  const n = normalizeExpenses(expenses);
+  const banks = n.filter(x => x.kind === 'bank'), others = n.filter(x => x.kind === 'other');
+  return {
+    banks, others,
+    bankTotal: banks.reduce((a, x) => a + x.amount, 0),
+    otherTotal: others.reduce((a, x) => a + x.amount, 0)
+  };
+}
+
+// ---- Card sales from banks other than SDB / DFCC (stored in entry.cardSalesExtra) ----
+function cardExtraTotal(e) {
+  return ((e && e.cardSalesExtra) || []).reduce((a, x) => a + (Number(x.amount) || 0), 0);
+}
+function cardExtraByBank(entries) {
+  const m = {};
+  (entries || []).forEach(e => (e.cardSalesExtra || []).forEach(x => {
+    const n = x.bankName || bankNameById(x.bankId) || 'Bank';
+    m[n] = (m[n] || 0) + (Number(x.amount) || 0);
+  }));
+  return m;
+}
+const CARD_EXTRA_COLORS = ['#0891b2', '#7c3aed', '#16a34a', '#d97706', '#db2777', '#4f46e5'];
+function cardExtraItems(entries, valKey) {
+  return Object.entries(cardExtraByBank(entries)).map(([n, v], i) => ({ label: '💳 Card ' + n, [valKey]: v, color: CARD_EXTRA_COLORS[i % CARD_EXTRA_COLORS.length] }));
+}
+
+// ---- Sales Breakdown: card machine fields, one per registered card bank ----
+let _cardFieldIds = [];
+function cardInputId(id) { return CORE_CARD_FIELD[id] || ('cm-cardx-' + id); }
+
+function renderCardSaleFields(entry, clear) {
+  const wrap = $('cm-card-fields');
+  if (!wrap) return;
+  const cur = {};
+  if (!clear) _cardFieldIds.forEach(m => { const el = $(cardInputId(m.id)); if (el && el.value !== '') cur[m.id] = el.value; });
+  const extraFromEntry = [];
+  if (entry) {
+    if (entry.creditSales) cur.sdb = entry.creditSales;
+    if (entry.cardPayments) cur.dfcc = entry.cardPayments;
+    (entry.cardSalesExtra || []).forEach(x => { cur[x.bankId] = x.amount; extraFromEntry.push(x); });
+  }
+  const banks = getBanks();
+  const machines = banks.filter(b => b.card && (b.active !== false || Number(cur[b.id]) > 0)).map(b => ({ id: b.id, name: b.name }));
+  extraFromEntry.forEach(x => { if (!machines.some(m => m.id === x.bankId)) machines.push({ id: x.bankId, name: x.bankName || x.bankId }); });
+  wrap.innerHTML = machines.map(m => `<div class="form-group"><label>💳 Card Sale ${escHtml(m.name)} (LKR)</label><input type="number" id="${cardInputId(m.id)}" placeholder="0.00" step="0.01" min="0" oninput="calcCashNet()"></div>`).join('');
+  machines.forEach(m => { if (cur[m.id] !== undefined && $(cardInputId(m.id))) $(cardInputId(m.id)).value = cur[m.id]; });
+  _cardFieldIds = machines;
+  const bar = $('cm-card-addbar'); if (bar) bar.style.display = canManageBanks() ? '' : 'none';
+}
+function getCardFieldValue(id) { return Number($(cardInputId(id))?.value) || 0; }
+function getCardExtraData() {
+  return _cardFieldIds.filter(m => !CORE_CARD_FIELD[m.id])
+    .map(m => ({ bankId: m.id, bankName: m.name, amount: getCardFieldValue(m.id) }))
+    .filter(x => x.amount > 0);
+}
+function getCardExtraFormTotal() { return getCardExtraData().reduce((a, x) => a + x.amount, 0); }
+
+// ---- 🏦 Banking rows (bank is chosen from the registry) ----
+let bkRows = [0], bkRowCounter = 1;
+let exRows = [0], exRowCounter = 1;
+
+function bankOptionsHtml(selectedId, selectedName) {
+  const banks = getBanks().filter(b => b.deposit && (b.active !== false || b.id === selectedId));
+  let html = '<option value="">Select bank...</option>' + banks.map(b =>
+    `<option value="${escHtml(b.id)}" ${b.id === selectedId ? 'selected' : ''}>${escHtml(b.name)}${b.note ? ' — ' + escHtml(b.note) : ''}</option>`).join('');
+  if (selectedId && !banks.some(b => b.id === selectedId)) html += `<option value="${escHtml(selectedId)}" selected>${escHtml(selectedName || selectedId)}</option>`;
+  return html;
+}
+
+// prefill: optional array [{bankId, bankName, amount, reason}] indexed like bkRows (used when loading data)
+function renderBankingRows(prefill, clear) {
+  const wrap = $('cash-bank-rows');
+  if (!wrap) return;
+  const existing = {};
+  bkRows.forEach((i, k) => {
+    if (prefill) { const p = prefill[k] || {}; existing[i] = { bank: p.bankId || '', name: p.bankName || '', amt: p.amount || '', reason: p.reason || '' }; }
+    else if (!clear) existing[i] = { bank: $('cm-bk-bank' + i)?.value || '', name: '', amt: $('cm-bk-amt' + i)?.value || '', reason: $('cm-bk-reason' + i)?.value || '' };
+    else existing[i] = { bank: '', name: '', amt: '', reason: '' };
+  });
+  const hasBank = getBanks().some(b => b.deposit && b.active !== false);
+  const warn = hasBank ? '' : `<div class="bk-warn">⚠️ Banking සඳහා තවමත් බැංකුවක් Register කර නැත. ${canManageBanks() ? `<button type="button" class="btn btn-yellow btn-sm" onclick="openBankRegistry()">➕ Register Bank</button>` : 'Admin ට Bank එක Register කරන්න කියන්න.'}</div>`;
+  const rowsHtml = bkRows.length ? bkRows.map(i => `
+    <div class="ce-bk-row">
+      <div class="form-group" style="margin:0;"><label>🏦 Bank</label><select id="cm-bk-bank${i}" onchange="calcCashNet()">${bankOptionsHtml(existing[i].bank, existing[i].name)}</select></div>
+      <div class="form-group" style="margin:0;"><label>Amount (LKR)</label><input type="number" id="cm-bk-amt${i}" placeholder="0.00" step="0.01" min="0" oninput="calcCashNet()" value="${escHtml(existing[i].amt)}"></div>
+      <div class="form-group" style="margin:0;"><label>Reason / Ref</label><input type="text" id="cm-bk-reason${i}" placeholder="Reason..." value="${escHtml(existing[i].reason)}"></div>
+      <button type="button" class="btn btn-red btn-sm" onclick="removeBankingRow(${i})" title="Remove row" style="height:47px;">🗑️</button>
+    </div>`).join('')
+    : `<div class="no-data" style="padding:.5rem 0 .8rem;color:var(--muted);font-size:.85rem;">No banking added — click "➕ Add Banking" below if needed.</div>`;
+  wrap.innerHTML = warn + rowsHtml;
+  const mb = $('cm-bank-manage-btn'); if (mb) mb.style.display = canManageBanks() ? '' : 'none';
+}
+function addBankingRow() { bkRows.push(bkRowCounter++); renderBankingRows(); }
+function removeBankingRow(i) { bkRows = bkRows.filter(r => r !== i); renderBankingRows(); calcCashNet(); }
+function resetBankingRows() { bkRows = [0]; bkRowCounter = 1; renderBankingRows(null, true); }
+function setBankingRows(list) {
+  list = list || [];
+  if (!list.length) { resetBankingRows(); return; }
+  bkRows = list.map((_, k) => k); bkRowCounter = list.length;
+  renderBankingRows(list);
+}
+function getBankingRowsData() {
+  return bkRows.map(i => ({
+    bankId: $('cm-bk-bank' + i)?.value || '',
+    amount: Number($('cm-bk-amt' + i)?.value) || 0,
+    reason: $('cm-bk-reason' + i)?.value || ''
+  }));
+}
+function getBankingTotal() { return bkRows.reduce((a, i) => a + (Number($('cm-bk-amt' + i)?.value) || 0), 0); }
+
+// ---- 📤 Expenses & Withdrawals rows ----
+function renderExpenseRows(prefill, clear) {
+  const wrap = $('cash-expense-rows');
+  if (!wrap) return;
+  const existing = {};
+  exRows.forEach((i, k) => {
+    if (prefill) { const p = prefill[k] || {}; existing[i] = { amt: p.amount || '', reason: p.reason || '' }; }
+    else if (!clear) existing[i] = { amt: $('cm-ex-amt' + i)?.value || '', reason: $('cm-ex-reason' + i)?.value || '' };
+    else existing[i] = { amt: '', reason: '' };
+  });
+  wrap.innerHTML = exRows.length ? exRows.map(i => `
+    <div class="ce-ex-row">
+      <div class="form-group" style="margin:0;"><label>Amount (LKR)</label><input type="number" id="cm-ex-amt${i}" placeholder="0.00" step="0.01" min="0" oninput="calcCashNet()" value="${escHtml(existing[i].amt)}"></div>
+      <div class="form-group" style="margin:0;"><label>Reason</label><input type="text" id="cm-ex-reason${i}" placeholder="Reason..." value="${escHtml(existing[i].reason)}"></div>
+      <button type="button" class="btn btn-red btn-sm" onclick="removeExpenseRow(${i})" title="Remove row" style="height:47px;">🗑️</button>
+    </div>`).join('')
+    : `<div class="no-data" style="padding:.5rem 0 .8rem;color:var(--muted);font-size:.85rem;">No expenses / withdrawals added — click "➕ Add Expense / Withdrawal" below if needed.</div>`;
+}
+function addExpenseRow() { exRows.push(exRowCounter++); renderExpenseRows(); }
+function removeExpenseRow(i) { exRows = exRows.filter(r => r !== i); renderExpenseRows(); calcCashNet(); }
+function resetExpenseRows() { exRows = [0]; exRowCounter = 1; renderExpenseRows(null, true); }
+function setExpenseRows(list) {
+  list = list || [];
+  if (!list.length) { resetExpenseRows(); return; }
+  exRows = list.map((_, k) => k); exRowCounter = list.length;
+  renderExpenseRows(list);
+}
+function getExpenseRowsData() {
+  return exRows.map(i => ({ amount: Number($('cm-ex-amt' + i)?.value) || 0, reason: $('cm-ex-reason' + i)?.value || '' }));
+}
+function getExpenseTotal() { return exRows.reduce((a, i) => a + (Number($('cm-ex-amt' + i)?.value) || 0), 0); }
+
+// A banking line with an amount MUST name a registered bank.
+function validateBankingRows(rows) {
+  const banks = getBanks();
+  for (const r of rows) {
+    if (r.amount > 0 && !r.bankId) return '⚠️ Banking එකට බැංකුව තෝරන්න (බැංකුව කලින් Register කර තිබිය යුතුයි)';
+    if (r.amount > 0 && !banks.some(b => b.id === r.bankId)) return '⚠️ තෝරාගත් බැංකුව Registry එකේ නැත — නැවත තෝරන්න';
+  }
+  return '';
+}
+function buildExpensesFromRows(bankRows, exRowsData) {
+  return [
+    ...bankRows.filter(b => b.amount > 0).map(b => ({ type: 'bank', bankId: b.bankId, bankName: bankNameById(b.bankId), amount: b.amount, reason: b.reason })),
+    ...exRowsData.filter(x => x.amount > 0).map(x => ({ type: 'other', amount: x.amount, reason: x.reason }))
+  ];
+}
+
+// Re-draw every part of the form that depends on the registry (keeps what's already typed).
+function refreshBankDependentForm() {
+  if ($('cl-bank')) renderCashLogBankSelect();
+  renderCardSaleFields();
+  renderBankingRows();
+  renderExpenseRows();
+  calcCashNet();
+}
+
+/* ---- Registry UI (Settings → Banks tab + modal share one renderer) ---- */
+function openBankRegistry() {
+  if (!canManageBanks()) { toast('⚠️ Admin only', 'red'); return; }
+  renderBankRegistry();
+  openModal('bankRegistryModal');
+}
+
+function renderBankRegistry() {
+  const hosts = document.querySelectorAll('.bank-registry-host');
+  if (!hosts.length) return;
+  const banks = getBanks();
+  const can = canManageBanks();
+  const html = `
+    ${can ? `<div class="bk-reg-add">
+      <div class="form-group" style="margin:0;"><label>🏦 Bank name</label><input type="text" data-f="name" maxlength="20" placeholder="e.g. HNB, BOC, Sampath"></div>
+      <div class="form-group" style="margin:0;"><label>📝 Account no. / note (optional)</label><input type="text" data-f="note" maxlength="40" placeholder="e.g. Current A/C 1234"></div>
+      <div class="bk-reg-checks">
+        <label><input type="checkbox" data-f="deposit" checked> 🏦 Banking (deposits)</label>
+        <label><input type="checkbox" data-f="card"> 💳 Card machine</label>
+      </div>
+      <div class="bk-reg-btn"><button type="button" class="btn btn-green btn-sm" onclick="addBankFromForm(this)">➕ Register Bank</button></div>
+    </div>` : ''}
+    <div class="table-wrap"><table class="bk-reg-tbl">
+      <thead><tr><th>Bank</th><th>Note</th><th>🏦 Banking</th><th>💳 Card machine</th><th>Enabled</th><th></th></tr></thead>
+      <tbody>${banks.map(b => `<tr class="${b.active === false ? 'bk-off' : ''}">
+        <td><b>${escHtml(b.name)}</b>${b.core ? ' <span style="font-size:.7rem;color:var(--muted);">(built-in)</span>' : ''}</td>
+        <td style="color:var(--muted);">${escHtml(b.note || '—')}</td>
+        <td><input type="checkbox" ${b.deposit ? 'checked' : ''} ${can ? '' : 'disabled'} onchange="toggleBankFlag('${escHtml(b.id)}','deposit',this.checked)"></td>
+        <td><input type="checkbox" ${b.card ? 'checked' : ''} ${can ? '' : 'disabled'} onchange="toggleBankFlag('${escHtml(b.id)}','card',this.checked)"></td>
+        <td><input type="checkbox" ${b.active !== false ? 'checked' : ''} ${can ? '' : 'disabled'} onchange="toggleBankFlag('${escHtml(b.id)}','active',this.checked)"></td>
+        <td>${can && !b.core ? `<button type="button" class="btn btn-red btn-sm" onclick="removeBank('${escHtml(b.id)}')" title="Remove">🗑️</button>` : ''}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+  hosts.forEach(h => { h.innerHTML = html; });
+}
+
+function addBankFromForm(btn) {
+  if (!canManageBanks()) { toast('⚠️ Admin only', 'red'); return; }
+  const host = btn.closest('.bank-registry-host');
+  if (!host) return;
+  const q = f => host.querySelector(`[data-f="${f}"]`);
+  const name = (q('name').value || '').trim();
+  const note = (q('note').value || '').trim();
+  const deposit = q('deposit').checked, card = q('card').checked;
+  if (!name) { toast('⚠️ බැංකුවේ නම ඇතුළත් කරන්න', 'red'); return; }
+  if (!deposit && !card) { toast('⚠️ Banking හෝ Card machine එකක් tick කරන්න', 'red'); return; }
+  const banks = getBanks();
+  if (banks.some(b => (b.name || '').toLowerCase() === name.toLowerCase())) { toast('⚠️ මේ නමින් බැංකුවක් දැනටමත් Register කර ඇත', 'red'); return; }
+  banks.push({ id: 'b' + uid(), name, note, deposit, card, active: true });
+  if (!saveBanks(banks)) return;
+  logActivity('BANK_ADD', `${name}${deposit ? ' · Banking' : ''}${card ? ' · Card' : ''}`);
+  renderBankRegistry();
+  refreshBankDependentForm();
+  toast(`✅ ${name} Register කළා`);
+}
+
+function toggleBankFlag(id, flag, val) {
+  if (!canManageBanks()) { toast('⚠️ Admin only', 'red'); renderBankRegistry(); return; }
+  const banks = getBanks();
+  const b = banks.find(x => x.id === id);
+  if (!b) return;
+  b[flag] = !!val;
+  if (!b.deposit && !b.card) b.active = false;   // a bank used for nothing is simply switched off
+  if (!saveBanks(banks)) return;
+  logActivity('BANK_EDIT', `${b.name} · ${flag}=${!!val}`);
+  renderBankRegistry();
+  refreshBankDependentForm();
+}
+
+function isBankUsed(id) {
+  const used = e => (e.expenses || []).some(x => x && x.type === 'bank' && x.bankId === id) || (e.cardSalesExtra || []).some(x => x && x.bankId === id);
+  if (((getUserByUsername('admin') || {}).cashLog || []).some(x => x && x.bankId === id)) return true;
+  return DB.users.some(u => (u.cashEntries || []).some(used) || (u.tempCashTransactions || []).some(t => (t.expenses || []).some(x => x && x.bankId === id)));
+}
+function removeBank(id) {
+  if (!canManageBanks()) { toast('⚠️ Admin only', 'red'); return; }
+  const banks = getBanks();
+  const b = banks.find(x => x.id === id);
+  if (!b || b.core) return;
+  if (isBankUsed(id)) { toast(`⚠️ ${b.name} දැනටමත් Entries වල භාවිත වී ඇත — Delete කරන්න බෑ. "Enabled" untick කරලා සඟවන්න.`, 'red'); return; }
+  if (!confirm(`${b.name} Registry එකෙන් ඉවත් කරන්නද?`)) return;
+  if (!saveBanks(banks.filter(x => x.id !== id))) return;
+  logActivity('BANK_DEL', b.name);
+  renderBankRegistry();
+  refreshBankDependentForm();
+  toast(`🗑️ ${b.name} ඉවත් කළා`, 'red');
+}
+
 function calcCashNet() {
   const cash = Number($('cm-cash')?.value)||0;
   const credit = Number($('cm-credit')?.value)||0;
   const card = Number($('cm-card')?.value)||0;
+  const cardX = getCardExtraFormTotal();
   const qr = Number($('cm-qr')?.value)||0;
   const cheque = Number($('cm-cheque')?.value)||0;
-  const totalSales = cash+credit+card+qr+cheque;
+  const totalSales = cash+credit+card+cardX+qr+cheque;
   const totalAdv = getCashAdvanceTotal();
   const totalPurchase = getCashPurchaseTotal();
   const totalCreditPay = getCashCreditPayTotal();
-  const exp1 = Number($('cm-exp1')?.value)||0;
-  const exp2 = Number($('cm-exp2')?.value)||0;
-  const exp3 = Number($('cm-exp3')?.value)||0;
-  const totalExp = exp1+exp2+exp3;
-  const netCash = cash-totalAdv-totalPurchase-totalCreditPay-totalExp;
+  const totalBank = getBankingTotal();
+  const totalExp = getExpenseTotal();
+  const netCash = cash-totalAdv-totalPurchase-totalCreditPay-totalBank-totalExp;
   if($('cm-total-sales'))$('cm-total-sales').textContent = fmt(totalSales);
   if($('cm-total-adv'))$('cm-total-adv').textContent = fmt(totalAdv);
   if($('cm-total-purchase'))$('cm-total-purchase').textContent = fmt(totalPurchase);
   if($('cm-total-creditpay'))$('cm-total-creditpay').textContent = fmt(totalCreditPay);
+  if($('cm-total-bank'))$('cm-total-bank').textContent = fmt(totalBank);
   if($('cm-total-exp'))$('cm-total-exp').textContent = fmt(totalExp);
   if($('cm-net-cash'))$('cm-net-cash').textContent = fmt(netCash);
-  [['cs-cash',cash],['cs-adv',totalAdv],['cs-purchase',totalPurchase],['cs-creditpay',totalCreditPay],['cs-exp',totalExp]].forEach(([id,v])=>{ if($(id)) $(id).textContent = fmt(v); });
+  [['cs-cash',cash],['cs-adv',totalAdv],['cs-purchase',totalPurchase],['cs-creditpay',totalCreditPay],['cs-bank',totalBank],['cs-exp',totalExp]].forEach(([id,v])=>{ if($(id)) $(id).textContent = fmt(v); });
 }
 
 function resetCashForm() {
-  ['cm-cash','cm-credit','cm-card','cm-qr','cm-cheque','cm-exp1','cm-expr1','cm-exp2','cm-expr2','cm-exp3','cm-expr3'].forEach(id=>{if($(id))$(id).value='';});
+  ['cm-cash','cm-qr','cm-cheque'].forEach(id=>{if($(id))$(id).value='';});
+  renderCardSaleFields(null, true);
   if($('cm-cashier')){
     $('cm-cashier').value = isCashier() ? String(Number(DB.currentUser?.cashierSlot)||0) : '0';
     $('cm-cashier').disabled = isCashier();
@@ -17243,6 +17651,8 @@ function resetCashForm() {
   resetCashAdvanceRows();
   resetCashPurchaseRows();
   resetCashCreditPayRows();
+  resetBankingRows();
+  resetExpenseRows();
   calcCashNet();
   // Forget which temp queue items were copied in — they're still safe in storage
   // (untouched), so this just clears the "in form" marker, nothing is deleted.
@@ -17278,8 +17688,10 @@ async function _saveCashEntryImpl(handoverTarget) {
   }
   const cash=Number($('cm-cash')?.value)||0, credit=Number($('cm-credit')?.value)||0;
   const card=Number($('cm-card')?.value)||0, qr=Number($('cm-qr')?.value)||0, cheque=Number($('cm-cheque')?.value)||0;
-  if (!cash && !credit && !card && !qr && !cheque) { toast('Enter at least one sales amount', 'red'); return; }
-  const totalSales=cash+credit+card+qr+cheque;
+  const cardExtra = getCardExtraData();
+  const cardExtraSum = cardExtra.reduce((a,x)=>a+x.amount,0);
+  if (!cash && !credit && !card && !cardExtraSum && !qr && !cheque) { toast('Enter at least one sales amount', 'red'); return; }
+  const totalSales=cash+credit+card+cardExtraSum+qr+cheque;
 
   const editId=$('cashEditId')?.dataset?.id||'';
   const editOwner=$('cashEditId')?.dataset?.owner||DB.currentUsername;
@@ -17334,8 +17746,14 @@ async function _saveCashEntryImpl(handoverTarget) {
     if (linkedSettled) { toast('⚠️ මේ එන්ට්‍රියේ Cash Advance එකක් දැනටමත් වැටුපකින් අඩු කරලා ඉවරයි. Edit කරන්න බෑ.', 'red'); return; }
   }
 
-  const exp1=Number($('cm-exp1')?.value)||0, exp2=Number($('cm-exp2')?.value)||0, exp3=Number($('cm-exp3')?.value)||0;
-  const totalExp=exp1+exp2+exp3, netCash=cash-totalAdv-totalPurchase-totalCreditPay-totalExp;
+  // Banking (registered bank per line) and Expenses & Withdrawals are kept apart
+  const bankRowsData = getBankingRowsData(), exRowsData = getExpenseRowsData();
+  const bkErr = validateBankingRows(bankRowsData);
+  if (bkErr) { toast(bkErr, 'red'); return; }
+  const expensesArr = buildExpensesFromRows(bankRowsData, exRowsData);
+  const totalBank = expensesArr.filter(x=>x.type==='bank').reduce((a,x)=>a+x.amount,0);
+  const totalOtherExp = expensesArr.filter(x=>x.type==='other').reduce((a,x)=>a+x.amount,0);
+  const totalExp = totalBank + totalOtherExp, netCash=cash-totalAdv-totalPurchase-totalCreditPay-totalExp;
   const cashierIdx = isCashier() ? (Number(DB.currentUser?.cashierSlot) || 0) : (Number($('cm-cashier')?.value)||0);
   const owner = editId ? (getTargetUser(editOwner)||DB.currentUser) : DB.currentUser;
   if (!owner) return;
@@ -17343,17 +17761,13 @@ async function _saveCashEntryImpl(handoverTarget) {
   if (!owner.cashPurchases) owner.cashPurchases = [];
   const recId = editId || uid();
   const rec = {
-    id: recId, date, totalCash:cash, creditSales:credit, cardPayments:card,
+    id: recId, date, totalCash:cash, creditSales:credit, cardPayments:card, cardSalesExtra:cardExtra,
     qrPayments:qr, chequeReceived:cheque, totalSales,
     advances: advSlots.map(a => ({ empId:a.empId, empName:getEmployee(a.empId)?.name||a.empId, amount:a.amount })),
     purchases: purchaseRows.map(p => ({ supplierId:p.supplierId, supplierName:p.supplierName, amount:p.amount })),
     creditPayments: creditPayRows.map(p => ({ supplierId:p.supplierId, supplierName:p.supplierName, creditId:p.creditId, ownerUsername:p.ownerUsername, amount:p.amount })),
-    expenses:[
-      {type:'pb', amount:exp1, reason:$('cm-expr1')?.value||''},
-      {type:'sdb', amount:exp2, reason:$('cm-expr2')?.value||''},
-      {type:'other', amount:exp3, reason:$('cm-expr3')?.value||''}
-    ].filter(e=>e.amount>0||e.reason),
-    cashierIdx, totalExpenses:totalExp, totalAdvances:totalAdv, totalPurchases:totalPurchase, totalCreditPayments:totalCreditPay, netCash
+    expenses: expensesArr,
+    cashierIdx, totalExpenses:totalExp, totalBanking:totalBank, totalOtherExpenses:totalOtherExp, totalAdvances:totalAdv, totalPurchases:totalPurchase, totalCreditPayments:totalCreditPay, netCash
   };
   if (!editId) {
     const nowMs = Date.now();
@@ -17373,6 +17787,7 @@ async function _saveCashEntryImpl(handoverTarget) {
     const salesParts = [];
     if (cash) salesParts.push(`💵Cash ${fmt(cash)}`);
     if (card) salesParts.push(`💳Card ${fmt(card)}`);
+    cardExtra.forEach(x => salesParts.push(`💳${x.bankName} ${fmt(x.amount)}`));
     if (qr) salesParts.push(`📱QR ${fmt(qr)}`);
     if (credit) salesParts.push(`📝Credit ${fmt(credit)}`);
     if (cheque) salesParts.push(`🏦Cheque ${fmt(cheque)}`);
@@ -17391,9 +17806,8 @@ async function _saveCashEntryImpl(handoverTarget) {
       const creditNames = creditPayRows.map(p => `${p.supplierName} ${fmt(p.amount)}`).join(', ');
       breakdownParts.push(`🧾 Credit Bill Pay (${fmt(totalCreditPay)}): ${creditNames}`);
     }
-    const banked = exp1 + exp2;
-    if (banked > 0) breakdownParts.push(`🏦 Banked: ${fmt(banked)}`);
-    if (exp3 > 0) breakdownParts.push(`📉 Other Exp: ${fmt(exp3)}${$('cm-expr3')?.value ? ' (' + $('cm-expr3').value + ')' : ''}`);
+    if (totalBank > 0) breakdownParts.push(`🏦 Banked (${fmt(totalBank)}): ` + expensesArr.filter(x=>x.type==='bank').map(x=>`${x.bankName} ${fmt(x.amount)}`).join(', '));
+    if (totalOtherExp > 0) breakdownParts.push(`📤 Expenses & Withdrawals (${fmt(totalOtherExp)}): ` + expensesArr.filter(x=>x.type==='other').map(x=>`${fmt(x.amount)}${x.reason ? ' (' + x.reason + ')' : ''}`).join(', '));
 
     const breakdownText = breakdownParts.length ? '\n' + breakdownParts.join('\n') : '';
     queuePushEvent('cash', '💵 Cash Entry Added', `${DB.currentUser?.name||DB.currentUsername} · ${date}\nSales: ${salesText} (Total ${fmt(totalSales)})\nNet Cash: ${fmt(netCash)}${breakdownText}`);
@@ -17531,14 +17945,10 @@ function collectCashSubFormData() {
     if (!p.supplierId) return { error: '⚠️ Credit Bill Payment එකට Supplier කෙනෙක් තෝරන්න' };
     if (!p.creditId) return { error: '⚠️ Credit Bill Payment එකට Bill එකක් තෝරන්න' };
   }
-  const exp1=Number($('cm-exp1')?.value)||0, expr1=$('cm-expr1')?.value||'';
-  const exp2=Number($('cm-exp2')?.value)||0, expr2=$('cm-expr2')?.value||'';
-  const exp3=Number($('cm-exp3')?.value)||0, expr3=$('cm-expr3')?.value||'';
-  const expenses = [
-    {type:'pb', amount:exp1, reason:expr1},
-    {type:'sdb', amount:exp2, reason:expr2},
-    {type:'other', amount:exp3, reason:expr3}
-  ].filter(e => e.amount>0 || e.reason);
+  const bankRowsData = getBankingRowsData();
+  const bkErr = validateBankingRows(bankRowsData);
+  if (bkErr) return { error: bkErr };
+  const expenses = buildExpensesFromRows(bankRowsData, getExpenseRowsData());
   return { advSlots, purchaseRows, creditPayRows, expenses };
 }
 
@@ -17574,7 +17984,11 @@ function summarizeTempRec(rec) {
     });
     parts.push(`🧾 Credit Pay ${fmt(cpTotal)}${billRefs.length ? ' — ' + billRefs.join(', ') : ''}`);
   }
-  if (expTotal) parts.push(`🏦 Banked/Exp ${fmt(expTotal)}`);
+  if (expTotal) {
+    const sp = splitExpenses(rec.expenses);
+    if (sp.bankTotal) parts.push(`🏦 Banked ${fmt(sp.bankTotal)} — ${sp.banks.map(b => b.bankName).join(', ')}`);
+    if (sp.otherTotal) parts.push(`📤 Expenses/Withdrawals ${fmt(sp.otherTotal)}`);
+  }
   return parts.join(' · ') || 'No amount';
 }
 
@@ -17621,7 +18035,8 @@ function saveCashEntryTemp() {
   resetCashAdvanceRows();
   resetCashPurchaseRows();
   resetCashCreditPayRows();
-  ['cm-exp1','cm-expr1','cm-exp2','cm-expr2','cm-exp3','cm-expr3'].forEach(id=>{if($(id))$(id).value='';});
+  resetBankingRows();
+  resetExpenseRows();
   calcCashNet();
   renderTempCashQueue();
   toast('🕓 තාවකාලිකව Save කළා! තව transactions එකතු කරන්න, නැත්නම් Day End එකේදී 📥 Restore කරන්න.', 'green');
@@ -17708,15 +18123,14 @@ function restoreTempCashTransactions() {
 
   // Flatten every queued transaction being restored into simple row-lists to append.
   const newAdvances = [], newPurchases = [], newCreditPays = [];
-  const bankedAdd = { pb:0, sdb:0, other:0 };
-  const bankedReasons = { pb:[], sdb:[], other:[] };
+  const newBankRows = [], newExpRows = [];
   toRestore.forEach(t => {
     (t.advances||[]).forEach(a => newAdvances.push(a));
     (t.purchases||[]).forEach(p => newPurchases.push(p));
     (t.creditPayments||[]).forEach(p => newCreditPays.push(p));
-    (t.expenses||[]).forEach(e => {
-      bankedAdd[e.type] = (bankedAdd[e.type]||0) + (Number(e.amount)||0);
-      if (e.reason) bankedReasons[e.type].push(e.reason);
+    normalizeExpenses(t.expenses).forEach(e => {
+      if (e.kind === 'bank') newBankRows.push({ bankId:e.bankId, bankName:e.bankName, amount:e.amount, reason:e.reason });
+      else newExpRows.push({ amount:e.amount, reason:e.reason });
     });
     restoredTempIds.push(t.id);
   });
@@ -17754,12 +18168,14 @@ function restoreTempCashTransactions() {
     if ($('ccp'+idx+'-bill')) $('ccp'+idx+'-bill').value = p.creditId||'';
     if ($('ccp'+idx+'-amount')) $('ccp'+idx+'-amount').value = p.amount||'';
   });
-  [['pb','cm-exp1','cm-expr1'], ['sdb','cm-exp2','cm-expr2'], ['other','cm-exp3','cm-expr3']].forEach(([type, amtId, reasonId]) => {
-    if (!bankedAdd[type]) return;
-    const amtEl = $(amtId), reasonEl = $(reasonId);
-    if (amtEl) amtEl.value = (Number(amtEl.value)||0) + bankedAdd[type];
-    if (reasonEl && bankedReasons[type].length) reasonEl.value = [reasonEl.value, ...bankedReasons[type]].filter(Boolean).join('; ');
-  });
+  if (newBankRows.length) {
+    const cur = getBankingRowsData().filter(r => r.bankId || r.amount || r.reason);   // drop untouched blank row
+    setBankingRows([...cur, ...newBankRows]);
+  }
+  if (newExpRows.length) {
+    const cur = getExpenseRowsData().filter(r => r.amount || r.reason);
+    setExpenseRows([...cur, ...newExpRows]);
+  }
 
   calcCashNet();
   renderTempCashQueue();
@@ -17775,8 +18191,7 @@ function editCashEntry(id, ownerUsername) {
   const ei=$('cashEditId'); if(ei){ei.dataset.id=id;ei.dataset.owner=ownerUsername;}
   if($('cm-date'))$('cm-date').value=e.date||'';
   if($('cm-cash'))$('cm-cash').value=e.totalCash||'';
-  if($('cm-credit'))$('cm-credit').value=e.creditSales||'';
-  if($('cm-card'))$('cm-card').value=e.cardPayments||'';
+  renderCardSaleFields(e, true);
   if($('cm-qr'))$('cm-qr').value=e.qrPayments||'';
   if($('cm-cheque'))$('cm-cheque').value=e.chequeReceived||'';
   populateEmployeeSelects();
@@ -17805,14 +18220,9 @@ function editCashEntry(id, ownerUsername) {
     if ($('ccp'+idx+'-bill')) $('ccp'+idx+'-bill').value = p.creditId||'';
     if ($('ccp'+idx+'-amount')) $('ccp'+idx+'-amount').value = p.amount||'';
   });
-  const exps=e.expenses||[];
-  const pb=getExpByType(exps,'pb',0), sdb=getExpByType(exps,'sdb',1), other=getExpByType(exps,'other',2);
-  if($('cm-exp1'))$('cm-exp1').value=pb.amount||'';
-  if($('cm-expr1'))$('cm-expr1').value=pb.reason||'';
-  if($('cm-exp2'))$('cm-exp2').value=sdb.amount||'';
-  if($('cm-expr2'))$('cm-expr2').value=sdb.reason||'';
-  if($('cm-exp3'))$('cm-exp3').value=other.amount||'';
-  if($('cm-expr3'))$('cm-expr3').value=other.reason||'';
+  const sp = splitExpenses(e.expenses);
+  setBankingRows(sp.banks);
+  setExpenseRows(sp.others);
   if($('cm-cashier'))$('cm-cashier').value=String(e.cashierIdx||0);
   calcCashNet();
   window.scrollTo({top:0,behavior:'smooth'});
@@ -17895,15 +18305,23 @@ function buildCashRowsHtml(rows, cashiers, opts) {
       <div style="font-size:.72rem;color:var(--muted);font-weight:500;white-space:normal;">${names}</div>
     </td>`;
   };
-  // Compact-mode: Banked(PB)+Banked(SDB) combined into one "Total Banked Cash" cell
-  const bankedCell = (pb, sdb) => {
-    const total = (Number(pb.amount)||0) + (Number(sdb.amount)||0);
+  // 🏦 Banking cell — total on top, each registered bank (with its reason) underneath
+  const bankingCell = (banks) => {
+    const total = banks.reduce((x, k) => x + k.amount, 0);
     if (!total) return '<td style="color:var(--muted);">—</td>';
-    const parts = [];
-    if (Number(pb.amount)>0) parts.push(`PB: ${fmt(pb.amount)}${pb.reason?' ('+escHtml(pb.reason)+')':''}`);
-    if (Number(sdb.amount)>0) parts.push(`SDB: ${fmt(sdb.amount)}${sdb.reason?' ('+escHtml(sdb.reason)+')':''}`);
+    const parts = banks.map(k => `${escHtml(k.bankName)}: ${fmt(k.amount)}${k.reason ? ' (' + escHtml(k.reason) + ')' : ''}`);
     return `<td style="color:var(--navy3);">
       <div class="fw700">${fmt(total)}</div>
+      <div style="font-size:.72rem;color:var(--muted);font-weight:500;white-space:normal;">${parts.join('<br>')}</div>
+    </td>`;
+  };
+  // 📤 Expenses & Withdrawals cell — kept apart from banking
+  const expensesCell = (others) => {
+    const total = others.reduce((x, k) => x + k.amount, 0);
+    if (!total && !others.length) return '<td style="color:var(--muted);">—</td>';
+    const parts = others.map(k => `${k.reason ? escHtml(k.reason) + ': ' : ''}${fmt(k.amount)}`);
+    return `<td style="color:var(--red);">
+      <div class="fw700">${total > 0 ? fmt(total) : '—'}</div>
       <div style="font-size:.72rem;color:var(--muted);font-weight:500;white-space:normal;">${parts.join('<br>')}</div>
     </td>`;
   };
@@ -17937,13 +18355,15 @@ function buildCashRowsHtml(rows, cashiers, opts) {
   };
   // Combined "💳 Card Sale" cell — SDB + DFCC card machines totalled together,
   // which machine underneath.
-  const cardSaleCell = (sdb, dfcc) => {
+  const cardSaleCell = (sdb, dfcc, extras) => {
     const s = Number(sdb)||0, d = Number(dfcc)||0;
-    const total = s + d;
+    const ex = (extras||[]).filter(x => x && Number(x.amount) > 0);
+    const total = s + d + ex.reduce((a,x)=>a+(Number(x.amount)||0),0);
     if (!total) return '<td style="color:var(--muted);">—</td>';
     const parts = [];
     if (s) parts.push(`SDB: ${fmt(s)}`);
     if (d) parts.push(`DFCC: ${fmt(d)}`);
+    ex.forEach(x => parts.push(`${escHtml(x.bankName || bankNameById(x.bankId))}: ${fmt(x.amount)}`));
     return `<td style="color:#0e7490;">
       <div class="fw700">${fmt(total)}</div>
       <div style="font-size:.72rem;color:var(--muted);font-weight:500;white-space:normal;">${parts.join('<br>')}</div>
@@ -17965,14 +18385,10 @@ function buildCashRowsHtml(rows, cashiers, opts) {
     </td>`;
   };
   const rowsHtml = rows.map(e => {
-    const pb = getExpByType(e.expenses, 'pb', 0);
-    const sdb = getExpByType(e.expenses, 'sdb', 1);
-    const other = getExpByType(e.expenses, 'other', 2);
+    const sp = splitExpenses(e.expenses);
     const cashierName=cashiers[Number(e.cashierIdx)||0]||'Cashier '+(Number(e.cashierIdx||0)+1);
-    const bankedSection = opts.compact
-      ? bankedCell(pb, sdb) + purchaseCell(e.purchases)
-      : expCell(pb,'var(--navy3)') + expCell(sdb,'var(--navy3)');
-    const otherCell = opts.compact ? '' : expCell(other,'var(--red)');
+    const bankingSection = bankingCell(sp.banks);
+    const expensesSection = expensesCell(sp.others);
     const byCell = opts.compact ? '' : `<td><span class="user-data-badge">${e._owner||'—'}</span></td>`;
     // 🧾 Pay Credit Bills (Cash): compact mode places it right after Total Purchase
     // (matching the Advance → Purchase → Credit Pay order used everywhere else);
@@ -17982,13 +18398,13 @@ function buildCashRowsHtml(rows, cashiers, opts) {
       <td>${e.date||'—'}</td>
       <td><span class="user-data-badge">${cashierName}</span></td>
       ${paymentCell(e.totalCash, e.qrPayments, e.chequeReceived)}
-      ${cardSaleCell(e.creditSales, e.cardPayments)}
+      ${cardSaleCell(e.creditSales, e.cardPayments, e.cardSalesExtra)}
       <td class="fw700">${fmt(e.totalSales)}</td>
       ${advCell(e.advances)}
       ${opts.compact ? '' : creditPaySection}
-      ${bankedSection}
-      ${opts.compact ? creditPaySection : ''}
-      ${otherCell}
+      ${bankingSection}
+      ${opts.compact ? purchaseCell(e.purchases) + creditPaySection : ''}
+      ${expensesSection}
       <td class="fw700" style="color:#16a34a;">${fmt(e.netCash)}</td>
       ${byCell}
       <td>${isAdmin()?`<button class="btn btn-yellow btn-sm" onclick="editCashEntry('${e.id}','${e._owner}')">✏️</button> <button class="btn btn-red btn-sm" onclick="deleteCashEntry('${e.id}','${e._owner}')">🗑️</button>`:''}</td>
@@ -17996,31 +18412,30 @@ function buildCashRowsHtml(rows, cashiers, opts) {
   }).join('');
   if (opts.showSummary === false) return rowsHtml;
   const summaryRows = opts.summaryRows || rows;
-  let tCash=0, tCardSDB=0, tCardDFCC=0, tQR=0, tCheque=0, tSales=0, tAdv=0, tPurchase=0, tCreditPay=0, tPB=0, tSDB=0, tOther=0, tNet=0;
+  let tCash=0, tCardSDB=0, tCardDFCC=0, tCardX=0, tQR=0, tCheque=0, tSales=0, tAdv=0, tPurchase=0, tCreditPay=0, tBank=0, tExpOther=0, tNet=0;
   summaryRows.forEach(e => {
-    const pb = getExpByType(e.expenses, 'pb', 0);
-    const sdb = getExpByType(e.expenses, 'sdb', 1);
-    const other = getExpByType(e.expenses, 'other', 2);
-    tCash+=Number(e.totalCash)||0; tCardSDB+=Number(e.creditSales)||0; tCardDFCC+=Number(e.cardPayments)||0;
+    const sp = splitExpenses(e.expenses);
+    tCash+=Number(e.totalCash)||0; tCardSDB+=Number(e.creditSales)||0; tCardDFCC+=Number(e.cardPayments)||0; tCardX+=cardExtraTotal(e);
     tQR+=Number(e.qrPayments)||0; tCheque+=Number(e.chequeReceived)||0;
     tSales+=Number(e.totalSales)||0;
     tAdv+=(e.advances||[]).reduce((s,a)=>s+(Number(a.amount)||0),0);
     tPurchase+=(e.purchases||[]).reduce((s,p)=>s+(Number(p.amount)||0),0);
     tCreditPay+=(e.creditPayments||[]).reduce((s,p)=>s+(Number(p.amount)||0),0);
-    tPB+=Number(pb.amount)||0; tSDB+=Number(sdb.amount)||0; tOther+=Number(other.amount)||0;
+    tBank+=sp.bankTotal; tExpOther+=sp.otherTotal;
     tNet+=Number(e.netCash)||0;
   });
   const tPayments = tCash + tQR + tCheque;
-  const tCardSale = tCardSDB + tCardDFCC;
+  const tCardSale = tCardSDB + tCardDFCC + tCardX;
   const summaryHtml = opts.compact ? `<tr class="summary-row">
     <td>📊 Total (${summaryRows.length})</td><td></td>
     <td class="fw700">${fmt(tPayments)}</td>
     <td class="fw700">${fmt(tCardSale)}</td>
     <td class="fw700">${fmt(tSales)}</td>
     <td style="color:#b45309;">${fmt(tAdv)}</td>
-    <td style="color:var(--navy3);">${fmt(tPB+tSDB)}</td>
+    <td style="color:var(--navy3);">${fmt(tBank)}</td>
     <td style="color:#7c3aed;">${fmt(tPurchase)}</td>
     <td style="color:#0d9488;">${fmt(tCreditPay)}</td>
+    <td style="color:var(--red);">${fmt(tExpOther)}</td>
     <td class="fw700" style="color:#16a34a;">${fmt(tNet)}</td><td></td>
   </tr>` : `<tr class="summary-row">
     <td>📊 Total (${summaryRows.length})</td><td></td>
@@ -18029,9 +18444,8 @@ function buildCashRowsHtml(rows, cashiers, opts) {
     <td class="fw700">${fmt(tSales)}</td>
     <td style="color:#b45309;">${fmt(tAdv)}</td>
     <td style="color:#0d9488;">${fmt(tCreditPay)}</td>
-    <td style="color:var(--navy3);">${fmt(tPB)}</td>
-    <td style="color:var(--navy3);">${fmt(tSDB)}</td>
-    <td style="color:var(--red);">${fmt(tOther)}</td>
+    <td style="color:var(--navy3);">${fmt(tBank)}</td>
+    <td style="color:var(--red);">${fmt(tExpOther)}</td>
     <td class="fw700" style="color:#16a34a;">${fmt(tNet)}</td><td colspan="2"></td>
   </tr>`;
   return rowsHtml + summaryHtml;
@@ -18058,11 +18472,11 @@ function renderCashCurrentMonth() {
   const openingHtml = (showOpening && opening !== 0)
     ? `<tr style="background:#eff6ff;">
         <td colspan="7" style="font-weight:700;color:#1d4ed8;">🔄 Opening Balance <span style="font-weight:500;color:var(--muted);">(Cash in Hand carried from previous month)</span></td>
-        <td class="fw700" style="color:#1d4ed8;">${fmt(opening)}</td><td colspan="3"></td>
+        <td class="fw700" style="color:#1d4ed8;">${fmt(opening)}</td><td colspan="4"></td>
       </tr>`
     : '';
   if (!recentRows.length) {
-    tbody.innerHTML = openingHtml + `<tr><td colspan="11" class="no-data"><span class="ico">💰</span>No cash entries yet this month</td></tr>`;
+    tbody.innerHTML = openingHtml + `<tr><td colspan="12" class="no-data"><span class="ico">💰</span>No cash entries yet this month</td></tr>`;
     return;
   }
   tbody.innerHTML = openingHtml + buildCashRowsHtml(recentRows, cashiers, {showSummary:false, compact:true});
@@ -18081,7 +18495,7 @@ function renderSalesHistory() {
   if (cashHistPage < 1) cashHistPage = 1;
   renderArchiveLoadWrap('cashHistArchiveWrap', 'renderSalesHistory');
   if (!allRows.length) {
-    tbody.innerHTML='<tr><td colspan="13" class="no-data"><span class="ico">📜</span>No sales history yet</td></tr>';
+    tbody.innerHTML='<tr><td colspan="12" class="no-data"><span class="ico">📜</span>No sales history yet</td></tr>';
     renderPagination('cashHistPagination', 0, cashHistPage, 'goCashHistPage');
     return;
   }
@@ -19108,18 +19522,19 @@ function generateReport(type) {
     const cashRows = getCashRows();
     const totNet = cashRows.reduce((a,e)=>a+(Number(e.netCash)||0),0);
     doc.autoTable({ startY:37, styles:{fontSize:7.5}, headStyles:{fillColor:[15,23,42]},
-      head:[['Date','Cashier','Payments (Cash/QR/Cheque)','Card Sale (SDB/DFCC)','Total Sales','Advances','Expenses','Net Cash','By']],
+      head:[['Date','Cashier','Payments (Cash/QR/Cheque)','Card Sale (by bank)','Total Sales','Advances','Banking','Expenses & Withdrawals','Net Cash','By']],
       body: cashRows.map(e=>{
-        const expAmt=(e.expenses||[]).reduce((a,ex)=>a+(Number(ex.amount)||0),0);
         const advAmt=(e.advances||[]).reduce((a,ad)=>a+(Number(ad.amount)||0),0);
         const cn=getCashiers();
         const cash=Number(e.totalCash)||0, qr=Number(e.qrPayments)||0, chq=Number(e.chequeReceived)||0;
-        const sdb=Number(e.creditSales)||0, dfcc=Number(e.cardPayments)||0;
+        const sdb=Number(e.creditSales)||0, dfcc=Number(e.cardPayments)||0, cx=cardExtraTotal(e);
         const paymentsStr = fmt(cash+qr+chq) + `\nCash: ${fmt(cash)}  QR: ${fmt(qr)}  Chq: ${fmt(chq)}`;
-        const cardSaleStr = fmt(sdb+dfcc) + `\nSDB: ${fmt(sdb)}  DFCC: ${fmt(dfcc)}`;
-        return [e.date||'—',cn[Number(e.cashierIdx)||0]||'Cashier '+(Number(e.cashierIdx||0)+1),paymentsStr,cardSaleStr,fmt(e.totalSales),fmt(advAmt),fmt(expAmt),fmt(e.netCash),e._owner||'—'];
+        const cardSaleStr = fmt(sdb+dfcc+cx) + `\nSDB: ${fmt(sdb)}  DFCC: ${fmt(dfcc)}` + (e.cardSalesExtra||[]).filter(x=>Number(x.amount)>0).map(x=>`  ${x.bankName||bankNameById(x.bankId)}: ${fmt(x.amount)}`).join('');
+        const sp = splitExpenses(e.expenses);
+        const bankStr = sp.bankTotal ? fmt(sp.bankTotal) + '\n' + sp.banks.map(k=>`${k.bankName}: ${fmt(k.amount)}`).join('  ') : '—';
+        return [e.date||'—',cn[Number(e.cashierIdx)||0]||'Cashier '+(Number(e.cashierIdx||0)+1),paymentsStr,cardSaleStr,fmt(e.totalSales),fmt(advAmt),bankStr,sp.otherTotal?fmt(sp.otherTotal):'—',fmt(e.netCash),e._owner||'—'];
       }),
-      foot:[['Total ('+cashRows.length+')', '', '', '', '', '', '', fmt(totNet), '']]
+      foot:[['Total ('+cashRows.length+')', '', '', '', '', '', '', '', fmt(totNet), '']]
     });
     doc.save('cash_report_'+today()+'.pdf');
   } else if (type === 'reload') {
@@ -19188,7 +19603,7 @@ function getDailySummaryData(dateStr) {
 // figures for the day are visible at a glance, before drilling into each
 // cashier's individual card below.
 function getDailySummaryTotals(data) {
-  const t = { cash: 0, qr: 0, cardDFCC: 0, cardSDB: 0, cheque: 0, advances: 0, purchases: 0, creditPay: 0, expenses: 0, netCash: 0 };
+  const t = { cash: 0, qr: 0, cardDFCC: 0, cardSDB: 0, cardX: 0, cheque: 0, advances: 0, purchases: 0, creditPay: 0, banking: 0, expenses: 0, netCash: 0 };
   data.cashEntries.forEach(e => {
     t.cash += Number(e.totalCash) || 0;
     t.qr += Number(e.qrPayments) || 0;
@@ -19198,7 +19613,10 @@ function getDailySummaryTotals(data) {
     t.advances += Number(e.totalAdvances) || 0;
     t.purchases += (e.purchases || []).reduce((a, p) => a + (Number(p.amount) || 0), 0);
     t.creditPay += (e.creditPayments || []).reduce((a, p) => a + (Number(p.amount) || 0), 0);
-    t.expenses += (e.expenses || []).reduce((a, ex) => a + (Number(ex.amount) || 0), 0);
+    const sp = splitExpenses(e.expenses);
+    t.banking += sp.bankTotal;
+    t.expenses += sp.otherTotal;
+    t.cardX += cardExtraTotal(e);
     t.netCash += Number(e.netCash) || 0;
   });
   return t;
@@ -19262,11 +19680,13 @@ function renderDailySummary() {
         <div class="ds-mini-stat"><span>📱 QR</span><b>${fmt(t.qr)}</b></div>
         <div class="ds-mini-stat"><span>💳 Card DFCC</span><b>${fmt(t.cardDFCC)}</b></div>
         <div class="ds-mini-stat"><span>💳 Card SDB</span><b>${fmt(t.cardSDB)}</b></div>
+        ${Object.entries(cardExtraByBank(data.cashEntries)).map(([n, v]) => `<div class="ds-mini-stat"><span>💳 Card ${escHtml(n)}</span><b>${fmt(v)}</b></div>`).join('')}
         <div class="ds-mini-stat"><span>✅ Cheque</span><b>${fmt(t.cheque)}</b></div>
         <div class="ds-mini-stat"><span>💸 Advances</span><b>${fmt(t.advances)}</b></div>
         <div class="ds-mini-stat"><span>🛒 Purchases</span><b>${fmt(t.purchases)}</b></div>
         <div class="ds-mini-stat"><span>💳 Credit Bill Pay</span><b>${fmt(t.creditPay)}</b></div>
-        <div class="ds-mini-stat"><span>📤 Expenses</span><b>${fmt(t.expenses)}</b></div>
+        <div class="ds-mini-stat"><span>🏦 Banking</span><b>${fmt(t.banking)}</b></div>
+        <div class="ds-mini-stat"><span>📤 Expenses &amp; Withdrawals</span><b>${fmt(t.expenses)}</b></div>
         <div class="ds-mini-stat ds-highlight"><span>✅ Net Cash</span><b>${fmt(t.netCash)}</b></div>
       </div>
     </div>`;
@@ -19275,7 +19695,7 @@ function renderDailySummary() {
   // ----- Per-cashier: Sales / Purchase / Credit Pay Details -----
   data.cashEntries.forEach(entry => {
     const cashierName = data.cashiers[Number(entry.cashierIdx) || 0] || ('Cashier ' + ((Number(entry.cashierIdx) || 0) + 1));
-    const totalExp = (entry.expenses || []).reduce((a, ex) => a + (Number(ex.amount) || 0), 0);
+    const spE = splitExpenses(entry.expenses);
     html += `<div class="card" style="margin:1.2rem 1.5rem;">
       <div class="ds-cashier-head">
         <div class="ds-cashier-name">🧾 ${cashierName} <small>· Entered by ${entry._ownerName || entry._owner || '—'}</small></div>
@@ -19287,9 +19707,11 @@ function renderDailySummary() {
         <div class="ds-mini-stat"><span>📱 QR</span><b>${fmt(entry.qrPayments)}</b></div>
         <div class="ds-mini-stat"><span>💳 Card DFCC</span><b>${fmt(entry.cardPayments)}</b></div>
         <div class="ds-mini-stat"><span>💳 Card SDB</span><b>${fmt(entry.creditSales)}</b></div>
+        ${(entry.cardSalesExtra || []).filter(x => Number(x.amount) > 0).map(x => `<div class="ds-mini-stat"><span>💳 Card ${escHtml(x.bankName || bankNameById(x.bankId))}</span><b>${fmt(x.amount)}</b></div>`).join('')}
         <div class="ds-mini-stat"><span>✅ Cheque</span><b>${fmt(entry.chequeReceived)}</b></div>
         <div class="ds-mini-stat"><span>💸 Advances</span><b>${fmt(entry.totalAdvances)}</b></div>
-        <div class="ds-mini-stat"><span>📤 Expenses</span><b>${fmt(totalExp)}</b></div>
+        <div class="ds-mini-stat"><span>🏦 Banking</span><b>${fmt(spE.bankTotal)}</b></div>
+        <div class="ds-mini-stat"><span>📤 Expenses &amp; Withdrawals</span><b>${fmt(spE.otherTotal)}</b></div>
         <div class="ds-mini-stat ds-highlight"><span>✅ Net Cash</span><b>${fmt(entry.netCash)}</b></div>
       </div>`;
 
@@ -19429,20 +19851,20 @@ function downloadDailySummaryPDF() {
     sectionBanner('All Cashiers Combined');
     doc.autoTable({
       startY: y, margin: { left: marginX, right: marginX }, styles: { fontSize: 8 }, headStyles: { fillColor: [15, 23, 42] },
-      head: [['Cash', 'QR', 'Card DFCC', 'Card SDB', 'Cheque', 'Advances', 'Purchases', 'Credit Bill Pay', 'Expenses', 'Net Cash']],
-      body: [[fmt(t.cash), fmt(t.qr), fmt(t.cardDFCC), fmt(t.cardSDB), fmt(t.cheque), fmt(t.advances), fmt(t.purchases), fmt(t.creditPay), fmt(t.expenses), fmt(t.netCash)]]
+      head: [['Cash', 'QR', 'Card DFCC', 'Card SDB', 'Card (Other Banks)', 'Cheque', 'Advances', 'Purchases', 'Credit Bill Pay', 'Banking', 'Expenses & Withdrawals', 'Net Cash']],
+      body: [[fmt(t.cash), fmt(t.qr), fmt(t.cardDFCC), fmt(t.cardSDB), fmt(t.cardX), fmt(t.cheque), fmt(t.advances), fmt(t.purchases), fmt(t.creditPay), fmt(t.banking), fmt(t.expenses), fmt(t.netCash)]]
     });
     y = doc.lastAutoTable.finalY + 8;
   }
 
   data.cashEntries.forEach(entry => {
     const cashierName = data.cashiers[Number(entry.cashierIdx) || 0] || ('Cashier ' + ((Number(entry.cashierIdx) || 0) + 1));
-    const totalExp = (entry.expenses || []).reduce((a, ex) => a + (Number(ex.amount) || 0), 0);
+    const spE = splitExpenses(entry.expenses);
     sectionBanner(`${cashierName} (entered by ${entry._ownerName || entry._owner || '-'}) - Sales Details`);
     doc.autoTable({
       startY: y, margin: { left: marginX, right: marginX }, styles: { fontSize: 8 }, headStyles: { fillColor: [15, 23, 42] },
-      head: [['Cash', 'QR', 'Card DFCC', 'Card SDB', 'Cheque', 'Total Sales', 'Advances', 'Expenses', 'Net Cash']],
-      body: [[fmt(entry.totalCash), fmt(entry.qrPayments), fmt(entry.cardPayments), fmt(entry.creditSales), fmt(entry.chequeReceived), fmt(entry.totalSales), fmt(entry.totalAdvances), fmt(totalExp), fmt(entry.netCash)]]
+      head: [['Cash', 'QR', 'Card DFCC', 'Card SDB', 'Card (Other Banks)', 'Cheque', 'Total Sales', 'Advances', 'Banking', 'Expenses & Withdrawals', 'Net Cash']],
+      body: [[fmt(entry.totalCash), fmt(entry.qrPayments), fmt(entry.cardPayments), fmt(entry.creditSales), fmt(cardExtraTotal(entry)), fmt(entry.chequeReceived), fmt(entry.totalSales), fmt(entry.totalAdvances), fmt(spE.bankTotal), fmt(spE.otherTotal), fmt(entry.netCash)]]
     });
     y = doc.lastAutoTable.finalY + 4;
 
