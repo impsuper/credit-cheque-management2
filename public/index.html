@@ -5299,84 +5299,301 @@ function syncUser(user) {
   saveUserDoc(user);
 }
 
-// Per-username cache of "the top-level field values we last successfully wrote
-// to Firestore for this user, from THIS browser tab" (JSON-stringified, one
-// entry per top-level field). Read by saveUserDoc() below — see the comment
-// there for why this exists (it's the fix for CR0091/CR0093-style bugs where
-// a routine save silently reverted an unrelated credit-bill payment).
-const _lastSyncSnapshot = {};
+/* ==== SAFE CLOUD SAVE BEGIN ====
+   Why this exists
+   ---------------
+   Every user's data lives in ONE Firestore document, and each list inside it (cashEntries, cashLog,
+   credits, cheques, ...) is an array. The old save did  set({ cashLog: <whole array from THIS PC's
+   memory> }, {merge:true})  — Firestore's "merge" only merges top-level fields, so the whole array on
+   the server was REPLACED by this PC's copy. A PC whose memory was out of date (laptop that slept
+   overnight, a dead live-listener, a tab that never received the other PC's write) therefore wiped
+   out entries other PCs had saved in the meantime ("last writer wins").
 
-async function saveUserDoc(user) {
-  if (!user) return;
-  // Always keep a local mirror in sync, cloud write or not — see the
-  // matching comment in savePayrollDB() for why.
-  try { saveDBLocal(); } catch (e) { console.error('saveUserDoc local mirror', e); }
-  if (!firebaseReady()) {
-    markSynced('local');
-    return;
-  }
-  setSyncStatus('syncing');
-  try {
-    // Firestore rule: a manager may only touch admin's `cashLog` field
-    // (see cms_users write rule — hasOnly(['cashLog'])). A manager's local
-    // copy of admin's doc is routinely stale on every OTHER field (admin's
-    // own credits/cheques/suppliers/activityLog keep changing independently),
-    // so a full set(clean(user)) here would touch those stale fields too and
-    // get the ENTIRE write silently permission-denied — the manager's cash
-    // log entry never reaches the server even though the local UI already
-    // shows it as saved. Scope the write down to just cashLog via a merge
-    // so it matches exactly what the rule allows.
-    const isManagerWritingAdmin = user.username === 'admin' && DB.currentUser?.role === 'manager';
-    if (isManagerWritingAdmin) {
-      await usersCol.doc('admin').set({ cashLog: clean(user).cashLog || [] }, { merge: true });
+   How it works now
+   ----------------
+   • Every user object remembers the exact server copy it was loaded from (its "baseline").
+   • Saving = one Firestore TRANSACTION: read the document fresh from the server, then merge this
+     PC's changes ITEM-BY-ITEM (by id) into the server's copy:
+        – item changed/added on this PC since its baseline  → this PC's version is written
+        – item untouched on this PC                          → the server's version is kept
+        – item present on the server but not on this PC      → kept (it came from another PC),
+          unless this PC really deleted it (it was in the baseline and is now gone)
+   • No baseline (copy loaded from localStorage)  → additive only: nothing is ever deleted/overwritten.
+   • A failed save is never forgotten: it stays "dirty", is kept in localStorage, retried automatically
+     and re-applied on top of any fresh server data that arrives meanwhile.                         */
+
+const _objBase = new WeakMap();       // user object -> deep copy of the server document it came from
+const _dirtyUsers = new Map();        // username -> user object holding changes not yet confirmed on the server
+const _dirtyTries = {};               // username -> failed attempts in a row
+const _saveChain = {};                // username -> promise (saves for one document run one after another)
+const PENDING_SAVES_KEY = 'cms_pending_saves';
+let _retryTimer = null;
+
+function _itemId(x) {
+  if (!x || typeof x !== 'object') return undefined;
+  if (x.id !== undefined && x.id !== null) return x.id;
+  if (x.key !== undefined && x.key !== null) return x.key;
+  if (x.empId !== undefined && x.empId !== null) return x.empId;
+  return undefined;
+}
+function _isIdArray(a) { return Array.isArray(a) && a.every(x => _itemId(x) !== undefined); }
+function _j(v) { return JSON.stringify(v === undefined ? null : v); }
+function _cl(v) { return v === undefined ? undefined : JSON.parse(JSON.stringify(v)); }   // clean() that tolerates undefined
+
+// base: array as it was when this PC last synced (or null). allowDelete / trustLocalEdits are only true
+// when we HAVE a baseline — without one we cannot tell "deleted here" from "added elsewhere".
+function _mergeById(base, local, server, hasBase) {
+  const baseMap = new Map();
+  (base || []).forEach(x => baseMap.set(_itemId(x), _j(x)));
+  const localMap = new Map();
+  local.forEach(x => localMap.set(_itemId(x), x));
+  const serverIds = new Set(server.map(_itemId));
+  const out = [];
+  for (const s of server) {
+    const id = _itemId(s);
+    if (localMap.has(id)) {
+      const l = localMap.get(id);
+      const unchanged = hasBase ? (baseMap.has(id) && baseMap.get(id) === _j(l)) : true;
+      out.push(unchanged ? s : l);                       // untouched here → keep the server's (maybe newer) copy
+    } else if (hasBase && baseMap.has(id)) {
+      // it was in our baseline but is gone from our copy → we deleted it → drop it
     } else {
-      // CR0091 / CR0093 fix: this used to be a blind `set(clean(user))` — a
-      // full-document overwrite using whatever this tab's in-memory copy of
-      // `user` happens to hold. That copy is stale on `credits`/`suppliers`
-      // any time applyCreditPaymentsChange() has *just* committed a payment
-      // straight to the server via its own transaction (Cash Management /
-      // Cash Disposal Log / cheque auto-settle all do this). Firestore gives
-      // no ordering guarantee between this write and that one, so whichever
-      // one lands on the server LAST wins — and if it's this one, the just
-      // recorded payment gets silently wiped back out of `credits`, even
-      // though the cash was already deducted elsewhere and everything LOOKED
-      // saved. That's exactly how CR0091 and CR0093 ended up with cash
-      // already paid out but the bill still showing full balance.
-      //
-      // Fix: only send the top-level fields that actually changed in THIS
-      // tab since our last successful write, via a merge. A field this call
-      // never touched (like `credits`, when all we're doing here is saving a
-      // cash entry) is simply left out of the payload, so it's structurally
-      // impossible for this write to overwrite it — no matter what order the
-      // two writes land in. First sync of a session (no snapshot yet) falls
-      // back to a full write, same as before.
-      const payload = clean(user);
-      const prevSnap = _lastSyncSnapshot[user.username];
-      let toWrite = payload;
-      if (prevSnap) {
-        toWrite = {};
-        for (const key of Object.keys(payload)) {
-          if (JSON.stringify(payload[key]) !== prevSnap[key]) toWrite[key] = payload[key];
-        }
-      }
-      if (Object.keys(toWrite).length) {
-        await usersCol.doc(user.username).set(toWrite, { merge: true });
-      }
-      // Only advance the snapshot after a write we know succeeded — if the
-      // .set() above throws, we fall into the catch block below and must
-      // NOT update this, or a genuinely-changed-but-failed-to-save field
-      // would look "already synced" next time and get skipped for real.
-      const freshSnap = {};
-      for (const key of Object.keys(payload)) freshSnap[key] = JSON.stringify(payload[key]);
-      _lastSyncSnapshot[user.username] = freshSnap;
+      out.push(s);                                       // added on another PC → keep
     }
+  }
+  const added = [];
+  for (const l of local) {
+    const id = _itemId(l);
+    if (serverIds.has(id)) continue;
+    if (hasBase && baseMap.has(id) && baseMap.get(id) === _j(l)) continue;   // someone else deleted it, we didn't touch it → stays deleted
+    added.push(l);                                       // new on this PC (or edited here after being deleted elsewhere)
+  }
+  if (added.length) {
+    const addedIds = new Set(added.map(_itemId));
+    const frontLoaded = local.length && addedIds.has(_itemId(local[0])) && !addedIds.has(_itemId(local[local.length - 1]));
+    if (frontLoaded) out.unshift(...added); else out.push(...added);
+  }
+  return out;
+}
+
+function _mergeCounters(local, server) {
+  const out = Object.assign({}, server || {});
+  Object.keys(local || {}).forEach(k => {
+    const a = Number(local[k]), b = Number((server || {})[k]);
+    out[k] = (isFinite(a) && isFinite(b)) ? Math.max(a, b) : local[k];
+  });
+  return out;
+}
+
+// Returns { out: fields to write, same: fields already identical on the server }.
+function _mergeUserDoc(payload, base, server, onlyKeys) {
+  const out = {}, same = {};
+  const keys = onlyKeys || Object.keys(payload);
+  const hasBase = !!base;
+  for (const key of keys) {
+    const lv = payload[key];
+    if (lv === undefined) continue;
+    if (!server) { out[key] = lv; continue; }                         // document missing on the server → create it
+    const sv = server[key];
+    if (_j(lv) === _j(sv)) { same[key] = lv; continue; }              // already identical on the server
+    if (hasBase && _j(lv) === _j(base[key])) continue;                // not changed on this PC → leave the server's value
+    if (key === 'counters' && lv && typeof lv === 'object' && !Array.isArray(lv)) { out[key] = _mergeCounters(lv, sv); continue; }
+    if (_isIdArray(lv) && (sv === undefined || _isIdArray(sv))) {
+      const bv = hasBase && _isIdArray(base[key]) ? base[key] : null;
+      const m = _mergeById(bv, lv, Array.isArray(sv) ? sv : [], hasBase && bv !== null);
+      if (_j(m) !== _j(sv)) out[key] = m; else same[key] = m;
+      continue;
+    }
+    if (!hasBase) continue;       // unknown-age copy: never overwrite plain fields / objects
+    out[key] = lv;
+  }
+  return { out, same };
+}
+
+// ---------- pending-save persistence (survives closing the tab while offline) ----------
+function _persistPending(user) {
+  try {
+    const all = JSON.parse(localStorage.getItem(PENDING_SAVES_KEY) || '{}');
+    all[user.username] = { doc: clean(user), base: _objBase.get(user) || null, at: Date.now() };
+    localStorage.setItem(PENDING_SAVES_KEY, JSON.stringify(all));
+  } catch (e) { console.error('persistPending', e); }
+}
+function _clearPending(username) {
+  try {
+    const all = JSON.parse(localStorage.getItem(PENDING_SAVES_KEY) || '{}');
+    if (all[username]) { delete all[username]; localStorage.setItem(PENDING_SAVES_KEY, JSON.stringify(all)); }
+  } catch (e) {}
+}
+function recoverPendingSaves() {
+  if (!firebaseReady() || !DB.currentUser) return;
+  let all = {};
+  try { all = JSON.parse(localStorage.getItem(PENDING_SAVES_KEY) || '{}'); } catch (e) { return; }
+  Object.keys(all).forEach(name => {
+    const p = all[name];
+    if (!p || !p.doc || Date.now() - (p.at || 0) > 7 * 24 * 3600 * 1000) { _clearPending(name); return; }
+    if (!(isAdmin() || name === DB.currentUsername)) return;
+    const obj = p.doc;
+    if (p.base) _objBase.set(obj, p.base);
+    _dirtyUsers.set(name, obj);
+    saveUserDoc(obj).then(() => {
+      if (!_dirtyUsers.has(name)) toast('✅ කලින් save වී නොතිබූ දත්ත (' + name + ') ස්වයංක්‍රීයව Cloud එකට සුරැකුවා', 'green');
+    });
+  });
+}
+
+function _scheduleRetry() {
+  if (_retryTimer || (!_dirtyUsers.size && !_pdbDirty)) return;
+  _retryTimer = setTimeout(() => { _retryTimer = null; retryDirtySaves(); }, 15000);
+}
+function retryDirtySaves() {
+  if (!firebaseReady()) return;
+  _dirtyUsers.forEach(obj => saveUserDoc(obj));
+  if (_pdbDirty) savePayrollDB();
+}
+
+// Called for EVERY batch of user documents received from the server: remembers the baseline for each
+// object and re-applies any not-yet-saved local changes on top, so nothing the user typed disappears.
+function adoptServerUsers(list) {
+  return list.map(u => {
+    const serverCopy = clean(u);
+    let result = u;
+    const dirty = _dirtyUsers.get(u.username);
+    if (dirty) {
+      const { out } = _mergeUserDoc(clean(dirty), _objBase.get(dirty) || null, serverCopy, null);
+      Object.keys(out).forEach(k => { result[k] = clean(out[k]); });
+      _dirtyUsers.set(u.username, result);
+    }
+    _objBase.set(result, serverCopy);
+    return result;
+  });
+}
+
+// After a successful save, bring this PC's in-memory copy up to what was written (it now also contains the
+// entries other PCs had saved), WITHOUT discarding anything the user typed while the save was running:
+// 3-way merge with the payload that was sent as the "base".
+function _adoptSavedFields(user, sent, written) {
+  Object.keys(written).forEach(k => {
+    const cur = _cl(user[k]);
+    const w = _cl(written[k]);
+    if (_j(cur) === _j(w)) return;                                          // already identical → leave objects alone
+    if (_j(cur) === _j(sent[k])) { user[k] = w; return; }                 // untouched meanwhile → take the merged copy
+    if (_isIdArray(cur) && _isIdArray(w) && _isIdArray(sent[k])) { user[k] = _mergeById(sent[k], cur, w, true); return; }
+    // plain field edited meanwhile → keep the newer local edit (it is still dirty and will be saved next)
+  });
+}
+
+async function _doSaveUserDoc(user) {
+  const name = user.username;
+  const isManagerWritingAdmin = name === 'admin' && DB.currentUser?.role === 'manager';
+  const payload = clean(user);
+  const base = _objBase.get(user) || null;
+  const ref = usersCol.doc(name);
+  let result = null;
+  try {
+    await _withTimeout(fdb.runTransaction(async tx => {
+      const snap = await tx.get(ref);
+      const server = snap.exists ? snap.data() : null;
+      result = _mergeUserDoc(payload, base, server, isManagerWritingAdmin ? ['cashLog'] : null);
+      if (Object.keys(result.out).length) {
+        if (server) tx.set(ref, result.out, { merge: true }); else tx.set(ref, result.out);
+      }
+    }), 25000);
+    // success: bring this PC's copy + baseline up to what the server now holds for the fields we touched
+    const known = Object.assign({}, result.same, result.out);
+    _adoptSavedFields(user, payload, result.out);
+    // baseline = what the server now holds for the fields we touched. Anything typed while the save was in
+    // flight still differs from it, so it is picked up as a change by the NEXT save.
+    _objBase.set(user, Object.assign({}, base || {}, clean(known)));
+    // only forget the "dirty" flag if nothing new was typed while this save was running
+    const stillChanged = Object.keys(payload).some(k => _j(_cl(user[k])) !== _j(known[k] !== undefined ? known[k] : payload[k]));
+    if (!stillChanged) { _dirtyUsers.delete(name); delete _dirtyTries[name]; _clearPending(name); }
+    else { _dirtyUsers.set(name, user); _persistPending(user); }
     markSynced('cloud');
+    if (Object.keys(result.out).length) debouncedRefreshActiveSection();
+    return true;
   } catch (e) {
-    console.error('saveUserDoc', e);
-    toast('⚠️ Save failed', 'red');
+    console.error('saveUserDoc', name, e);
+    _dirtyUsers.set(name, user);
+    _dirtyTries[name] = (_dirtyTries[name] || 0) + 1;
+    _persistPending(user);
     setSyncStatus('offline');
+    if (e && e.code === 'permission-denied') {
+      toast('⚠️ Save කිරීමට අවසර නැත — Admin ට දැනුම් දෙන්න', 'red');
+    } else if (_dirtyTries[name] === 1 || _dirtyTries[name] % 8 === 0) {
+      toast('⚠️ Save වුනේ නෑ — internet එක ආපසු ආවම ස්වයංක්‍රීයව නැවත උත්සාහ කරනවා (දත්ත නැති වෙන්නේ නෑ)', 'red');
+    }
+    if (!(e && e.code === 'permission-denied') || _dirtyTries[name] < 3) _scheduleRetry();
+    return false;
   }
 }
+
+function saveUserDoc(user) {
+  if (!user) return Promise.resolve(false);
+  // Always keep a local mirror in sync, cloud write or not.
+  try { saveDBLocal(); } catch (e) { console.error('saveUserDoc local mirror', e); }
+  if (!firebaseReady()) { markSynced('local'); return Promise.resolve(true); }
+  setSyncStatus('syncing');
+  const name = user.username;
+  const run = () => _doSaveUserDoc(user);
+  const p = (_saveChain[name] || Promise.resolve()).then(run, run);
+  _saveChain[name] = p.catch(() => {});
+  return p;
+}
+
+// Re-baselines ONE item after a direct transaction (credit payments etc.) already wrote it to the server,
+// so the next ordinary save treats it as "unchanged here" and never overwrites a newer server copy of it.
+function _rebaseItem(owner, field, id) {
+  const base = _objBase.get(owner);
+  if (!base || !Array.isArray(owner[field])) return;
+  const item = owner[field].find(x => _itemId(x) === id);
+  if (!item) return;
+  const arr = Array.isArray(base[field]) ? base[field].slice() : [];
+  const i = arr.findIndex(x => _itemId(x) === id);
+  const copy = clean(item);
+  if (i === -1) arr.push(copy); else arr[i] = copy;
+  _objBase.set(owner, Object.assign({}, base, { [field]: arr }));
+}
+
+// ---------- payroll document (cms_payroll/company) — same protection ----------
+let _pdbBase = null;
+let _pdbDirty = false;
+const PDB_KEYS = ['employees', 'advances', 'payrolls', 'attendance', 'holidays', 'counters'];
+function _setPdbFromServer(data) {
+  const serverCopy = {};
+  PDB_KEYS.forEach(k => { serverCopy[k] = clean(data[k] !== undefined ? data[k] : (k === 'counters' ? { employee: 0 } : [])); });
+  let pending = null;
+  if (_pdbDirty) pending = _mergeUserDoc(clean(PDB), _pdbBase, serverCopy, PDB_KEYS).out;   // keep unsaved local edits
+  PDB_KEYS.forEach(k => { PDB[k] = clean(serverCopy[k]); });
+  if (pending) Object.keys(pending).forEach(k => { PDB[k] = clean(pending[k]); });
+  _pdbBase = serverCopy;
+}
+async function _doSavePayroll() {
+  const payload = {};
+  PDB_KEYS.forEach(k => { payload[k] = clean(PDB[k]); });
+  let result = null;
+  try {
+    await _withTimeout(fdb.runTransaction(async tx => {
+      const snap = await tx.get(payrollDocRef);
+      const server = snap.exists ? snap.data() : null;
+      result = _mergeUserDoc(payload, _pdbBase, server, PDB_KEYS);
+      if (Object.keys(result.out).length) {
+        if (server) tx.set(payrollDocRef, result.out, { merge: true }); else tx.set(payrollDocRef, result.out);
+      }
+    }), 25000);
+    const known = Object.assign({}, result.same, result.out);
+    Object.keys(result.out).forEach(k => { PDB[k] = clean(result.out[k]); });
+    if (_pdbBase) _pdbBase = Object.assign({}, _pdbBase, clean(known));
+    _pdbDirty = false;
+    return true;
+  } catch (e) {
+    console.error('savePayrollDB', e);
+    _pdbDirty = true;
+    toast('⚠️ Payroll save වුනේ නෑ — ස්වයංක්‍රීයව නැවත උත්සාහ කරනවා', 'red');
+    _scheduleRetry();
+    return false;
+  }
+}
+/* ==== SAFE CLOUD SAVE END ==== */
 
 async function deleteUserDoc(username) {
   if (!firebaseReady()) {
@@ -5494,6 +5711,7 @@ async function applyCreditPaymentsChange(owner, creditId, mutateFn, supplierId) 
     // anything else reading DB.users, like Cash-in-Hand) matches.
     c.payments = mutateFn(Array.isArray(c.payments) ? c.payments.slice() : []);
     if (supplierId) touchSupplier(owner, supplierId);
+    _rebaseItem(owner, 'credits', creditId);
     try { saveDBLocal(); } catch (e) { console.error('applyCreditPaymentsChange local mirror', e); }
     markSynced('cloud');
     return true;
@@ -5569,6 +5787,7 @@ async function applyCreditFieldsChange(owner, creditId, fields, supplierId) {
     const c = (owner.credits || []).find(x => x.id === creditId);
     if (c) Object.assign(c, fields);
     if (supplierId) touchSupplier(owner, supplierId);
+    _rebaseItem(owner, 'credits', creditId);
     try { saveDBLocal(); } catch (e) { console.error('applyCreditFieldsChange local mirror', e); }
     markSynced('cloud');
     return true;
@@ -7034,7 +7253,7 @@ async function loadDB() {
     const c = await _withTimeout(usersCol.doc(fauth.currentUser.uid).get({ source: 'cache' }), 3000);
     if (c.exists) {
       const me = c.data();
-      DB.currentUser = me; DB.currentUsername = me.username; DB.users = [me];
+      DB.users = adoptServerUsers([me]); DB.currentUser = DB.users[0]; DB.currentUsername = me.username;
       DB.dataIncomplete = true; startLiveSync();
       return true;
     }
@@ -7057,6 +7276,7 @@ async function _loadDBOnce() {
     const me = ownSnap.data();
     DB.currentUser = me;
     DB.currentUsername = me.username;
+    _objBase.set(me, clean(me));
 
     // Admin and manager both get a reliable one-time read of the full
     // collection here — NOT just admin. The real-time onSnapshot listener
@@ -7079,14 +7299,16 @@ async function _loadDBOnce() {
     // unfiltered collection query is all-or-nothing — it would be denied
     // outright for a cashier since it could return docs they can't read.
     if (me.role === 'cashier') {
-      DB.users = [me];
+      DB.users = adoptServerUsers([me]);
     } else {
       const snap = await _withTimeout(usersCol.get({ source: 'server' }), 8000);
-      DB.users = snap.docs.map(d => d.data());
+      DB.users = adoptServerUsers(snap.docs.map(d => d.data()));
     }
+    DB.currentUser = getUserByUsername(me.username) || me;
 
     DB.dataIncomplete = false;
     startLiveSync();
+    setTimeout(() => { try { recoverPendingSaves(); } catch (e) { console.error('recoverPendingSaves', e); } }, 2500);
     return true;
   } catch (e) {
     console.error('loadDB', e);
@@ -7132,9 +7354,8 @@ function startLiveSync() {
     liveUnsub = usersCol.doc(DB.currentUsername).onSnapshot(snap => {
       _liveSyncRetried = false;
       if (!snap.exists) return;
-      const me = snap.data();
-      DB.currentUser = me;
-      DB.users = [me];
+      DB.users = adoptServerUsers([snap.data()]);
+      DB.currentUser = DB.users[0];
       DB.dataIncomplete = false;
       markSynced('cloud');
       try { saveDBLocal(); } catch (e) { console.error('live sync local mirror', e); }
@@ -7157,7 +7378,7 @@ function startLiveSync() {
   }
   liveUnsub = usersCol.onSnapshot(snap => {
     _liveSyncRetried = false; // a good snapshot means the token is fine again
-    DB.users = snap.docs.map(d => d.data());
+    DB.users = adoptServerUsers(snap.docs.map(d => d.data()));
     DB.dataIncomplete = false;
     if (DB.currentUsername) {
       const fresh = getUserByUsername(DB.currentUsername);
@@ -7214,13 +7435,7 @@ async function loadPayrollDB() {
     // symptom.
     const snap = await payrollDocRef.get({ source: 'server' });
     if (snap.exists) {
-      const data = snap.data();
-      PDB.employees = data.employees || [];
-      PDB.advances = data.advances || [];
-      PDB.payrolls = data.payrolls || [];
-      PDB.attendance = data.attendance || [];
-      PDB.holidays = data.holidays || [];
-      PDB.counters = data.counters || { employee: 0 };
+      _setPdbFromServer(snap.data());
     } else {
       // IMPORTANT: do NOT auto-write an empty doc here. This used to call
       // payrollDocRef.set(clean(PDB)) as a "create it if missing"
@@ -7268,13 +7483,7 @@ function startPayrollLiveSync() {
   payrollLiveUnsub = payrollDocRef.onSnapshot(snap => {
     _payrollSyncRetried = false;
     if (!snap.exists) return;
-    const data = snap.data();
-    PDB.employees = data.employees || [];
-    PDB.advances = data.advances || [];
-    PDB.payrolls = data.payrolls || [];
-    PDB.attendance = data.attendance || [];
-    PDB.holidays = data.holidays || [];
-    PDB.counters = data.counters || { employee: 0 };
+    _setPdbFromServer(snap.data());
     try { localStorage.setItem('cms_payroll', JSON.stringify(PDB)); } catch (e) { console.error('payroll live sync local mirror', e); }
     const active = document.querySelector('.section.show');
     if (active && active.id === 'payrollSection') renderPayrollTab();
@@ -7298,13 +7507,12 @@ async function savePayrollDB() {
   // this local copy is a fallback to recover from instead of nothing.
   try { localStorage.setItem('cms_payroll', JSON.stringify(PDB)); } catch (e) { console.error('savePayrollDB local mirror', e); }
   if (!firebaseReady() || !payrollDocRef) return;
-  try {
-    await payrollDocRef.set(clean(PDB));
-  } catch (e) {
-    console.error('savePayrollDB', e);
-    toast('⚠️ Payroll save failed', 'red');
-  }
+  _pdbDirty = true;     // until the server confirms, a fresh snapshot must not wipe what was just typed
+  const run = () => _doSavePayroll();
+  _pdbChain = _pdbChain.then(run, run);
+  return _pdbChain;
 }
+let _pdbChain = Promise.resolve();
 
 // ===== Dashboard permissions load/sync/save (see globals above) =====
 async function loadRolePermissions() {
@@ -8854,7 +9062,7 @@ async function manualRefresh(silent = false) {
   try {
     // Force a real round-trip to the server (bypass any stale local cache).
     const snap = await usersCol.get({ source: 'server' });
-    DB.users = snap.docs.map(d => d.data());
+    DB.users = adoptServerUsers(snap.docs.map(d => d.data()));
     DB.dataIncomplete = false;
     if (DB.currentUsername) {
       const fresh = getUserByUsername(DB.currentUsername);
@@ -8871,13 +9079,7 @@ async function manualRefresh(silent = false) {
       try {
         const paySnap = await payrollDocRef.get({ source: 'server' });
         if (paySnap.exists) {
-          const pdata = paySnap.data();
-          PDB.employees = pdata.employees || [];
-          PDB.advances = pdata.advances || [];
-          PDB.payrolls = pdata.payrolls || [];
-          PDB.attendance = pdata.attendance || [];
-          PDB.holidays = pdata.holidays || [];
-          PDB.counters = pdata.counters || { employee: 0 };
+          _setPdbFromServer(paySnap.data());
           try { localStorage.setItem('cms_payroll', JSON.stringify(PDB)); } catch (e) { console.error('manualRefresh payroll local mirror', e); }
         }
         if (!payrollLiveUnsub) startPayrollLiveSync();
@@ -8954,7 +9156,15 @@ async function autoRecoverSync() {
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') autoRecoverSync();
 });
-window.addEventListener('online', autoRecoverSync);
+window.addEventListener('online', () => { autoRecoverSync(); setTimeout(retryDirtySaves, 1500); });
+// A laptop that slept (lid closed / night sleep) often wakes with a dead live-listener and NO visibilitychange
+// event. A clock jump between two ticks reveals the sleep, so re-sync straight away.
+let _hbLast = Date.now();
+setInterval(() => {
+  const now = Date.now();
+  if (now - _hbLast > 45000 && DB.currentUser) { autoRecoverSync(); setTimeout(retryDirtySaves, 3000); }
+  _hbLast = now;
+}, 15000);
 window.addEventListener('pageshow', e => { if (e.persisted) autoRecoverSync(); });
 
 // ===== WARN BEFORE CLOSING A TAB WITH AN UNFINISHED SAVE =====
@@ -11890,12 +12100,46 @@ function renderReconcileResults() {
   }).join('');
 }
 
+// Activity-Log record of a credit-bill payment added by Sync Check (who owns the bill, which bill, how much).
+function _logSyncCreditFix(g, balanceBefore) {
+  try {
+    const owner = g.creditOwner || '—';
+    const ownerU = getUserByUsername(owner);
+    const c = g.credit || {};
+    const supName = (g.row && g.row.supplierName) || getSupplierName(c.supplierId, owner);
+    const src = g.kind === 'cashEntry' ? 'Cash Management (Daily Cash)' : 'Cash Disposal Log';
+    const fresh = ownerU && (ownerU.credits || []).find(x => x.id === c.id);
+    const paid = fresh ? (fresh.payments || []).reduce((t, p) => t + (Number(p.amount) || 0), 0) : null;
+    const balAfter = fresh ? Math.max(0, (Number(fresh.amount) || 0) - paid) : null;
+    const parts = [
+      `🔧 Sync Check · Credit Bill payment ADDED`,
+      `👤 Bill owner: ${ownerU && ownerU.role ? '(' + (ownerU.role === 'user' ? 'manager' : ownerU.role) + ') ' : ''}${owner}${ownerU && ownerU.name ? ' – ' + ownerU.name : ''}`,
+      `🧾 Bill ${c.entryId || c.id}`,
+      `🏪 ${supName}`,
+      `+ ${fmt(g.missing)} paid`,
+      `📅 ${g.entry.date || ''}`,
+      `Source: ${src}`
+    ];
+    if (balanceBefore != null && balAfter != null) parts.push(`Bill balance: ${fmt(balanceBefore)} → ${fmt(balAfter)}`);
+    logActivity('SYNC_FIX_CREDIT', parts.join(' | '));
+  } catch (e) { console.error('_logSyncCreditFix', e); }
+}
+function _creditBalanceNow(g) {
+  try {
+    const ow = getUserByUsername(g.creditOwner);
+    const c = ow && (ow.credits || []).find(x => x.id === g.credit.id);
+    return c ? Math.max(0, (Number(c.amount) || 0) - (c.payments || []).reduce((t, p) => t + (Number(p.amount) || 0), 0)) : null;
+  } catch (e) { return null; }
+}
+
 async function fixOneCreditPaymentGap(rid) {
   const g = _reconcileGaps.find(x => x._rid === rid);
   if (!g || g.fixed || !g.credit || g.resolvedManually || g.wouldOverpay) return;
+  const balBefore = _creditBalanceNow(g);
   const ok = await fixCreditPaymentGap(g);
   if (ok) {
     g.fixed = true;
+    _logSyncCreditFix(g, balBefore);
     toast('✅ Fixed');
     renderCredits(); renderOverview();
     if (DB.analyticsOpen) renderSupplierAnalytics();
@@ -11910,8 +12154,9 @@ async function fixAllCreditPaymentGaps() {
   const pending = _reconcileGaps.filter(g => !g.fixed && g.credit && !g.resolvedManually && !g.wouldOverpay);
   let fixedCount = 0;
   for (const g of pending) {
+    const balBefore = _creditBalanceNow(g);
     const ok = await fixCreditPaymentGap(g);
-    if (ok) { g.fixed = true; fixedCount++; }
+    if (ok) { g.fixed = true; fixedCount++; _logSyncCreditFix(g, balBefore); }
   }
   renderCredits(); renderOverview();
   if (DB.analyticsOpen) renderSupplierAnalytics();
@@ -17023,7 +17268,7 @@ async function openCashSyncModal() {
     // Always scan against a fresh server read, never a possibly-stale local copy.
     if (firebaseReady() && usersCol) {
       const snap = await _withTimeout(usersCol.get({ source: 'server' }), 12000);
-      DB.users = snap.docs.map(d => d.data());
+      DB.users = adoptServerUsers(snap.docs.map(d => d.data()));
       const me = getUserByUsername(DB.currentUsername);
       if (me) DB.currentUser = me;
       DB.dataIncomplete = false;
@@ -17158,11 +17403,46 @@ async function _csRestoreIssue(g) {
     if (!v) { toast('⚠️ දිනය තෝරන්න', 'red'); return null; }
     g.entry.date = v; g.date = v;
   }
+  const cashBefore = calcCashInHand();
   const r = await restoreCashLogEntry(g.entry);
   if (!r.ok) return false;
   g.fixed = true;
-  logActivity('CASH_LOG_RESTORE', `${g.entry.type} · ${fmt(g.amount)} · ${g.entry.date} (Sync Check)`);
+  if (r.dup) {
+    // somebody (another PC) had already restored it a moment ago — nothing was changed by us
+    logActivity('CASH_LOG_RESTORE', `ℹ️ Sync Check: ${g.label} · ${fmt(g.amount)} · ${g.entry.date} — දැනටමත් Log එකේ තිබුණා, වෙනසක් කළේ නෑ`);
+    return true;
+  }
+  _logSyncCashRestore(g, cashBefore, calcCashInHand());
   return true;
+}
+
+// Activity-Log record of what Sync Check just changed in Cash-in-Hand, naming WHOSE entry it was
+// (the Manager / cashier who originally made it) so the Admin can see exactly what was restored.
+function _logSyncCashRestore(g, before, after) {
+  const e = g.entry || {};
+  const ownerU = e.actor ? getUserByUsername(e.actor) : null;
+  const who = e.actor ? `${ownerU && ownerU.role ? '(' + (ownerU.role === 'user' ? 'manager' : ownerU.role) + ') ' : ''}${e.actor}${(e.actorName || (ownerU && ownerU.name)) ? ' – ' + (e.actorName || ownerU.name) : ''}` : '—';
+  const parts = [
+    `🔧 Sync Check · Cash Disposal Log RESTORE`,
+    `👤 Entry made by: ${who}`,
+    `${g.label}`,
+    `${e.type === 'owner_topup' ? '+' : '−'} ${fmt(g.amount)}`,
+    `📅 ${e.date}`
+  ];
+  const extra = [];
+  if (e.supplierName) extra.push('🏪 ' + e.supplierName);
+  if (e.creditId) {
+    const ow = getUserByUsername(e.creditOwnerUsername || e.actor);
+    const c = ow && (ow.credits || []).find(x => x.id === e.creditId);
+    if (c && c.entryId) extra.push('Bill ' + c.entryId);
+  }
+  if (e.empName) extra.push('👤 ' + e.empName);
+  if (e.bankName) extra.push('🏦 ' + e.bankName);
+  if (e.description) extra.push(e.description);
+  if (extra.length) parts.push(extra.join(' · '));
+  if (e.origActivityId) parts.push('(Activity Log එකේ සටහනෙන් ගොඩනැගූ entry)');
+  parts.push(`Cash-in-Hand: ${fmt(before)} → ${fmt(after)}`);
+  logActivity('CASH_LOG_RESTORE', parts.join(' | '));
 }
 
 async function restoreCashSyncIssue(rid) {
@@ -17241,7 +17521,7 @@ async function runDailySyncCheck(force) {
     // Never judge from a possibly-stale local copy: read everything fresh from the server first.
     // If that fails (offline etc.) stay silent — a false alarm is worse than skipping until the next try.
     const snap = await _withTimeout(usersCol.get({ source: 'server' }), 12000);
-    DB.users = snap.docs.map(d => d.data());
+    DB.users = adoptServerUsers(snap.docs.map(d => d.data()));
     const me = getUserByUsername(DB.currentUsername);
     if (!me) return;
     DB.currentUser = me;
@@ -19768,7 +20048,7 @@ function renderDailySummary() {
   html += `<div class="card" style="margin:1.2rem 1.5rem;">
     <div class="card-head"><div class="card-title">💼 Manager Activity</div></div>`;
   if (data.managerActions.length) {
-    const icons = {ADD_CREDIT:'💳',EDIT_CREDIT:'✏️',DEL_CREDIT:'🗑️',ADD_CHEQUE:'✅',EDIT_CHEQUE:'✏️',DEL_CHEQUE:'🗑️',ADD_CHEQUE_BOOK:'🖐️',DEL_CHEQUE_BOOK:'🗑️',ADD_PAYMENT:'💰',DEL_PAYMENT:'💰',ADD_SUPPLIER:'🏪',EDIT_SUPPLIER:'✏️',DEL_SUPPLIER:'🗑️',ADD_USER:'👥',EDIT_USER:'✏️',DEL_USER:'🗑️',LOGIN:'🔓',LOGOUT:'🔒',REGISTER:'✨',BACKUP:'📥',CHEQUE_LINK:'🔗',ADD_EMPLOYEE:'💲',EDIT_EMPLOYEE:'✏️',DEL_EMPLOYEE:'🗑️',ADD_ADVANCE:'💸',DEL_ADVANCE:'🗑️',PROCESS_PAYROLL:'🧮',DEL_PAYROLL:'🗑️',DEL_CASH_PURCHASE:'🛒',MARK_ATTENDANCE:'🗓️',EDIT_ATTENDANCE:'✏️',DEL_ATTENDANCE:'🗑️',CASH_LOG:'💵',EDIT_CASH_LOG:'✏️',DEL_CASH_LOG:'🗑️',CASH_LOG_RESTORE:'🔧',DAILY_SYNC_CHECK:'🔧',CASH_SYNC_IGNORE:'🙈',ADD_CASH:'💵',EDIT_CASH:'✏️',DEL_CASH:'🗑️',ADD_RELOAD:'📶',EDIT_RELOAD:'✏️',DEL_RELOAD:'🗑️',RELOAD_HANDOVER:'🤝',CASH_TEMP_SAVE:'🕓',CASH_TEMP_DELETE:'🗑️'};
+    const icons = {ADD_CREDIT:'💳',EDIT_CREDIT:'✏️',DEL_CREDIT:'🗑️',ADD_CHEQUE:'✅',EDIT_CHEQUE:'✏️',DEL_CHEQUE:'🗑️',ADD_CHEQUE_BOOK:'🖐️',DEL_CHEQUE_BOOK:'🗑️',ADD_PAYMENT:'💰',DEL_PAYMENT:'💰',ADD_SUPPLIER:'🏪',EDIT_SUPPLIER:'✏️',DEL_SUPPLIER:'🗑️',ADD_USER:'👥',EDIT_USER:'✏️',DEL_USER:'🗑️',LOGIN:'🔓',LOGOUT:'🔒',REGISTER:'✨',BACKUP:'📥',CHEQUE_LINK:'🔗',ADD_EMPLOYEE:'💲',EDIT_EMPLOYEE:'✏️',DEL_EMPLOYEE:'🗑️',ADD_ADVANCE:'💸',DEL_ADVANCE:'🗑️',PROCESS_PAYROLL:'🧮',DEL_PAYROLL:'🗑️',DEL_CASH_PURCHASE:'🛒',MARK_ATTENDANCE:'🗓️',EDIT_ATTENDANCE:'✏️',DEL_ATTENDANCE:'🗑️',CASH_LOG:'💵',EDIT_CASH_LOG:'✏️',DEL_CASH_LOG:'🗑️',CASH_LOG_RESTORE:'🔧',SYNC_FIX_CREDIT:'🔧',DAILY_SYNC_CHECK:'🔧',CASH_SYNC_IGNORE:'🙈',ADD_CASH:'💵',EDIT_CASH:'✏️',DEL_CASH:'🗑️',ADD_RELOAD:'📶',EDIT_RELOAD:'✏️',DEL_RELOAD:'🗑️',RELOAD_HANDOVER:'🤝',CASH_TEMP_SAVE:'🕓',CASH_TEMP_DELETE:'🗑️'};
     html += `<div class="table-wrap"><table>
       <thead><tr><th>🕐 Time</th><th>👤 Manager</th><th>📝 Action</th><th>ℹ️ Details</th></tr></thead>
       <tbody>${data.managerActions.map(e => `<tr><td style="white-space:nowrap;">${e.ts ? new Date(e.ts).toLocaleTimeString() : '—'}</td><td><span class="user-data-badge">${e.actor || '?'}</span> ${e._ownerName || ''}</td><td>${icons[e.action] || '📝'} ${(e.action || '—').replace(/_/g, ' ')}</td><td style="font-size:.82rem;color:var(--muted);">${e.details || ''}</td></tr>`).join('')}</tbody>
@@ -20865,7 +21145,7 @@ function renderActivityLog() {
     renderPagination('activityPagination', 0, activityLogPage, 'goActivityLogPage', ACTIVITY_PAGE_SIZE);
     return;
   }
-  const icons={ADD_CREDIT:'💳',EDIT_CREDIT:'✏️',DEL_CREDIT:'🗑️',ADD_CHEQUE:'✅',EDIT_CHEQUE:'✏️',DEL_CHEQUE:'🗑️',ADD_CHEQUE_BOOK:'🖐️',DEL_CHEQUE_BOOK:'🗑️',ADD_PAYMENT:'💰',DEL_PAYMENT:'💰',ADD_SUPPLIER:'🏪',EDIT_SUPPLIER:'✏️',DEL_SUPPLIER:'🗑️',ADD_USER:'👥',EDIT_USER:'✏️',DEL_USER:'🗑️',LOGIN:'🔓',LOGOUT:'🔒',REGISTER:'✨',BACKUP:'📥',CHEQUE_LINK:'🔗',ADD_EMPLOYEE:'💲',EDIT_EMPLOYEE:'✏️',DEL_EMPLOYEE:'🗑️',ADD_ADVANCE:'💸',DEL_ADVANCE:'🗑️',PROCESS_PAYROLL:'🧮',DEL_PAYROLL:'🗑️',DEL_CASH_PURCHASE:'🛒',MARK_ATTENDANCE:'🗓️',EDIT_ATTENDANCE:'✏️',DEL_ATTENDANCE:'🗑️',CASH_LOG:'💵',EDIT_CASH_LOG:'✏️',DEL_CASH_LOG:'🗑️',CASH_LOG_RESTORE:'🔧',DAILY_SYNC_CHECK:'🔧',CASH_SYNC_IGNORE:'🙈',ADD_CASH:'💵',EDIT_CASH:'✏️',DEL_CASH:'🗑️',ADD_RELOAD:'📶',EDIT_RELOAD:'✏️',DEL_RELOAD:'🗑️',RELOAD_HANDOVER:'🤝',CASH_TEMP_SAVE:'🕓',CASH_TEMP_DELETE:'🗑️'};
+  const icons={ADD_CREDIT:'💳',EDIT_CREDIT:'✏️',DEL_CREDIT:'🗑️',ADD_CHEQUE:'✅',EDIT_CHEQUE:'✏️',DEL_CHEQUE:'🗑️',ADD_CHEQUE_BOOK:'🖐️',DEL_CHEQUE_BOOK:'🗑️',ADD_PAYMENT:'💰',DEL_PAYMENT:'💰',ADD_SUPPLIER:'🏪',EDIT_SUPPLIER:'✏️',DEL_SUPPLIER:'🗑️',ADD_USER:'👥',EDIT_USER:'✏️',DEL_USER:'🗑️',LOGIN:'🔓',LOGOUT:'🔒',REGISTER:'✨',BACKUP:'📥',CHEQUE_LINK:'🔗',ADD_EMPLOYEE:'💲',EDIT_EMPLOYEE:'✏️',DEL_EMPLOYEE:'🗑️',ADD_ADVANCE:'💸',DEL_ADVANCE:'🗑️',PROCESS_PAYROLL:'🧮',DEL_PAYROLL:'🗑️',DEL_CASH_PURCHASE:'🛒',MARK_ATTENDANCE:'🗓️',EDIT_ATTENDANCE:'✏️',DEL_ATTENDANCE:'🗑️',CASH_LOG:'💵',EDIT_CASH_LOG:'✏️',DEL_CASH_LOG:'🗑️',CASH_LOG_RESTORE:'🔧',SYNC_FIX_CREDIT:'🔧',DAILY_SYNC_CHECK:'🔧',CASH_SYNC_IGNORE:'🙈',ADD_CASH:'💵',EDIT_CASH:'✏️',DEL_CASH:'🗑️',ADD_RELOAD:'📶',EDIT_RELOAD:'✏️',DEL_RELOAD:'🗑️',RELOAD_HANDOVER:'🤝',CASH_TEMP_SAVE:'🕓',CASH_TEMP_DELETE:'🗑️'};
   const pageLogs = filtered.slice((activityLogPage-1)*ACTIVITY_PAGE_SIZE, activityLogPage*ACTIVITY_PAGE_SIZE);
   tbody.innerHTML = pageLogs.map(e=>`<tr>
     <td style="font-size:.78rem;white-space:nowrap;">${e.ts?new Date(e.ts).toLocaleString():'—'}</td>
