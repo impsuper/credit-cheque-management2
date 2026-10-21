@@ -1838,6 +1838,39 @@ html .btn.btn-ghost{border:1.5px solid color-mix(in srgb,var(--navy) 28%,transpa
 .lrg-hd:disabled{cursor:default;}
 .lrg-hd-status{font-size:.72rem;color:var(--muted);font-weight:600;}
 .lrg-plan-actions{display:flex;flex-wrap:wrap;gap:.6rem;padding:.7rem 1.5rem 0;}
+/* AI target breakdown + special adjustments */
+.lrg-bd{border:1px dashed var(--border);border-radius:10px;padding:.5rem .7rem;background:var(--surface);}
+.lrg-bd summary{cursor:pointer;font-size:.74rem;font-weight:800;color:var(--navy);}
+.lrg-bd-t{width:100%;border-collapse:collapse;margin:.6rem 0 .3rem;font-size:.8rem;}
+.lrg-bd-t td{padding:.32rem .35rem;border-bottom:1px solid var(--border);vertical-align:top;}
+.lrg-bd-t td:last-child{text-align:right;white-space:nowrap;font-weight:700;}
+.lrg-bd-t small{color:var(--muted);font-weight:500;}
+.lrg-bd-t tr.sub td{font-weight:800;background:var(--surface-2,transparent);}
+.lrg-bd-t tr.tot td{font-weight:900;color:var(--accent);border-top:2px solid var(--accent);border-bottom:0;font-size:.88rem;}
+.lrg-bd-t tr.muted td{color:var(--muted);font-weight:600;}
+.lrg-bd-t .pos{color:var(--green);} .lrg-bd-t .neg{color:var(--red);}
+.lrg-adj-x{border:0;background:transparent;color:var(--red);cursor:pointer;font-weight:800;padding:0 .3rem;}
+.lrg-adj-form{margin-top:.5rem;padding:.6rem .7rem;border-radius:10px;background:var(--surface-2,var(--surface));border:1px solid var(--border);}
+.lrg-adj-title{font-size:.74rem;font-weight:800;color:var(--navy);margin-bottom:.4rem;}
+.lrg-adj-grid{display:grid;grid-template-columns:1.3fr 1fr .9fr 1.2fr auto;gap:.5rem;align-items:start;}
+.lrg-adj-grid select{width:100%;box-sizing:border-box;padding:.5rem .5rem;border:1.5px solid var(--border);border-radius:8px;font-size:.84rem;background:var(--surface);color:var(--text);font-family:inherit;}
+/* abnormal days review */
+.lrg-abn-intro{padding:.2rem 1.5rem .6rem;font-size:.8rem;color:var(--muted);font-weight:600;}
+.lrg-abn-row{margin:.6rem 1.5rem;padding:.8rem .9rem;border:1px solid var(--border);border-left:4px solid var(--yellow);border-radius:12px;background:var(--surface);}
+.lrg-abn-row.high{border-left-color:var(--accent);}
+.lrg-abn-head{font-size:.86rem;font-weight:700;color:var(--text);}
+.lrg-abn-head small{color:var(--muted);font-weight:600;}
+.lrg-abn-q{font-size:.76rem;font-weight:800;color:var(--navy);margin:.65rem 0 .3rem;}
+.lrg-abn-opts{display:flex;flex-wrap:wrap;gap:.4rem;}
+.lrg-abn-opts label{display:inline-flex;align-items:center;gap:.3rem;padding:.3rem .65rem;border:1.5px solid var(--border);border-radius:99px;font-size:.76rem;font-weight:700;cursor:pointer;background:var(--surface);color:var(--text);}
+.lrg-abn-opts input{width:auto;margin:0;}
+.lrg-abn-opts label:has(input:checked){border-color:var(--accent);background:rgba(60,100,200,.10);}
+.lrg-abn-row input[type=text],.lrg-abn-row input[type=date],.lrg-abn-row select{padding:.4rem .6rem;border:1.5px solid var(--border);border-radius:8px;font-size:.82rem;background:var(--surface);color:var(--text);font-family:inherit;max-width:100%;box-sizing:border-box;}
+.lrg-abn-act{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-top:.65rem;}
+.lrg-abn-done{margin:.3rem 1.5rem 1rem;font-size:.78rem;}
+.lrg-abn-done summary{cursor:pointer;font-weight:800;color:var(--navy);}
+.lrg-abn-done .it{display:flex;flex-wrap:wrap;gap:.5rem;justify-content:space-between;align-items:center;padding:.35rem 0;border-bottom:1px solid var(--border);}
+@media(max-width:720px){.lrg-adj-grid{grid-template-columns:1fr 1fr;}.lrg-abn-row{margin:.6rem 1rem;}.lrg-abn-intro,.lrg-abn-done{padding-left:1rem;padding-right:1rem;margin-left:0;margin-right:0;}}
 @media(max-width:720px){.lrg-planner{padding:1rem 1rem .3rem;}.lrg-plan-top{grid-template-columns:1fr 1fr;}.lrg-plan-month,.lrg-plan-ai{grid-column:1/-1;}.lrg-plan-actions{padding:.7rem 1rem 0;}.lrg-chart-wrap{padding:.8rem .4rem .2rem;}}
 @media(max-width:720px){.lrg-ai-wrap{padding:0 1rem 1.1rem;}}
 </style>
@@ -3628,6 +3661,11 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
         <div id="lrg-chart-content"></div>
       </div>
 
+      <div class="card lrg-card hidden" id="lrg-abn-card">
+        <div class="card-head"><div class="card-title">⚠️ AI සැක කරන අසාමාන්‍ය දින <span id="lrg-abn-count" style="font-weight:500;font-size:.8rem;color:var(--muted);margin-left:.4rem;"></span></div></div>
+        <div id="lrg-abn-content"></div>
+      </div>
+
       <div class="card" style="margin:0 0 1.2rem;" id="lrg-admin-card">
         <div class="card-head"><div class="card-title">🎯 Monthly Sales Target</div><span id="lrg-admin-state" style="font-size:.78rem;color:var(--muted);font-weight:600;"></span></div>
         <div id="lrg-admin-form">
@@ -4869,7 +4907,22 @@ try { SALES_HOLIDAY_DAYS = JSON.parse(localStorage.getItem('cms_sales_holiday_da
 // Seasonal factor the Admin typed per calendar month { '1'..'12': factor } (e.g. 1.15 = +15%). 0 / missing = not set → AI learns it.
 let SALES_SEASON = {};
 try { SALES_SEASON = JSON.parse(localStorage.getItem('cms_sales_season') || '{}') || {}; } catch (e) { SALES_SEASON = {}; }
+// Admin's answers about abnormal days { 'YYYY-MM-DD': { reason, exclude, note, by, at, sales, expected } } — those days are ignored by the AI.
+let SALES_DAY_NOTES = {};
+try { SALES_DAY_NOTES = JSON.parse(localStorage.getItem('cms_sales_day_notes') || '{}') || {}; } catch (e) { SALES_DAY_NOTES = {}; }
+// Admin's special day / special month additions & reductions per month { 'YYYY-MM': [{ id, label, kind:'pct'|'amt', value, days? }] }
+let SALES_ADJ = {};
+try { SALES_ADJ = JSON.parse(localStorage.getItem('cms_sales_adj') || '{}') || {}; } catch (e) { SALES_ADJ = {}; }
 function _applySalesTargetsFrom(data) {
+  if (data && data.salesDayNotes && typeof data.salesDayNotes === 'object') {
+    const o = {}; Object.keys(data.salesDayNotes).forEach(k => { if (data.salesDayNotes[k] && typeof data.salesDayNotes[k] === 'object') o[k] = data.salesDayNotes[k]; });
+    SALES_DAY_NOTES = o;
+    try { localStorage.setItem('cms_sales_day_notes', JSON.stringify(SALES_DAY_NOTES)); } catch (e) {}
+  }
+  if (data && data.salesAdj && typeof data.salesAdj === 'object') {
+    SALES_ADJ = data.salesAdj;
+    try { localStorage.setItem('cms_sales_adj', JSON.stringify(SALES_ADJ)); } catch (e) {}
+  }
   if (data && data.salesSeason && typeof data.salesSeason === 'object') {
     SALES_SEASON = data.salesSeason;
     try { localStorage.setItem('cms_sales_season', JSON.stringify(SALES_SEASON)); } catch (e) {}
@@ -7639,31 +7692,54 @@ function lrgMonthLabel(key, withYear) {
 }
 
 // ---------------------------------------------------------------------------
-// LOCAL SMART FORECAST (runs on this device only — no data leaves the browser)
-// Learns from the daily sales history:
-//   • weekday pattern  — how strong each weekday is on days the shop actually traded
-//   • boost windows    — days 12–15 and days 25–29 of every month. For each window the AI measures how much
-//                        stronger those days were than the other ("plain") days of the same month, after removing
-//                        the weekday effect. It only boosts a window when past months really show it (small
-//                        samples are shrunk towards ×1.00), so a window that is NOT stronger stays at ×1.00.
-//   • seasonal months  — a factor per calendar month (e.g. Dec / Mar / Apr). Priority: the % the Admin typed in
-//                        the planner → what the AI learned from earlier years (ratio to the surrounding months,
-//                        needs ≥ 5 consecutive months around that month) → ×1.00 (no information yet).
-//   • monthly trend    — slow month-to-month growth/decline of the (de-seasonalised) base daily rate (damped)
-//   • volatility       — day-to-day spread, used to turn the forecast into a hit-chance
-// HOLIDAYS come from the Admin only. A day the Admin marked is forecast as 0; every other day is a
-// trading day. A marked day that still has sales logged (e.g. a Sunday that was worked) simply counts
-// as actual sales. Only when a month has NOT been marked yet, the AI estimates closures from how often
-// each weekday had no sales in the past (and says so in the UI).
+// LOCAL SMART FORECAST v2 (runs on this device only — no data leaves the browser)
+// Everything is learned from the shop's OWN daily sales history — nothing about "which days are strong" is
+// hard-coded any more (the old fixed 12–15 / 25–29 windows are gone):
+//   • abnormal days     — a day far below (power cut, shop closed early…) or far above what its weekday and the
+//                         surrounding weeks predict. The AI lists them on the Sales Target page; the Admin answers
+//                         two simple questions and a confirmed abnormal day is IGNORED by every calculation below
+//                         (its sales still count in that month's actual total). Until it is answered the day is
+//                         provisionally ignored too, so one bad day cannot poison the forecast.
+//   • weekday pattern   — how strong each weekday is on days the shop traded
+//   • day-of-month curve— for every date 1–31: how much stronger/weaker it was than a normal day of the same month
+//                         (weekday effect removed), averaged over the past months, smoothed with the neighbouring
+//                         days and shrunk towards ×1.00 while there is little data (it sharpens as months pass)
+//   • seasonal months   — a factor per calendar month: the % the Admin typed → learned from earlier years → ×1.00
+//   • monthly level     — recency-weighted (1:2:3) daily rate of the last 3 CLEAN months + a damped trend
+//   • volatility        — day-to-day spread, used to turn the forecast into a hit-chance
+// HOLIDAYS come from the Admin only. A day the Admin marked is forecast as 0; every other day is a trading day.
+// Only when a month has NOT been marked yet, the AI estimates closures from how often each weekday had no sales.
 // ---------------------------------------------------------------------------
-const LRG_WINDOWS = [
-  { id: 'mid',  from: 12, to: 15, label: '12–15' },
-  { id: 'late', from: 25, to: 29, label: '25–29' }
-];
 const LRG_SEASON_FLAG = [12, 3, 4];     // months the owner flagged as seasonal (Dec, Mar, Apr)
 const LRG_MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-function lrgWindowOf(d) { for (const w of LRG_WINDOWS) if (d >= w.from && d <= w.to) return w; return null; }
-function lrgWinFactor(h, d) { const w = lrgWindowOf(d); return w && h && h.win && h.win[w.id] ? h.win[w.id].f : 1; }
+const LRG_STRONG_AT = 1.06;             // a date whose learned factor is ≥ this is called a "strong day"
+const LRG_ABN_LOW = 0.55, LRG_ABN_HIGH = 1.9;   // abnormal-day thresholds (× the expected value)
+const LRG_DAY_REASONS = [
+  { id: 'power',   icon: '⚡',  label: 'Power cut' },
+  { id: 'early',   icon: '🕐', label: 'කඩේ කලින් වහන්න උනා' },
+  { id: 'late',    icon: '🕘', label: 'පරක්කුවෙන් අරින්න උනා' },
+  { id: 'weather', icon: '🌧️', label: 'නරක කාලගුණය / ගංවතුර' },
+  { id: 'stock',   icon: '📦', label: 'Stock හිඟයක්' },
+  { id: 'event',   icon: '🎉', label: 'විශේෂ උත්සව / දිනයක්' },
+  { id: 'other',   icon: '📝', label: 'වෙනත් හේතුවක්' },
+  { id: 'normal',  icon: '✅', label: 'සාමාන්‍ය දිනයක් (කිසිම ගැටලුවක් නෑ)' }
+];
+function lrgReasonOf(id) { return LRG_DAY_REASONS.find(r => r.id === id) || LRG_DAY_REASONS[LRG_DAY_REASONS.length - 2]; }
+// The Admin's answer for one date (null = never answered)
+function lrgDayNote(date) { const n = (typeof SALES_DAY_NOTES !== 'undefined' && SALES_DAY_NOTES || {})[date]; return n && typeof n === 'object' ? n : null; }
+function lrgDomFactor(h, d) { return h && h.dom && h.dom[d] ? h.dom[d] : 1; }
+function lrgIsStrong(h, d) { return lrgDomFactor(h, d) >= LRG_STRONG_AT; }
+function _lrgMedian(a) { if (!a.length) return 0; const s = a.slice().sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; }
+function _lrgDow(ds) { return new Date(+ds.slice(0, 4), +ds.slice(5, 7) - 1, +ds.slice(8, 10)).getDay(); }
+function _lrgOrd(ds) { return Math.round(Date.UTC(+ds.slice(0, 4), +ds.slice(5, 7) - 1, +ds.slice(8, 10)) / 86400000); }
+// [13, 25, 26] → "13, 25–26"
+function lrgRangesText(days) {
+  const out = []; let a = null, b = null;
+  days.forEach(d => { if (a === null) { a = b = d; } else if (d === b + 1) { b = d; } else { out.push(a === b ? '' + a : a + '–' + b); a = b = d; } });
+  if (a !== null) out.push(a === b ? '' + a : a + '–' + b);
+  return out.join(', ');
+}
+
 // Seasonal factor of a calendar month (1–12): Admin's own % → learned from earlier years → none
 function lrgSeasonFactor(h, mo1) {
   const man = Number((typeof SALES_SEASON !== 'undefined' && SALES_SEASON || {})[mo1]);
@@ -7672,16 +7748,15 @@ function lrgSeasonFactor(h, mo1) {
   if (L) return { f: L.f, src: 'learned', n: L.n };
   return { f: 1, src: 'none', n: 0 };
 }
-// Everything that scales a normal day's sales on day d of (y, mo0): weekday × boost window × season
-function lrgDayMul(h, y, mo0, d) {
-  return (h.wd[new Date(y, mo0, d).getDay()] || 1) * lrgWinFactor(h, d) * lrgSeasonFactor(h, mo0 + 1).f;
-}
+// Weekday × day-of-month pattern of date d in (y, mo0) — WITHOUT the seasonal factor
+function lrgPattern(h, y, mo0, d) { return (h.wd[new Date(y, mo0, d).getDay()] || 1) * lrgDomFactor(h, d); }
+// Everything that scales a normal day's sales on day d of (y, mo0): weekday × day-of-month × season
+function lrgDayMul(h, y, mo0, d) { return lrgPattern(h, y, mo0, d) * lrgSeasonFactor(h, mo0 + 1).f; }
 
 function lrgHistory(now) {
   now = now || new Date();
-  const curKey = lrgMonthKey(now);
+  const curKey = lrgMonthKey(now), todayStr = lrgDayKey(curKey, now.getDate());
   const pad = n => String(n).padStart(2, '0');
-  const dowOf = (y, m1, d) => new Date(y, m1 - 1, d).getDay();
   const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
   const clampN = (x, lo, hi) => Math.min(Math.max(x, lo), hi);
   const byDay = new Map();
@@ -7693,9 +7768,10 @@ function lrgHistory(now) {
   byDay.forEach((v, dt) => monthTotals.set(dt.slice(0, 7), (monthTotals.get(dt.slice(0, 7)) || 0) + v));
   const posDates = [...byDay.keys()].filter(d => byDay.get(d) > 0).sort();
   const first = posDates[0] || null, last = posDates[posDates.length - 1] || null;
+  const loggedCnt = {};
+  posDates.forEach(d => { loggedCnt[d.slice(0, 7)] = (loggedCnt[d.slice(0, 7)] || 0) + 1; });
 
-  // 1) how often each weekday had NO sales between the first and last logged day (used only as a fallback
-  //    for months the Admin hasn't marked)
+  // 1) how often each weekday had NO sales between the first and last logged day (fallback for unmarked months)
   const occ = Array(7).fill(0), opn = Array(7).fill(0);
   if (first) {
     const t = new Date(+first.slice(0, 4), +first.slice(5, 7) - 1, +first.slice(8, 10));
@@ -7707,64 +7783,82 @@ function lrgHistory(now) {
   }
   const pClosed = occ.map((n, i) => n >= 3 ? 1 - opn[i] / n : 0);
 
-  // 2) every complete month in the history (the engine uses the last 6 for the base rate, up to 12 for the
-  //    boost windows and ALL of them for learning seasonality)
-  const months = new Map();
-  posDates.forEach(d => {
-    const k = d.slice(0, 7); if (k >= curKey) return;
-    if (!months.has(k)) months.set(k, []);
-    months.get(k).push({ day: +d.slice(8, 10), v: byDay.get(d) });
+  // 2) ABNORMAL-DAY DETECTION — robust (medians), so a bad day cannot hide itself.
+  //    expected value of a day = (median "weekday-neutral" sales of the days within ±24 days) × its weekday factor
+  const all = posDates.filter(d => d < todayStr).map(d => ({ date: d, v: byDay.get(d), dow: _lrgDow(d), mk: d.slice(0, 7), day: +d.slice(8, 10), ord: _lrgOrd(d) }));
+  const byM = {}; all.forEach(r => { (byM[r.mk] = byM[r.mk] || []).push(r.v); });
+  const wdR = Array.from({ length: 7 }, () => []);
+  all.forEach(r => { const m = _lrgMedian(byM[r.mk]); if (m > 0 && byM[r.mk].length >= 8) wdR[r.dow].push(r.v / m); });
+  const wd0 = wdR.map(a => a.length ? 1 + (_lrgMedian(a) - 1) * (a.length / (a.length + 4)) : 1);
+  all.forEach(r => { r.n0 = r.v / (wd0[r.dow] || 1); });
+  const suspects = [];
+  all.forEach((r, i) => {
+    const nb = [];
+    for (let j = i - 1; j >= 0 && r.ord - all[j].ord <= 24; j--) nb.push(all[j].n0);
+    for (let j = i + 1; j < all.length && all[j].ord - r.ord <= 24; j++) nb.push(all[j].n0);
+    if (nb.length < 8) return;
+    const ref = _lrgMedian(nb); if (!(ref > 0)) return;
+    const ratio = r.n0 / ref;
+    if (ratio < LRG_ABN_LOW || ratio > LRG_ABN_HIGH) suspects.push({ date: r.date, v: r.v, dow: r.dow, expected: ref * (wd0[r.dow] || 1), ratio, kind: ratio < 1 ? 'low' : 'high' });
   });
+  const excl = new Set(), pending = [];
+  suspects.forEach(s => { if (!lrgDayNote(s.date)) { excl.add(s.date); pending.push(s); } });   // unanswered → provisionally ignored
+  Object.keys((typeof SALES_DAY_NOTES !== 'undefined' && SALES_DAY_NOTES) || {}).forEach(dt => { const n = lrgDayNote(dt); if (n && n.exclude) excl.add(dt); });
+
+  // 3) clean rows → months
+  const L = all.filter(r => !excl.has(r.date));
+  const months = new Map();
+  L.forEach(r => { if (r.mk >= curKey) return; if (!months.has(r.mk)) months.set(r.mk, []); months.get(r.mk).push(r); });
   const allKeys = [...months.keys()].sort().filter(k => {
     if (first && k === first.slice(0, 7) && +first.slice(8, 10) > 5) return false;   // partial first month
-    return months.get(k).length >= 10;
+    return (loggedCnt[k] || 0) >= 10;
   });
-  const mAll = allKeys.map(k => {
-    const rows = months.get(k), y = +k.slice(0, 4), m = +k.slice(5, 7), dim = new Date(y, m, 0).getDate();
-    const plain = rows.filter(r => !lrgWindowOf(r.day));
-    return { key: k, y, m, dim, ord: y * 12 + m, rows, plain, logged: rows.length, closed: Math.max(dim - rows.length, 0),
-             plainAvg: avg(plain.map(r => r.v)), plainN: plain.length };
-  });
+  const mkInfo = (k, rows, partial) => {
+    const y = +k.slice(0, 4), m = +k.slice(5, 7), dim = new Date(y, m, 0).getDate(), logged = loggedCnt[k] || rows.length;
+    return { key: k, y, m, dim, ord: y * 12 + m, rows, logged, closed: Math.max(dim - logged, 0), partial: !!partial };
+  };
+  const mAll = allKeys.map(k => mkInfo(k, months.get(k)));
   const mInfo = mAll.slice(-6);
+  const curRows = L.filter(r => r.mk === curKey);
+  const mCur = curRows.length >= 8 ? mkInfo(curKey, curRows, true) : null;     // this month so far — helps the patterns, not the level history
 
-  // 3) weekday factors on PLAIN days (outside the 12–15 / 25–29 windows, so the boosts don't pollute them)
+  // 4) weekday factors (clean days; the last 6 months + this month so far)
   const wdSum = Array(7).fill(0), wdN = Array(7).fill(0);
-  mInfo.forEach(m => m.plain.forEach(r => {
-    if (m.plainAvg <= 0) return;
-    const w = dowOf(m.y, m.m, r.day); wdSum[w] += r.v / m.plainAvg; wdN[w]++;
-  }));
+  mInfo.concat(mCur ? [mCur] : []).forEach(m => {
+    const mean = avg(m.rows.map(r => r.v)); if (!(mean > 0)) return;
+    m.rows.forEach(r => { wdSum[r.dow] += r.v / mean; wdN[r.dow]++; });
+  });
   let wd = wdSum.map((sum, i) => wdN[i] ? 1 + (sum / wdN[i] - 1) * (wdN[i] / (wdN[i] + 4)) : 1);
   const totN = wdN.reduce((a, b) => a + b, 0);
   const wMean = totN ? wd.reduce((s, f, i) => s + f * wdN[i], 0) / totN : 1;
   wd = wd.map(x => x / (wMean || 1));                                                // an average trading day = 1.0
 
-  // 4) per month: weekday-neutral daily rate on plain days + how strong each boost window was vs that rate
-  mAll.forEach(m => {
-    const wdOf = r => wd[dowOf(m.y, m.m, r.day)] || 1;
-    m.neutral = avg(m.plain.map(r => r.v / wdOf(r)));
-    m.winRatio = {};
-    LRG_WINDOWS.forEach(w => {
-      const arr = m.rows.filter(r => r.day >= w.from && r.day <= w.to).map(r => r.v / wdOf(r));
-      m.winRatio[w.id] = (arr.length >= 2 && m.neutral > 0) ? { r: avg(arr) / m.neutral, n: arr.length } : null;
-    });
+  // 5) DAY-OF-MONTH curve: ratio of each date to its month's weekday-neutral level, averaged over the months
+  const obs = Array.from({ length: 33 }, () => []);
+  mAll.slice(-12).concat(mCur ? [mCur] : []).forEach(m => {
+    const nm = avg(m.rows.map(r => r.v / (wd[r.dow] || 1))); if (!(nm > 0)) return;
+    m.rows.forEach(r => obs[r.day].push(r.v / ((wd[r.dow] || 1) * nm)));
   });
+  const rawD = obs.map(a => a.length ? avg(a) : null), cntD = obs.map(a => a.length);
+  const dom = Array(32).fill(1);
+  for (let d = 1; d <= 31; d++) {
+    let s = 0, w = 0;
+    [[d - 1, 1], [d, 2], [d + 1, 1]].forEach(([x, wt]) => { if (x >= 1 && x <= 31 && rawD[x] !== null) { s += rawD[x] * wt; w += wt; } });
+    if (!w) continue;
+    const neff = cntD[d] + 0.5 * ((cntD[d - 1] || 0) + (cntD[d + 1] || 0));
+    dom[d] = clampN(1 + (s / w - 1) * (neff / (neff + LRG_DOM_SHRINK)), 0.75, 1.6);
+  }
+  const domMean = avg(dom.slice(1, 31)) || 1;
+  for (let d = 1; d <= 31; d++) dom[d] = dom[d] / domMean;
+  const strongDays = [], weakDays = [];
+  for (let d = 1; d <= 31; d++) { if (cntD[d] >= 2 && dom[d] >= LRG_STRONG_AT) strongDays.push(d); else if (cntD[d] >= 2 && dom[d] <= 0.94) weakDays.push(d); }
 
-  // 5) boost-window factors = median ratio over the last ≤12 months, shrunk towards 1.00 for small samples
-  const win = {};
-  LRG_WINDOWS.forEach(w => {
-    const obs = mAll.slice(-12).map(m => m.winRatio[w.id]).filter(Boolean);
-    let f = 1, n = 0, up = 0, med = 1;
-    if (obs.length) {
-      const rs = obs.map(o => o.r).sort((a, b) => a - b);
-      med = rs.length % 2 ? rs[(rs.length - 1) / 2] : (rs[rs.length / 2 - 1] + rs[rs.length / 2]) / 2;
-      n = obs.reduce((s, o) => s + o.n, 0);
-      f = 1 + (med - 1) * (n / (n + 6));
-      up = obs.filter(o => o.r > 1.02).length;
-    }
-    win[w.id] = { id: w.id, label: w.label, from: w.from, to: w.to, f: clampN(f, 0.85, 1.8), n, months: obs.length, up, med };
-  });
+  // 6) per-month weekday- and day-neutral daily rate
+  const neutralOf = m => avg(m.rows.map(r => r.v / ((wd[r.dow] || 1) * (dom[r.day] || 1))));
+  mAll.forEach(m => { m.neutral = neutralOf(m); });
+  if (mCur) mCur.neutral = neutralOf(mCur);
 
-  // 6) seasonality learned from earlier years: a month's neutral rate ÷ the average of the months on both
+  // 7) seasonality learned from earlier years: a month's neutral rate ÷ the average of the months on both
   //    sides of it (needs ≥ 2 consecutive months each side, up to 6). Averaged over the years, shrunk to 1.00.
   const ordMap = new Map(mAll.map(m => [m.ord, m]));
   const seasonRaw = {};
@@ -7782,7 +7876,6 @@ function lrgHistory(now) {
     (seasonRaw[m.m] = seasonRaw[m.m] || []).push(m.neutral / ref);
   });
   const seasonLearned = {};
-  // normalise so the learned indices average 1.00 (peak months otherwise drag every other month's index down)
   const rawMeans = Object.keys(seasonRaw).map(mo => avg(seasonRaw[mo]));
   const norm = rawMeans.length >= 6 ? (avg(rawMeans) || 1) : 1;
   Object.keys(seasonRaw).forEach(mo => {
@@ -7797,11 +7890,11 @@ function lrgHistory(now) {
   };
   mAll.forEach(m => { m.base = m.neutral / (seasOf(m.m) || 1); });      // base rate with the season removed
 
-  // 7) volatility of a normal day around its expected value
+  // 8) volatility of a normal day around its expected value (clean days only)
   const devs = [];
-  mInfo.forEach(m => m.plain.forEach(r => {
+  mInfo.concat(mCur ? [mCur] : []).forEach(m => m.rows.forEach(r => {
     if (!(m.neutral > 0)) return;
-    const f = wd[dowOf(m.y, m.m, r.day)]; if (f > 0) devs.push(r.v / (m.neutral * f));
+    const f = (wd[r.dow] || 1) * (dom[r.day] || 1); if (f > 0) devs.push(r.v / (m.neutral * f));
   }));
   let cv = 0.25;
   if (devs.length >= 15) {
@@ -7809,7 +7902,7 @@ function lrgHistory(now) {
     cv = Math.min(Math.max(mu > 0 ? sd / mu : 0.25, 0.08), 0.6);
   }
 
-  // 8) base daily rate (recency weighted, season removed) + damped monthly trend
+  // 9) base daily rate (recency weighted 1:2:3 over the last 3 clean months, season removed) + damped monthly trend
   let baseHist = 0;
   const recent = mInfo.slice(-3).filter(m => m.base > 0);
   if (recent.length) { let w = 0, t = 0; recent.forEach((m, i) => { w += i + 1; t += m.base * (i + 1); }); baseHist = t / w; }
@@ -7818,13 +7911,16 @@ function lrgHistory(now) {
   if (series.length >= 2) {
     const n = series.length, xm = (n - 1) / 2, ym = avg(series);
     let num = 0, den = 0; series.forEach((y, i) => { num += (i - xm) * (y - ym); den += (i - xm) * (i - xm); });
-    growth = Math.min(Math.max((den ? num / den : 0) / (ym || 1) * 0.6, -0.03), 0.04);
+    growth = Math.min(Math.max((den ? num / den : 0) / (ym || 1) * LRG_GROWTH_DAMP, -0.03), 0.04);
   }
   const n = mInfo.length;
-  return { months: mInfo, allMonths: mAll, nMonths: n, nAllMonths: mAll.length, win, uplift: win.late.f, wd, wdN, pClosed, cv, baseHist, growth,
-           monthTotals, seasonLearned, avgClosed: n ? avg(mInfo.map(m => m.closed)) : null,
+  return { months: mInfo, allMonths: mAll, nMonths: n, nAllMonths: mAll.length, wd, wdN, dom, domN: cntD, strongDays, weakDays,
+           pClosed, cv, baseHist, growth, monthTotals, seasonLearned, excl, suspects, pending,
+           avgClosed: n ? avg(mInfo.map(m => m.closed)) : null,
            confidence: n >= 4 ? 'hi' : n >= 2 ? 'mid' : 'lo' };
 }
+const LRG_DOM_SHRINK = 3;       // how many "months of evidence" a date needs before its pattern is trusted ~50%
+const LRG_GROWTH_DAMP = 0.6;    // how much of the fitted month-to-month trend is carried forward
 
 // How likely a given day is to trade (0 = marked holiday, 1 = trading day, in between = AI estimate for unmarked months)
 function lrgDayOpen(h, y, mo0, d, key) {
@@ -7838,28 +7934,31 @@ function lrgDayOpen(h, y, mo0, d, key) {
 function lrgPredict(now, h, c) {
   const y = now.getFullYear(), mo = now.getMonth(), dim = c.dim, key = c.key;
   const sf = lrgSeasonFactor(h, mo + 1);
-  const mulAt = d => lrgDayMul(h, y, mo, d);                  // weekday × boost window × season
-  // this month's own "neutral" daily rate (weekday + boost window + season removed) from days that traded
+  const mulAt = d => lrgDayMul(h, y, mo, d);                  // weekday × day-of-month × season
+  // this month's own "neutral" daily rate (weekday + day pattern + season removed) from days that traded
+  // (abnormal days — power cut etc. — are skipped, they would drag the rate down)
   let curSum = 0, curN = 0;
   c.byDay.forEach((v, dt) => {
-    if (dt.slice(0, 7) !== key || !(v > 0)) return;
+    if (dt.slice(0, 7) !== key || !(v > 0) || (h.excl && h.excl.has(dt))) return;
     const d = +dt.slice(8, 10); curSum += v / mulAt(d); curN++;
   });
   const curBase = curN ? curSum / curN : 0;
   let base;
-  if (curN && h.baseHist) { const w = Math.min(curN / 20, 1) * 0.85; base = curBase * w + h.baseHist * (1 - w); }
-  else base = curN ? curBase : (h.baseHist || 0);
+  // the recency-weighted history is centred ~1 month behind the month being forecast → carry one month of the (damped) trend
+  const histBase = (h.baseHist || 0) * (1 + (h.growth || 0));
+  if (curN && histBase) { const w = Math.min(curN / 20, 1) * 0.85; base = curBase * w + histBase * (1 - w); }
+  else base = curN ? curBase : histBase;
   const monthMarked = lrgMarkedDays(key) !== null;
   // day-by-day forecast for the days still to come
   const preds = []; let R = 0, workExact = 0, markedLeft = 0, markedAll = 0;
-  const cat = { normal: { s: 0, n: 0 } }; LRG_WINDOWS.forEach(w => { cat[w.id] = { s: 0, n: 0 }; });
+  const cat = { normal: { s: 0, n: 0 }, strong: { s: 0, n: 0 } };
   for (let d = 1; d <= dim; d++) if (lrgIsMarked(key, d)) markedAll++;
   for (let d = c.daysElapsed + 1; d <= dim; d++) {
-    const dm = lrgDayOpen(h, y, mo, d, key), w = lrgWindowOf(d);
+    const dm = lrgDayOpen(h, y, mo, d, key), strong = lrgIsStrong(h, d);
     const v = base * mulAt(d) * dm.open;
-    preds.push({ day: d, v, marked: dm.marked, est: dm.est, win: w ? w.id : null }); R += v; workExact += dm.open;
+    preds.push({ day: d, v, marked: dm.marked, est: dm.est, strong }); R += v; workExact += dm.open;
     if (dm.marked) markedLeft++;
-    if (dm.open > 0) { const k = cat[w ? w.id : 'normal']; k.s += v; k.n += dm.open; }
+    if (dm.open > 0) { const k = cat[strong ? 'strong' : 'normal']; k.s += v; k.n += dm.open; }
   }
   const remCalendar = Math.max(dim - c.daysElapsed, 0);
   const workLeft = Math.round(workExact);
@@ -7877,7 +7976,7 @@ function lrgPredict(now, h, c) {
       for (const p of preds) { cum += p.v; if (cum >= c.target) { hitDay = p.day; break; } }
     }
   }
-  // share of the month's sales expected to be done by now (weekday + boost-window + holiday aware)
+  // share of the month's sales expected to be done by now (weekday + day-pattern + holiday aware)
   let wTot = 0, wCum = 0;
   for (let d = 1; d <= dim; d++) {
     const traded = (c.byDay.get(lrgDayKey(key, d)) || 0) > 0;
@@ -7887,43 +7986,124 @@ function lrgPredict(now, h, c) {
   }
   const avgOf = k => k.n > 0 ? k.s / k.n : null;
   return {
-    base, uplift: h.uplift, season: sf, monthMarked, markedAll, markedLeft, workLeft, workExact, remCalendar, preds, R, projected,
+    base, season: sf, monthMarked, markedAll, markedLeft, workLeft, workExact, remCalendar, preds, R, projected,
     prob, hitDay, sd, idealShare: wTot ? wCum / wTot : 0,
-    avgNormal: avgOf(cat.normal),     // per trading day outside the boost windows
-    avgMid:    avgOf(cat.mid),        // per trading day, days 12–15
-    avgLate:   avgOf(cat.late),       // per trading day, days 25–29
+    avgNormal: avgOf(cat.normal),     // per trading day, ordinary dates
+    avgStrong: avgOf(cat.strong),     // per trading day, dates the AI learned to be stronger
     avgPred:   workExact > 0 ? R / workExact : 0,
     nMonths: h.nMonths, confidence: h.confidence, curDays: curN
   };
 }
 
-// Forecast for a whole FUTURE month, `ahead` months after the current one (trend + season adjusted)
+// Forecast for a whole FUTURE month, `ahead` months after the current one (trend + season adjusted).
+// Besides the total it returns the step-by-step parts used by the target breakdown and the per-day values.
 function lrgForecastMonth(y, mo0, h, anchor, ahead) {
   const key = y + '-' + String(mo0 + 1).padStart(2, '0'), dim = new Date(y, mo0 + 1, 0).getDate();
   const sf = lrgSeasonFactor(h, mo0 + 1);
-  let open = 0, wsum = 0, marked = 0;
+  let open = 0, patSum = 0, marked = 0;
+  const per = [0];
   for (let d = 1; d <= dim; d++) {
     const dm = lrgDayOpen(h, y, mo0, d, key); if (dm.marked) marked++;
-    open += dm.open; wsum += dm.open * lrgDayMul(h, y, mo0, d);
+    open += dm.open; const p = dm.open * lrgPattern(h, y, mo0, d); patSum += p; per.push(p);
   }
-  const base = anchor * Math.pow(1 + (h.growth || 0), ahead);
-  const total = base * wsum;
+  const g = Math.pow(1 + (h.growth || 0), ahead), base = anchor * g;
+  const total = base * patSum * sf.f;
   const sdDay = base * h.cv;
   const sd = Math.sqrt(open * sdDay * sdDay + Math.pow(0.06 * total, 2) + Math.pow(0.04 * ahead * total, 2));
-  return { key, dim, total, sd, openDays: open, marked, monthMarked: lrgMarkedDays(key) !== null, season: sf };
+  const daily = per.map(p => base * p * sf.f);
+  const parts = {
+    flat: anchor * open,                                   // average clean trading-day sales × trading days
+    pattern: anchor * patSum - anchor * open,             // weekday mix + learned day-of-month pattern of THIS calendar
+    trend: anchor * patSum * g - anchor * patSum,         // damped month-to-month growth
+    season: base * patSum * sf.f - base * patSum          // seasonal month factor
+  };
+  return { key, dim, total, sd, openDays: open, marked, monthMarked: lrgMarkedDays(key) !== null, season: sf, daily, parts, anchor };
 }
 
-// Expected sales per trading day in a (future) month: a normal day, and a day inside each boost window
+// Expected sales per trading day in a (future) month: a normal day, and a strong day
 function lrgDailyPlan(y, mo0, h, anchor, ahead) {
   const sf = lrgSeasonFactor(h, mo0 + 1), b = anchor * Math.pow(1 + (h.growth || 0), ahead) * sf.f;
-  const o = { season: sf, normal: b };
-  LRG_WINDOWS.forEach(w => { o[w.id] = b * h.win[w.id].f; });
+  const o = { season: sf, normal: b, strong: null };
+  if (h.strongDays && h.strongDays.length) o.strong = b * (h.strongDays.reduce((s, d) => s + h.dom[d], 0) / h.strongDays.length);
   return o;
 }
-// AI sales target = forecast + a 5% stretch, rounded to the nearest 10,000
-function lrgSuggestTarget(forecast) {
-  const f = Number(forecast) || 0; if (!(f > 0)) return 0;
-  return Math.max(Math.round(f * 1.05 / 10000) * 10000, 10000);
+
+// ---- Admin's special-day / special-month additions & reductions --------------------------------------
+// SALES_ADJ[key] = [{ id, label, kind: 'pct' | 'amt', value (+ addition / − reduction), days?: [..] }]
+//   amt            → ± LKR added to the month's target
+//   pct (no days)  → ± % of the whole month's AI forecast
+//   pct + days     → ± % of what the AI expects on those specific dates (e.g. Dec 23–24 +40%)
+function lrgAdjFor(key) { const a = (typeof SALES_ADJ !== 'undefined' && SALES_ADJ || {})[key]; return Array.isArray(a) ? a : []; }
+function lrgAdjAmount(a, info) {
+  const v = Number(a.value) || 0;
+  if (a.kind === 'amt') return v;
+  const pct = v / 100;
+  if (Array.isArray(a.days) && a.days.length) return pct * a.days.reduce((s, d) => s + ((info.daily && info.daily[d]) || 0), 0);
+  return pct * info.forecast;
+}
+// What the AI expects for month `key` (i months ahead of the current one) and its parts
+function lrgMonthInfo(i, st) {
+  const now = new Date(), d0 = new Date(now.getFullYear(), now.getMonth() + i, 1), y = d0.getFullYear(), m0 = d0.getMonth();
+  const key = lrgMonthKey(d0);
+  if (i === 0) {
+    const daily = [0]; for (let d = 1; d <= st.dim; d++) daily.push(0);
+    st.ai.preds.forEach(p => { daily[p.day] = p.v; });
+    return { key, y, m0, i, forecast: st.projected, daily, cur: true, parts: null, f: null };
+  }
+  if (!(st.ai.base > 0)) return { key, y, m0, i, forecast: 0, daily: [], cur: false, parts: null, f: null };
+  const f = lrgForecastMonth(y, m0, st.hist, st.ai.base, i);
+  return { key, y, m0, i, forecast: f.total, daily: f.daily, cur: false, parts: f.parts, f };
+}
+// How much harder than the forecast the AI target should be. Wider when the forecast is uncertain, higher when
+// the shop has been beating its targets, lower when it has been missing them.
+function lrgStretch(st) {
+  const h = st.hist, why = [];
+  const open = 24, relSd = Math.sqrt(h.cv * h.cv / open + 0.06 * 0.06 + 0.04 * 0.04);
+  let pct = Math.min(Math.max(0.45 * relSd, 0.03), 0.08);
+  why.push(`forecast අවිනිශ්චිතභාවය ±${(relSd * 100).toFixed(0)}%`);
+  const rat = [];
+  (h.allMonths || []).slice(-3).forEach(m => {
+    const t = lrgExplicitTarget(m.key), a = h.monthTotals.get(m.key) || 0;
+    if (t > 0 && a > 0) rat.push(a / t);
+  });
+  if (rat.length >= 2) {
+    const r = rat.reduce((a, b) => a + b, 0) / rat.length;
+    if (r >= 1.04) { pct += 0.02; why.push(`පසුගිය target ${rat.length}ක් ඉක්මවා ගියා (${(r * 100).toFixed(0)}%) → +2%`); }
+    else if (r < 0.92) { pct = Math.max(pct - 0.015, 0.02); why.push(`පසුගිය target ළඟා වුනේ ${(r * 100).toFixed(0)}% ක් පමණයි → −1.5%`); }
+  }
+  if (h.nMonths < 3) { pct = Math.max(pct, 0.03); why.push('දත්ත මාස 3කට අඩුයි'); }
+  return { pct: Math.min(Math.max(pct, 0.02), 0.10), why: why.join(' · ') };
+}
+// AI sales target = (forecast + the Admin's special additions/reductions) + stretch, rounded to the nearest 10,000
+function lrgSuggestTarget(base, stretchPct) {
+  const f = Number(base) || 0; if (!(f > 0)) return 0;
+  const s = stretchPct === undefined ? 0.05 : stretchPct;
+  return Math.max(Math.round(f * (1 + s) / 10000) * 10000, 10000);
+}
+// Everything shown in the planner for one month: the steps from "average day × trading days" to the AI target
+function lrgTargetBreakdown(info, adjList, st) {
+  const lines = [];
+  if (info.cur) {
+    lines.push({ label: 'මෙතෙක් සැබෑ විකුණුම්', amt: st.sales, sign: false });
+    lines.push({ label: `ඉතිරි ව්‍යාපාරික දින ${st.ai.workLeft} සඳහා AI forecast`, amt: st.ai.R, sign: false });
+  } else if (info.parts) {
+    const p = info.parts, f = info.f;
+    lines.push({ label: `පිරිසිදු පසුගිය මාස 3ක සාමාන්‍ය ව්‍යාපාරික-දින විකුණුම් × ව්‍යාපාරික දින ${f.openDays % 1 ? f.openDays.toFixed(1) : f.openDays}`, amt: p.flat, sign: false });
+    lines.push({ label: 'සතියේ දින මිශ්‍රණය + ඉගෙනගත් දින රටාව (මේ මාසයේ දින දර්ශනයට)', amt: p.pattern, sign: true });
+    lines.push({ label: 'වර්ධන ප්‍රවණතාව', amt: p.trend, sign: true });
+    if (Math.abs(p.season) >= 1) lines.push({ label: `සීසනල් මාසය ×${f.season.f.toFixed(2)} (${f.season.src === 'manual' ? 'ඔබ දුන්' : 'AI ඉගෙනගත්'})`, amt: p.season, sign: true });
+  }
+  const forecast = info.forecast;
+  const adj = (adjList || []).map(a => {
+    const amount = lrgAdjAmount(a, info);
+    const desc = a.kind === 'amt' ? 'LKR' : (a.days && a.days.length ? `${a.value > 0 ? '+' : ''}${a.value}% · දින ${lrgRangesText(a.days.slice().sort((x, y) => x - y))}` : `${a.value > 0 ? '+' : ''}${a.value}% (මුළු මාසය)`);
+    return { id: a.id, label: a.label || 'Special', amount, desc };
+  });
+  const adjTotal = adj.reduce((s, a) => s + a.amount, 0);
+  const sub = forecast + adjTotal;
+  const stretch = lrgStretch(st);
+  const stretchAmt = sub * stretch.pct;
+  return { lines, forecast, adj, adjTotal, sub, stretchPct: stretch.pct, stretchWhy: stretch.why, stretchAmt, target: lrgSuggestTarget(sub, stretch.pct) };
 }
 
 function computeSalesTargetStats(now) {
@@ -7968,7 +8148,7 @@ function lrgColor(status) {
 
 // ---------------------------------------------------------------------------
 // AI SUGGESTIONS — plain-language, actionable tips built from the same forecast engine
-// (seasonal months, 12–15 / 25–29 boost windows, pace vs target, target realism)
+// (seasonal months, learned strong days, pace vs target, target realism, abnormal days)
 // ---------------------------------------------------------------------------
 function lrgAiSuggestions(st) {
   const out = [], ai = st.ai, h = st.hist, now = new Date(), y = now.getFullYear(), mo = now.getMonth();
@@ -7987,19 +8167,22 @@ function lrgAiSuggestions(st) {
     }
   }
 
-  // 2) boost windows (12–15, 25–29) coming up in the next ~10 days
-  LRG_WINDOWS.forEach(w => {
-    const wf = h.win[w.id]; if (!wf || wf.f < 1.03) return;
-    const days = [];
-    for (let d = Math.max(w.from, st.daysElapsed + 1); d <= Math.min(w.to, st.dim); d++) if (!lrgIsMarked(st.key, d)) days.push(d);
-    if (!days.length || days[0] - st.today > 10) return;
-    const ps = ai.preds.filter(p => days.indexOf(p.day) >= 0), exp = ps.length ? ps.reduce((s, p) => s + p.v, 0) / ps.length : 0;
-    add('🔥', `<b>${mon} ${days[0]}${days.length > 1 ? '–' + days[days.length - 1] : ''}</b> (${w.label} කාල සීමාව) — පෙර මාස ${wf.months}ක දත්ත අනුව සාමාන්‍ය දිනකට වඩා ~<b>${((wf.f - 1) * 100).toFixed(0)}%</b> විකුණුම් වැඩියි; AI අපේක්ෂාව දිනකට ~<b>${fmt(exp)}</b>. මේ දින වලට stock, cashier සහ cash float සූදානම් කරන්න.`, 'hot');
-  });
+  // 2) strong days (learned from the shop's own history) coming up in the next ~10 days
+  { const rng = []; let cr = null;
+    (h.strongDays || []).forEach(d => { if (cr && d === cr.to + 1) cr.to = d; else { cr = { from: d, to: d }; rng.push(cr); } });
+    rng.forEach(r => {
+      const days = [];
+      for (let d = Math.max(r.from, st.daysElapsed + 1); d <= Math.min(r.to, st.dim); d++) if (!lrgIsMarked(st.key, d)) days.push(d);
+      if (!days.length || days[0] - st.today > 10) return;
+      const ps = ai.preds.filter(p => days.indexOf(p.day) >= 0), exp = ps.length ? ps.reduce((s, p) => s + p.v, 0) / ps.length : 0;
+      const avgF = days.reduce((s, d) => s + lrgDomFactor(h, d), 0) / days.length;
+      add('🔥', `<b>${mon} ${lrgRangesText(days)}</b> — පෙර මාස වල දත්ත අනුව (AI ඉගෙනගත් දින රටාව) සාමාන්‍ය දිනකට වඩා ~<b>${((avgF - 1) * 100).toFixed(0)}%</b> විකුණුම් වැඩියි; AI අපේක්ෂාව දිනකට ~<b>${fmt(exp)}</b>. මේ දින වලට stock, cashier සහ cash float සූදානම් කරන්න.`, 'hot');
+    });
+  }
 
   // 3) pace vs target
   if (st.target > 0 && st.sales < st.target && st.daysLeft > 0 && ai.workExact > 0) {
-    const winLeft = LRG_WINDOWS.filter(w => h.win[w.id].f >= 1.03 && ai.preds.some(p => p.win === w.id && !p.marked)).map(w => w.label);
+    const strongLeft = ai.preds.filter(p => p.strong && !p.marked).map(p => p.day), winLeft = strongLeft.length ? [lrgRangesText(strongLeft)] : [];
     if (ai.prob !== null && ai.prob < 50) {
       add('⚠️', `Target එකට ඉතිරි <b>${fmt(st.remaining)}</b> — trading day ${ai.workLeft}ක් ඇත; දිනකට <b>${fmt(st.reqDaily)}</b> ඕනේ, AI අපේක්ෂාව ~${fmt(ai.avgPred)}.` + (winLeft.length ? ` ${winLeft.join(' සහ ')} දින වල විකුණුම් වැඩි වෙන නිසා ඒ දින වලට විශේෂ අවධානය යොමු කරන්න.` : ''), 'bad');
     } else if (ai.prob !== null) {
@@ -8009,21 +8192,24 @@ function lrgAiSuggestions(st) {
 
   // 4) is the target realistic compared with the AI forecast?
   if (st.target > 0 && ai.R > 0 && st.daysElapsed >= 3) {
-    const hi = st.projected + 1.28 * ai.sd, lo = Math.max(st.projected - 1.28 * ai.sd, 0), sug = lrgSuggestTarget(st.projected);
+    const hi = st.projected + 1.28 * ai.sd, lo = Math.max(st.projected - 1.28 * ai.sd, 0), sug = lrgSuggestTarget(st.projected, lrgStretch(st).pct);
     if (st.target > hi) add('🎯', `Target එක (${fmt(st.target)}) AI 80% range එකේ ඉහළ සීමාව (${fmt(hi)}) ඉක්මවයි — ළඟා කරගැනීම අපහසුයි. AI යෝජිත target: <b>${fmt(sug)}</b>.`, 'warn');
     else if (st.target < lo) add('🎯', `Target එක (${fmt(st.target)}) AI forecast range එකට වඩා පහළයි — තවත් ඉහළ target එකක් තැබිය හැක. AI යෝජිත target: <b>${fmt(sug)}</b>.`, 'info');
   }
 
   // 5) next month's AI target (when none typed yet)
   if (ai.base > 0) {
-    const d1 = new Date(y, mo + 1, 1), f = lrgForecastMonth(d1.getFullYear(), d1.getMonth(), h, ai.base, 1);
-    if (f.total > 0 && !lrgExplicitTarget(f.key)) add('🎯', `<b>${lrgMonthLabel(f.key, true)}</b> සඳහා AI forecast <b>${fmt(f.total)}</b> — AI යෝජිත target <b>${fmt(lrgSuggestTarget(f.total))}</b> (planner එකේ “Use” එබීමෙන් යොදාගන්න).`, 'info');
+    const info1 = lrgMonthInfo(1, st);
+    if (info1.forecast > 0 && !lrgExplicitTarget(info1.key)) {
+      const bd1 = lrgTargetBreakdown(info1, lrgAdjFor(info1.key), st);
+      add('🎯', `<b>${lrgMonthLabel(info1.key, true)}</b> සඳහා AI forecast <b>${fmt(info1.forecast)}</b>` + (bd1.adjTotal ? ` ${bd1.adjTotal > 0 ? '+' : '−'} ඔබේ විශේෂ ගැලපුම් <b>${fmt(Math.abs(bd1.adjTotal))}</b>` : '') + ` — AI යෝජිත target <b>${fmt(bd1.target)}</b> (planner එකේ “Use” එබීමෙන් යොදාගන්න).`, 'info');
+    }
   }
 
-  // 6) how much has the AI learned so far
-  const weak = LRG_WINDOWS.filter(w => h.win[w.id].f < 1.03).map(w => w.label);
-  if (h.nAllMonths < 3) add('ℹ️', `සම්පූර්ණ මාස ${h.nAllMonths}ක දත්ත පමණයි — 12–15 / 25–29 රටාව සහ සීසනල් (Dec / Mar / Apr) බලපෑම ඉගෙනගන්න තවත් මාස/වසර දත්ත ඕනේ. එතෙක් AI වඩා ප්‍රවේශම් වෙනවා.`, 'info');
-  else if (weak.length) add('ℹ️', `${weak.join(' සහ ')} දින වල විශේෂ වැඩිවීමක් දැනට ඇති දත්තවල පේන්නේ නෑ — එනිසා ඒවාට boost එකක් යොදන්නේ නෑ (දත්ත වැඩි වන විට ස්වයංක්‍රීයව වෙනස් වෙයි).`, 'info');
+  // 6) abnormal days waiting for the Admin + how much has the AI learned so far
+  if (isAdmin() && h.pending && h.pending.length) add('⚠️', `AI එක අසාමාන්‍ය විය හැකි දින <b>${h.pending.length}</b>ක් හඳුනාගත්තා (${h.pending.slice(-3).map(p => p.date).join(', ')}${h.pending.length > 3 ? '…' : ''}). පහළ “AI සැක කරන අසාමාන්‍ය දින” කොටසේ හේතුව තෝරන්න — තහවුරු කරන තෙක් AI ඒවා තාවකාලිකව නොසලකා හරිනවා.`, 'warn');
+  if (h.nAllMonths < 3) add('ℹ️', `සම්පූර්ණ මාස ${h.nAllMonths}ක දත්ත පමණයි — මාසය තුළ ඉහළ/පහළ දින රටාව සහ සීසනල් (Dec / Mar / Apr) බලපෑම ඉගෙනගන්න තවත් මාස/වසර දත්ත ඕනේ. එතෙක් AI වඩා ප්‍රවේශම් වෙනවා.`, 'info');
+  else if (!(h.strongDays || []).length) add('ℹ️', `විශේෂයෙන් ඉහළ යන මාස-දින දැනට ඇති දත්තවල පේන්නේ නෑ — එනිසා ඒ සඳහා boost එකක් යොදන්නේ නෑ (දත්ත වැඩි වන විට ස්වයංක්‍රීයව ඉගෙනගනී).`, 'info');
   return out;
 }
 function lrgSuggestionsHtml(st) {
@@ -8031,13 +8217,14 @@ function lrgSuggestionsHtml(st) {
   if (!s.length) return '';
   return `<div class="lrg-sugg"><div class="lrg-sugg-title">💡 AI Suggestions</div>${s.map(x => `<div class="lrg-sg ${x.lvl}"><span class="ic">${x.icon}</span><span>${x.html}</span></div>`).join('')}</div>`;
 }
-// chips for the two boost windows + this month's seasonal factor (Sales Target page)
+// chips for the learned strong / slow dates of the month + this month's seasonal factor (Sales Target page)
 function lrgWindowChips(h, sf) {
-  const chips = LRG_WINDOWS.map(w => {
-    const x = h.win[w.id], cls = x.f >= 1.03 ? 'up' : x.f <= 0.97 ? 'dn' : '';
-    const sub = x.months ? `${x.months} month${x.months === 1 ? '' : 's'} of data` : 'no data yet';
-    return `<span class="lrg-wd ${cls}" title="Days ${w.label}: ${(x.f * 100).toFixed(0)}% of a plain day (${sub})">Days ${w.label}<b>×${x.f.toFixed(2)}</b></span>`;
-  }).join('');
+  const sd = h.strongDays || [], wk = h.weakDays || [];
+  const avgF = a => a.length ? a.reduce((s, d) => s + lrgDomFactor(h, d), 0) / a.length : 1;
+  const chips = (sd.length
+    ? `<span class="lrg-wd up" title="Dates that were stronger than a normal day in the past months (learned): ×${avgF(sd).toFixed(2)} on average">Strong days<b>${lrgRangesText(sd)}</b></span>`
+    : `<span class="lrg-wd" title="No date has been clearly stronger than the others so far">Strong days<b>none yet</b></span>`)
+    + (wk.length ? `<span class="lrg-wd dn" title="Dates that were slower than a normal day in the past months (learned): ×${avgF(wk).toFixed(2)} on average">Slow days<b>${lrgRangesText(wk)}</b></span>` : '');
   const seas = sf && sf.src !== 'none'
     ? `<span class="lrg-wd ${sf.f >= 1.03 ? 'up' : sf.f <= 0.97 ? 'dn' : ''}" title="Seasonal factor of this month (${sf.src === 'manual' ? 'typed by Admin' : 'learned from earlier years'})">Season<b>×${sf.f.toFixed(2)}</b></span>` : '';
   return chips + seas;
@@ -8052,10 +8239,8 @@ function lrgSeasonEditorHtml(st, admin) {
     const ph = L ? ((L.f - 1) * 100).toFixed(0) + ' (AI)' : '0';
     return `<div class="lrg-ss${flag ? ' flag' : ''}"><label for="lrg-ss-${m}">${flag ? '⭐ ' : ''}${LRG_MONTH_NAMES[m - 1].slice(0, 3)}</label><span class="lrg-ss-in"><input type="number" id="lrg-ss-${m}" step="any" min="-60" max="200" ${dis} value="${val}" placeholder="${ph}"><i>%</i></span></div>`;
   }).join('');
-  const winTxt = h ? LRG_WINDOWS.map(w => {
-    const x = h.win[w.id];
-    return x.f >= 1.03 ? `<b>${w.label}</b> දින: ×${x.f.toFixed(2)} (මාස ${x.months}ක දත්ත අනුව ~${((x.f - 1) * 100).toFixed(0)}% වැඩි)` : `<b>${w.label}</b> දින: විශේෂ වැඩිවීමක් නෑ (×${x.f.toFixed(2)})`;
-  }).join(' · ') : '';
+  const winTxt = h ? ((h.strongDays || []).length ? `ඉහළ විකුණුම් දින: <b>${lrgRangesText(h.strongDays)}</b> (සාමාන්‍යයට වඩා ~${((h.strongDays.reduce((s, d) => s + lrgDomFactor(h, d), 0) / h.strongDays.length - 1) * 100).toFixed(0)}% වැඩි)` : 'ඉහළ විකුණුම් දින තවම පැහැදිලිව පේන්නේ නෑ')
+    + ((h.weakDays || []).length ? ` · අඩු දින: <b>${lrgRangesText(h.weakDays)}</b>` : '') + ` · පසුගිය මාස ${h.nMonths}ක පිරිසිදු දත්ත මත` : '';
   return `<div class="lrg-plan-row lrg-season-row">
     <div class="lrg-hd-head"><span class="lrg-hd-title">📅 Seasonal months — සාමාන්‍ය මාසයකට සාපේක්ෂව විකුණුම් % (ඉහළ = +, පහළ = −)</span></div>
     <div class="lrg-ss-grid">${cells}</div>
@@ -8094,8 +8279,8 @@ function lrgAiPanel(st) {
   const gap = st.projected - st.target;
   const probClr = ai.prob >= 70 ? 'c-green' : ai.prob >= 40 ? 'c-yellow' : 'c-red';
   const hitTxt = ai.hitDay === 0 ? 'Achieved 🎉' : ai.hitDay ? `${monthShort} ${ai.hitDay}` : 'Not this month';
-  const hitWin = ai.hitDay > 0 ? lrgWindowOf(ai.hitDay) : null;
-  const hitSub = ai.hitDay === 0 ? 'Target already reached' : ai.hitDay ? (hitWin && lrgWinFactor(h, ai.hitDay) >= 1.03 ? 'Helped by the ' + hitWin.label + ' boost' : 'At the predicted daily rate') : 'Forecast falls short of target';
+  const hitStrong = ai.hitDay > 0 && lrgIsStrong(h, ai.hitDay);
+  const hitSub = ai.hitDay === 0 ? 'Target already reached' : ai.hitDay ? (hitStrong ? 'Helped by a strong sales day' : 'At the predicted daily rate') : 'Forecast falls short of target';
   const sfm = ai.season || { f: 1, src: 'none' };
   // day-by-day bars: actual (past) + AI forecast (future)
   const y = new Date().getFullYear(), mo = new Date().getMonth();
@@ -8112,12 +8297,12 @@ function lrgAiPanel(st) {
       const p = ai.preds[d - st.daysElapsed - 1]; v = p ? p.v : 0;
       if (p && p.marked) { cls = 'cl'; tip = `${dn} ${d}: holiday (marked)`; } else { cls = 'pred'; tip = `${dn} ${d}: ~${fmt(v)} (AI forecast${p && p.est ? ', closure estimated' : ''})`; }
     }
-    if (lrgWinFactor(h, d) >= 1.03 && cls !== 'cl') cls += ' late';
+    if (lrgIsStrong(h, d) && cls !== 'cl') cls += ' late';
     vals.push(v); bars.push({ cls, v, tip });
   }
   const maxV = Math.max(1, ...vals);
   const barsHtml = bars.map(b => `<div class="lrg-day ${b.cls}" style="height:${(b.cls.startsWith('off') || b.cls.startsWith('cl')) ? 0 : Math.max((b.v / maxV) * 100, 2).toFixed(1)}%" title="${b.tip}"></div>`).join('');
-  const upLine = LRG_WINDOWS.map(w => { const x = h.win[w.id]; return x.f >= 1.03 ? `${w.label} දින වල සාමාන්‍යයෙන් <b>${((x.f - 1) * 100).toFixed(0)}%</b> කින් වැඩියි` : `${w.label} දින වල විශේෂ වැඩිවීමක් තවම පේන්නේ නෑ`; }).join('; ') + (sfm.src !== 'none' ? `; මේ මාසයට සීසනල් ගැලපුම ×${sfm.f.toFixed(2)} (${sfm.src === 'manual' ? 'ඔබ ලබාදුන්' : 'AI ඉගෙනගත්'})` : '');
+  const upLine = ((h.strongDays || []).length ? `ඉගෙනගත් ඉහළ දින (${lrgRangesText(h.strongDays)}) වල සාමාන්‍යයෙන් <b>${((h.strongDays.reduce((s, d) => s + lrgDomFactor(h, d), 0) / h.strongDays.length - 1) * 100).toFixed(0)}%</b> කින් වැඩියි` : 'ඉහළ යන විශේෂ මාස-දින තවම පේන්නේ නෑ') + (sfm.src !== 'none' ? `; මේ මාසයට සීසනල් ගැලපුම ×${sfm.f.toFixed(2)} (${sfm.src === 'manual' ? 'ඔබ ලබාදුන්' : 'AI ඉගෙනගත්'})` : '');
   const holLine = ai.monthMarked || ai.markedAll > 0
     ? `ඔබ ලකුණු කළ නිවාඩු දින <b>${ai.markedAll}</b>ක් (ඉතිරි දින වල <b>${ai.markedLeft}</b>ක්) සලකා ඉතිරි දිනවල විකුණුම් ගණනය කළා`
     : 'මේ මාසයේ නිවාඩු දින තවම ලකුණු කරලා නෑ — ගිය මාස වල විකුණුම් නොතිබූ දින pattern එකෙන් AI ඇස්තමේන්තුවක් යොදාගත්තා. නිවාඩු දින (ඉරිදා, පෝය ඇතුළුව) පහළ planner එකේ ලකුණු කළොත් වඩා නිවැරදි වෙනවා';
@@ -8132,13 +8317,13 @@ function lrgAiPanel(st) {
       <div class="lrg-m ${st.projPct >= 100 ? 'c-green' : 'c-yellow'}"><div class="lrg-m-label">Predicted Month-End</div><div class="lrg-m-val">${fmt(st.projected)}</div><div class="lrg-m-sub">${st.projPct.toFixed(0)}% of target · ${gap >= 0 ? '+' : '−'} ${fmt(Math.abs(gap))}</div></div>
       <div class="lrg-m ${probClr}"><div class="lrg-m-label">Chance to Hit Target</div><div class="lrg-m-val">${ai.prob === null ? '—' : ai.prob.toFixed(0) + '%'}</div><div class="lrg-m-sub">Based on day-to-day variation</div></div>
       <div class="lrg-m c-accent"><div class="lrg-m-label">Predicted Target Date</div><div class="lrg-m-val">${hitTxt}</div><div class="lrg-m-sub">${hitSub}</div></div>
-      <div class="lrg-m"><div class="lrg-m-label">Expected Daily Sale</div><div class="lrg-m-val">${ai.avgNormal !== null ? fmt(ai.avgNormal) : '—'}${ai.avgMid !== null ? `<div style="font-size:.78rem;font-weight:700;color:var(--yellow);margin-top:.15rem;">12–15 : ${fmt(ai.avgMid)}</div>` : ''}${ai.avgLate !== null ? `<div style="font-size:.78rem;font-weight:700;color:var(--yellow);margin-top:.15rem;">25–29 : ${fmt(ai.avgLate)}</div>` : ''}</div><div class="lrg-m-sub">${ai.avgNormal !== null ? 'Avg normal trading day (outside 12–15 / 25–29)' : 'Only boost-window days remain'}</div></div>
+      <div class="lrg-m"><div class="lrg-m-label">Expected Daily Sale</div><div class="lrg-m-val">${ai.avgNormal !== null ? fmt(ai.avgNormal) : '—'}${ai.avgStrong !== null ? `<div style="font-size:.78rem;font-weight:700;color:var(--yellow);margin-top:.15rem;">Strong days : ${fmt(ai.avgStrong)}</div>` : ''}</div><div class="lrg-m-sub">${ai.avgNormal !== null ? 'Avg normal trading day (outside strong days)' : 'Only boost-window days remain'}</div></div>
       <div class="lrg-m"><div class="lrg-m-label">Trading Days Left</div><div class="lrg-m-val">${ai.workLeft} <span style="font-size:.75rem;font-weight:600;color:var(--muted)">of ${st.dim - st.daysElapsed}</span></div><div class="lrg-m-sub">${ai.markedLeft} holiday${ai.markedLeft === 1 ? '' : 's'} marked${!ai.monthMarked && closedLeft > ai.markedLeft ? ' · rest AI-estimated' : ''}</div></div>
     </div>
     <div class="lrg-wd-row"><span class="lrg-wd-title">Weekday pattern (AI learned)</span>${lrgWeekdayChips(h)}</div>
     <div class="lrg-wd-row"><span class="lrg-wd-title">Day-of-month &amp; season (AI learned)</span>${lrgWindowChips(h, sfm)}</div>
     <div class="lrg-days">${barsHtml}</div>
-    <div class="lrg-days-cap"><span><i style="background:var(--navy3)"></i>Actual</span><span><i style="background:var(--accent);opacity:.6"></i>AI forecast</span><span><i style="background:var(--yellow)"></i>12–15 / 25–29 boost days</span><span><i style="background:var(--border)"></i>No sales / holiday</span><span style="margin-left:auto;">Day 1 → ${st.dim}</span></div>
+    <div class="lrg-days-cap"><span><i style="background:var(--navy3)"></i>Actual</span><span><i style="background:var(--accent);opacity:.6"></i>AI forecast</span><span><i style="background:var(--yellow)"></i>Strong days (AI learned)</span><span><i style="background:var(--border)"></i>No sales / holiday</span><span style="margin-left:auto;">Day 1 → ${st.dim}</span></div>
     ${lrgSuggestionsHtml(st)}
     <div class="lrg-ai-note">${note}</div>
   </div></div>`;
@@ -8291,6 +8476,7 @@ function cohRenderInto(host, full) {
 
 function renderSalesTargetGauge() {
   const host = $('lrg-content'); if (!host || !DB.currentUser || isCashier()) return;
+  try { renderAbnormalDays(); } catch (e) { console.error('renderAbnormalDays', e); }
   const st = computeSalesTargetStats();
   try { renderMonthForecastChart(st); } catch (e) { console.error('renderMonthForecastChart', e); }
   try { renderSalesTargetChart(st); } catch (e) { console.error('renderSalesTargetChart', e); }
@@ -8406,7 +8592,7 @@ function renderMonthForecastChart(st) {
     if (d <= de) { const a = st.byDay.get(lrgDayKey(key, d)) || 0; c += a; dayV.push(a); band.push(0); }
     else {
       const p = ai.preds[d - de - 1], v = p ? p.v : 0, dow = new Date(y, mo, d).getDay();
-      const f = ai.base * (h.wd[dow] || 1) * lrgWinFactor(h, d) * ((ai.season && ai.season.f) || 1);
+      const f = ai.base * (h.wd[dow] || 1) * lrgDomFactor(h, d) * ((ai.season && ai.season.f) || 1);
       work += f > 0 ? Math.min(v / f, 1) : 0; fr += v; c += v; dayV.push(v);
       band.push(Math.sqrt(work * sdDaily * sdDaily + Math.pow(0.06 * fr, 2)));
     }
@@ -8425,12 +8611,15 @@ function renderMonthForecastChart(st) {
   for (let d = 1; d <= dim; d++) if (d === 1 || d % 5 === 0 || d === dim) xl += `<text x="${px(d).toFixed(1)}" y="${H - mb + 16}" text-anchor="middle" font-size="10" fill="var(--muted)">${d}</text>`;
   xl += `<text x="${ml + plotW / 2}" y="${H - 6}" text-anchor="middle" font-size="10" fill="var(--muted)">Day of month</text>`;
   let g = '';
-  // boost-window zones (12–15, 25–29) — only shown when the history really shows a boost
-  LRG_WINDOWS.forEach(w => {
-    if (dim < w.from || h.win[w.id].f < 1.03) return;
-    const x1 = px(w.from - 0.5), x2 = px(Math.min(w.to, dim) + 0.5);
-    g += `<rect x="${x1.toFixed(1)}" y="${mt}" width="${(x2 - x1).toFixed(1)}" height="${plotH}" fill="var(--yellow)" opacity=".10"/><text x="${((x1 + x2) / 2).toFixed(1)}" y="${mt + 11}" text-anchor="middle" font-size="9" fill="var(--yellow)" font-weight="700">${w.label} boost</text>`;
-  });
+  // strong-day zones — dates the history shows to be stronger than a normal day (learned, not fixed)
+  { const rng = []; let cr = null;
+    (h.strongDays || []).forEach(d => { if (cr && d === cr.to + 1) cr.to = d; else { cr = { from: d, to: d }; rng.push(cr); } });
+    rng.forEach(w => {
+      if (dim < w.from) return;
+      const x1 = px(w.from - 0.5), x2 = px(Math.min(w.to, dim) + 0.5);
+      g += `<rect x="${x1.toFixed(1)}" y="${mt}" width="${(x2 - x1).toFixed(1)}" height="${plotH}" fill="var(--yellow)" opacity=".10"/><text x="${((x1 + x2) / 2).toFixed(1)}" y="${mt + 11}" text-anchor="middle" font-size="9" fill="var(--yellow)" font-weight="700">${w.from === w.to ? w.from : w.from + '–' + w.to} strong</text>`;
+    });
+  }
   // 80% confidence band
   if (de < dim) {
     const up = [], lo = [];
@@ -8537,13 +8726,130 @@ function renderSalesTargetChart(st) {
 // Monthly Sales Target planner (bottom of the page) — this month + upcoming months.
 // The Admin types ANY target, and taps the days the shop will be closed (Sundays, Poya, festivals…).
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// ABNORMAL DAYS — the AI lists days far from what its weekday/neighbouring weeks predict (power cut, shop closed
+// early…). The Admin answers two simple questions and saves; a day marked "ignore" is left out of every AI
+// calculation (weekday pattern, day-of-month pattern, daily rate, variation) but its sales still count as actual.
+// ---------------------------------------------------------------------------
+function lrgAbnLabelDay(date) { return date + ' (' + LRG_DOW[_lrgDow(date)] + ')'; }
+function lrgAbnReasonHtml(date, sel) {
+  return `<div class="lrg-abn-opts">${LRG_DAY_REASONS.map(r => `<label><input type="radio" name="lrg-abn-r-${date}" value="${r.id}" ${sel === r.id ? 'checked' : ''} onchange="lrgAbnReasonChange('${date}')">${r.icon} ${r.label}</label>`).join('')}</div>`;
+}
+function lrgAbnRowHtml(date, v, expected, ratio, kind) {
+  const high = kind === 'high', pct = (ratio * 100).toFixed(0);
+  const head = `<b>${lrgAbnLabelDay(date)}</b> · සේල්ස් <b>${fmt(v)}</b> <small>· AI අපේක්ෂාව ~${fmt(expected)} (${pct}% — සාමාන්‍යයට වඩා ${high ? 'ගොඩක් වැඩියි' : 'ගොඩක් අඩුයි'})</small>`;
+  return `<div class="lrg-abn-row${high ? ' high' : ''}" id="lrg-abn-row-${date}">
+    <div class="lrg-abn-head">${head}</div>
+    <div class="lrg-abn-q">1) මේ දවසේ සේල්ස් ${high ? 'වැඩි' : 'අඩු'} වුනේ ඇයි?</div>
+    ${lrgAbnReasonHtml(date, '')}
+    <div id="lrg-abn-q2-${date}" style="display:none;">
+      <div class="lrg-abn-q">2) AI forecast එක ඉගෙනගන්නකොට මේ දවස සලකන්නද?</div>
+      <div class="lrg-abn-opts">
+        <label><input type="radio" name="lrg-abn-x-${date}" value="ignore" checked>🚫 නොසලකන්න — මෙය නැවත සිදුවෙන දෙයක් නෙවෙයි (නිර්දේශිතයි)</label>
+        <label><input type="radio" name="lrg-abn-x-${date}" value="keep">✔️ සලකන්න — මෙවැනි දේ නිතරම වෙනවා</label>
+      </div>
+    </div>
+    <div class="lrg-abn-act">
+      <input type="text" id="lrg-abn-note-${date}" maxlength="80" placeholder="සටහනක් (අවශ්‍ය නම්)" style="flex:1 1 200px;">
+      <button type="button" class="btn btn-navy btn-sm" onclick="lrgAbnSave('${date}')">💾 Save</button>
+    </div>
+  </div>`;
+}
+function lrgAbnReasonChange(date) {
+  const r = document.querySelector(`input[name="lrg-abn-r-${date}"]:checked`)?.value;
+  const q2 = document.getElementById('lrg-abn-q2-' + date); if (q2) q2.style.display = r && r !== 'normal' ? '' : 'none';
+}
+function renderAbnormalDays(force) {
+  const card = $('lrg-abn-card'); if (!card) return;
+  if (!isAdmin()) { card.classList.add('hidden'); return; }
+  const box = $('lrg-abn-content');
+  if (!force && box && box.contains(document.activeElement) && /INPUT|SELECT/.test(document.activeElement.tagName)) return;   // never wipe an answer in progress
+  let h; try { h = lrgHistory(); } catch (e) { console.error('abnormal days', e); return; }
+  const pending = (h.pending || []).slice().sort((a, b) => b.date.localeCompare(a.date));
+  const notes = Object.keys(SALES_DAY_NOTES || {}).filter(d => lrgDayNote(d)).sort().reverse();
+  if ($('lrg-abn-count')) $('lrg-abn-count').textContent = pending.length ? `· තහවුරු කිරීමට ${pending.length}ක්` : (notes.length ? `· ${notes.length} සටහන්` : '');
+  let html = `<div class="lrg-abn-intro">${pending.length
+    ? 'AI එක සාමාන්‍යයට වඩා ගොඩක් අඩු/වැඩි වූ දින හඳුනාගත්තා. සරල ප්‍රශ්න 2කට උත්තර දී Save කරන්න — ඒ දවස AI forecast / target ගණනයට බලපාන්නේ නෑ (ඒ දවසේ සැබෑ විකුණුම් මාසයේ එකතුවට තවමත් ගණන් ගන්නවා). තහවුරු කරන තෙක් AI ඒවා තාවකාලිකව නොසලකා හරිනවා.'
+    : '✅ තහවුරු කිරීමට අසාමාන්‍ය දින නෑ. ඕනෑම දවසක් (උදා: power cut වුන දවසක්) අතින්ද ලකුණු කළ හැක.'}</div>`;
+  html += pending.map(p => lrgAbnRowHtml(p.date, p.v, p.expected, p.ratio, p.kind)).join('');
+  if (notes.length) {
+    html += `<details class="lrg-abn-done"><summary>📋 සමාලෝචනය කළ දින (${notes.length})</summary>${notes.map(d => {
+      const n = lrgDayNote(d), r = lrgReasonOf(n.reason);
+      return `<div class="it"><span><b>${lrgAbnLabelDay(d)}</b> · ${r.icon} ${r.label} · ${n.exclude ? '🚫 AI නොසලකයි' : '✔️ AI සලකයි'}${n.note ? ' · ' + escHtml(n.note) : ''}${n.sales ? ' · ' + fmt(n.sales) : ''}</span><button type="button" class="lrg-setbtn" onclick="lrgAbnUndo('${d}')">↩️ ආපසු</button></div>`;
+    }).join('')}</details>`;
+  }
+  html += `<details class="lrg-abn-done"><summary>➕ දිනයක් අතින් ලකුණු කරන්න</summary>
+    <div class="lrg-abn-row" style="margin:.5rem 0;" id="lrg-abn-row-manual">
+      <div class="lrg-abn-q" style="margin-top:0;">දිනය</div>
+      <input type="date" id="lrg-abn-m-date" max="${today()}">
+      <div class="lrg-abn-q">1) සේල්ස් වෙනස් වුනේ ඇයි?</div>
+      ${lrgAbnReasonHtml('manual', '')}
+      <div id="lrg-abn-q2-manual" style="display:none;">
+        <div class="lrg-abn-q">2) AI එක ඉගෙනගන්නකොට මේ දවස සලකන්නද?</div>
+        <div class="lrg-abn-opts"><label><input type="radio" name="lrg-abn-x-manual" value="ignore" checked>🚫 නොසලකන්න</label><label><input type="radio" name="lrg-abn-x-manual" value="keep">✔️ සලකන්න</label></div>
+      </div>
+      <div class="lrg-abn-act"><input type="text" id="lrg-abn-note-manual" maxlength="80" placeholder="සටහනක් (අවශ්‍ය නම්)" style="flex:1 1 200px;"><button type="button" class="btn btn-navy btn-sm" onclick="lrgAbnSave('manual')">💾 Save</button></div>
+    </div></details>`;
+  $('lrg-abn-content').innerHTML = html;
+  card.classList.remove('hidden');
+}
+async function persistSalesDayNote(date, note) {
+  try { localStorage.setItem('cms_sales_day_notes', JSON.stringify(SALES_DAY_NOTES)); } catch (e) { console.error('day notes local mirror', e); }
+  if (!firebaseReady() || !rolePermDocRef) { toast('✅ Saved locally (offline mode)'); return true; }
+  try {
+    await rolePermDocRef.set({ salesDayNotes: { [date]: note } }, { merge: true });
+    return true;
+  } catch (e) {
+    console.error('persistSalesDayNote', e);
+    toast('⚠️ Save failed — internet connection එක check කරන්න', 'red');
+    return false;
+  }
+}
+async function lrgAbnSave(date) {
+  if (!isAdmin()) { toast('⚠️ Admin only', 'red'); return; }
+  let realDate = date;
+  if (date === 'manual') {
+    realDate = document.getElementById('lrg-abn-m-date')?.value || '';
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(realDate)) { toast('⚠️ දිනය තෝරන්න', 'red'); return; }
+  }
+  const reason = document.querySelector(`input[name="lrg-abn-r-${date}"]:checked`)?.value;
+  if (!reason) { toast('⚠️ 1 වන ප්‍රශ්නයට පිළිතුරක් තෝරන්න', 'red'); return; }
+  const keepSel = document.querySelector(`input[name="lrg-abn-x-${date}"]:checked`)?.value;
+  const exclude = reason === 'normal' ? false : keepSel !== 'keep';
+  const h = lrgHistory(), sus = (h.suspects || []).find(x => x.date === realDate);
+  const entry = (typeof getAllCashEntries === 'function' ? getAllCashEntries() : []).filter(e => e.date === realDate).reduce((a, e) => a + (Number(e.totalSales) || 0), 0);
+  const note = { reason, exclude, note: (document.getElementById('lrg-abn-note-' + date)?.value || '').trim().slice(0, 80), by: DB.currentUsername, at: new Date().toISOString(), sales: Math.round(entry) };
+  if (sus) note.expected = Math.round(sus.expected);
+  SALES_DAY_NOTES = { ...SALES_DAY_NOTES, [realDate]: note };
+  const ok = await persistSalesDayNote(realDate, note);
+  if (ok && firebaseReady() && rolePermDocRef) toast(exclude ? `✅ ${realDate} — AI ඒ දවස නොසලකා හරිනවා` : `✅ ${realDate} — සාමාන්‍ය දවසක් ලෙස සටහන් කළා`);
+  try { logActivity('SALES_DAY_NOTE', `${realDate} · ${lrgReasonOf(reason).label} · ${exclude ? 'AI ignores' : 'AI keeps'}${note.note ? ' · ' + note.note : ''}`); } catch (e) {}
+  renderAbnormalDays(true); try { renderSalesTargetGauge(); renderSalesTargetAdmin(); } catch (e) {}
+}
+async function lrgAbnUndo(date) {
+  if (!isAdmin()) return;
+  const copy = { ...SALES_DAY_NOTES }; delete copy[date]; SALES_DAY_NOTES = copy;
+  try { localStorage.setItem('cms_sales_day_notes', JSON.stringify(SALES_DAY_NOTES)); } catch (e) {}
+  if (firebaseReady() && rolePermDocRef) {
+    try { await rolePermDocRef.set({ salesDayNotes: { [date]: null } }, { merge: true }); }
+    catch (e) { console.error('lrgAbnUndo', e); toast('⚠️ Save failed — internet connection එක check කරන්න', 'red'); }
+  }
+  try { logActivity('SALES_DAY_NOTE', `${date} · සටහන ඉවත් කළා`); } catch (e) {}
+  renderAbnormalDays(true); try { renderSalesTargetGauge(); renderSalesTargetAdmin(); } catch (e) {}
+}
+
 let LRG_PLAN_COUNT = 6;
 let LRG_PLAN_FC = {};
-let LRG_PLAN_AI = {};         // key → AI suggested target (forecast + 5% stretch)
+let LRG_PLAN_AI = {};         // key → AI suggested target (forecast + special adjustments + stretch)
+let LRG_PLAN_INFO = {};       // key → { forecast, daily[], parts } AI numbers behind each planner row
+let LRG_PLAN_EXTRA = {};      // key → small text snippets for the AI box
+let LRG_PLAN_ST = null;       // the stats object the planner was rendered with
+let LRG_PLAN_ADJ = {};        // working copy: key → [special additions / reductions] (saved with “Save All”)
 let LRG_PLAN_MARKS = {};      // working copy: key → [days] | null (null = not marked yet → AI estimates)
 let LRG_PLAN_DIRTY = false;   // unsaved edits exist → live-sync refreshes must not wipe them
 function initSalesTargetSection() {
   LRG_PLAN_DIRTY = false;
+  try { renderAbnormalDays(true); } catch (e) { console.error('renderAbnormalDays', e); }
   renderSalesTargetAdmin(true);
   try { renderSalesTargetGauge(); } catch (e) { console.error('renderSalesTargetGauge', e); }
 }
@@ -8587,6 +8893,91 @@ function lrgPlanSundays(key) {                // helper only — the Admin press
 function lrgPlanNone(key) { if (!isAdmin()) return; LRG_PLAN_MARKS[key] = []; LRG_PLAN_DIRTY = true; lrgPlanRefreshRow(key); }
 function lrgPlanReset(key) { if (!isAdmin()) return; LRG_PLAN_MARKS[key] = null; LRG_PLAN_DIRTY = true; lrgPlanRefreshRow(key); }
 
+// AI box of one planner row (forecast, AI target, per-day figures)
+function lrgAiBoxInner(key, admin) {
+  const info = LRG_PLAN_INFO[key], st = LRG_PLAN_ST, ex = LRG_PLAN_EXTRA[key] || {};
+  const fc = info ? info.forecast : 0;
+  const bd = info && fc > 0 && st ? lrgTargetBreakdown(info, LRG_PLAN_ADJ[key], st) : null;
+  const aiT = bd ? bd.target : 0;
+  LRG_PLAN_AI[key] = aiT;
+  const adjTxt = bd && bd.adj.length ? `<br><span style="font-weight:600;color:${bd.adjTotal >= 0 ? 'var(--green)' : 'var(--red)'};">${bd.adjTotal >= 0 ? '＋' : '−'} special ${fmt(Math.abs(bd.adjTotal))}</span>` : '';
+  return `🤖 AI forecast <b>${fc > 0 ? fmt(fc) : '—'}</b>${adjTxt}<br>🎯 AI target <b>${aiT > 0 ? fmt(aiT) : '—'}</b>${admin && aiT > 0 ? ` <button type="button" class="lrg-setbtn" onclick="lrgUseAiTarget('${key}')">Use</button>` : ''}<br><span style="font-weight:500;">${ex.planLine || '(forecast + stretch)'}</span>${ex.seasonBadge || ''}`;
+}
+const _fmtSigned = n => (n >= 0 ? '+ ' : '− ') + fmt(Math.abs(n));
+// Step-by-step breakdown of one month's AI target + the Admin's special additions / reductions editor
+function lrgBreakdownInner(key, admin) {
+  const info = LRG_PLAN_INFO[key], st = LRG_PLAN_ST;
+  if (!info || !st || !(info.forecast > 0)) return '<div class="lrg-hd-status">AI forecast එකක් හදන්න තවම දත්ත මදි.</div>';
+  const bd = lrgTargetBreakdown(info, LRG_PLAN_ADJ[key], st);
+  const row = (label, val, cls) => `<tr class="${cls || ''}"><td>${label}</td><td>${val}</td></tr>`;
+  let t = '<table class="lrg-bd-t">';
+  bd.lines.forEach(l => { t += row(l.label, l.sign ? `<span class="${l.amt >= 0 ? 'pos' : 'neg'}">${_fmtSigned(l.amt)}</span>` : fmt(l.amt)); });
+  t += row('= AI forecast', fmt(bd.forecast), 'sub');
+  if (bd.adj.length) {
+    bd.adj.forEach(a => {
+      t += `<tr class="adj"><td>✨ ${escHtml(a.label)} <small>(${a.desc})</small>${admin ? ` <button type="button" class="lrg-adj-x" title="Remove" onclick="lrgAdjRemove('${key}','${a.id}')">✕</button>` : ''}</td><td><span class="${a.amount >= 0 ? 'pos' : 'neg'}">${_fmtSigned(a.amount)}</span></td></tr>`;
+    });
+    t += row('විශේෂ ගැලපුම් මුළු එකතුව', `<span class="${bd.adjTotal >= 0 ? 'pos' : 'neg'}">${_fmtSigned(bd.adjTotal)}</span>`, 'sub');
+  } else {
+    t += `<tr class="adj muted"><td colspan="2">විශේෂ දින / මාස සඳහා ගැලපුම් තවම නෑ${admin ? ' — පහළින් එකතු කරන්න' : ''}</td></tr>`;
+  }
+  t += row(`Stretch +${(bd.stretchPct * 100).toFixed(1)}% <small>(${bd.stretchWhy})</small>`, `<span class="pos">${_fmtSigned(bd.stretchAmt)}</span>`);
+  t += row('🎯 AI target (10,000 වලට වටයා)', fmt(bd.target), 'tot');
+  t += '</table>';
+  if (admin) {
+    const dim = new Date(info.y, info.m0 + 1, 0).getDate();
+    t += `<div class="lrg-adj-form">
+      <div class="lrg-adj-title">✨ විශේෂ දිනයක් / මාසයක් සඳහා එකතුවක් හෝ අඩුවීමක් එක් කරන්න</div>
+      <div class="lrg-adj-grid">
+        <div><label>නම</label><input type="text" id="lrg-adj-label-${key}" maxlength="40" placeholder="උදා: අවුරුදු සමය, Poya, උත්සව දිනය"></div>
+        <div><label>වර්ගය</label><select id="lrg-adj-kind-${key}"><option value="pct">% (ඉහළ + / පහළ −)</option><option value="amt">LKR (ඉහළ + / පහළ −)</option></select></div>
+        <div><label>අගය</label><input type="number" id="lrg-adj-val-${key}" step="any" placeholder="+10  /  −5  /  +50000"></div>
+        <div><label>දින (% සඳහා, අවශ්‍ය නම්)</label><input type="text" id="lrg-adj-days-${key}" placeholder="උදා: 23,24 හෝ 10-14 (1–${dim})"></div>
+        <div style="align-self:end;"><button type="button" class="lrg-setbtn" onclick="lrgAdjAdd('${key}')">➕ එකතු කරන්න</button></div>
+      </div>
+      <div class="lrg-hd-status">% + දින → ඒ දින වල AI අපේක්ෂාවට % ක ගැලපුමක්. % (දින නැතිව) → මුළු මාසයේ forecast එකට %. LKR → target එකට සෘජුවම එකතු/අඩු වේ. “Save All” එබුවම පමණක් save වෙයි.</div>
+    </div>`;
+  }
+  return t;
+}
+function lrgPlanRenderBreakdown(key) {
+  const el = document.getElementById('lrg-bd-' + key); if (el) el.innerHTML = lrgBreakdownInner(key, isAdmin());
+  const box = document.getElementById('lrg-ai-box-' + key); if (box) box.innerHTML = lrgAiBoxInner(key, isAdmin());
+}
+function lrgParseDays(txt, dim) {
+  const out = new Set();
+  String(txt || '').split(/[,\s]+/).filter(Boolean).forEach(p => {
+    const m = p.match(/^(\d{1,2})(?:[-–](\d{1,2}))?$/); if (!m) return;
+    let a = +m[1], b = m[2] ? +m[2] : a; if (a > b) [a, b] = [b, a];
+    for (let d = Math.max(a, 1); d <= Math.min(b, dim); d++) out.add(d);
+  });
+  return [...out].sort((x, y) => x - y);
+}
+function lrgAdjAdd(key) {
+  if (!isAdmin()) return;
+  const info = LRG_PLAN_INFO[key]; if (!info) return;
+  const label = (document.getElementById('lrg-adj-label-' + key)?.value || '').trim();
+  const kind = document.getElementById('lrg-adj-kind-' + key)?.value === 'amt' ? 'amt' : 'pct';
+  const val = Number(document.getElementById('lrg-adj-val-' + key)?.value);
+  const dim = new Date(info.y, info.m0 + 1, 0).getDate();
+  const days = kind === 'pct' ? lrgParseDays(document.getElementById('lrg-adj-days-' + key)?.value, dim) : [];
+  if (!label) { toast('⚠️ ගැලපුමට නමක් දෙන්න', 'red'); return; }
+  if (!isFinite(val) || val === 0) { toast('⚠️ අගය ඇතුල් කරන්න (+ එකතුව / − අඩුවීම)', 'red'); return; }
+  if (kind === 'pct' && (val < -90 || val > 300)) { toast('⚠️ % අගය −90 සිට 300 දක්වා විය යුතුයි', 'red'); return; }
+  if (!Array.isArray(LRG_PLAN_ADJ[key])) LRG_PLAN_ADJ[key] = [];
+  const item = { id: uid(), label, kind, value: val };
+  if (days.length) item.days = days;
+  LRG_PLAN_ADJ[key].push(item);
+  LRG_PLAN_DIRTY = true;
+  lrgPlanRenderBreakdown(key);
+}
+function lrgAdjRemove(key, id) {
+  if (!isAdmin() || !Array.isArray(LRG_PLAN_ADJ[key])) return;
+  LRG_PLAN_ADJ[key] = LRG_PLAN_ADJ[key].filter(a => a.id !== id);
+  LRG_PLAN_DIRTY = true;
+  lrgPlanRenderBreakdown(key);
+}
+
 function renderSalesTargetAdmin(force) {
   const card = $('lrg-admin-card'); if (!card) return;
   const admin = isAdmin();
@@ -8596,7 +8987,7 @@ function renderSalesTargetAdmin(force) {
   if (!force && (LRG_PLAN_DIRTY || (planner.contains(document.activeElement) && /INPUT|BUTTON/.test(document.activeElement.tagName)))) return;
   let st = null;
   try { st = computeSalesTargetStats(); } catch (e) { console.error('planner stats', e); }
-  LRG_PLAN_FC = {}; LRG_PLAN_AI = {};
+  LRG_PLAN_FC = {}; LRG_PLAN_AI = {}; LRG_PLAN_INFO = {}; LRG_PLAN_EXTRA = {}; LRG_PLAN_ST = st;
   let html = '';
   for (let i = 0; i < LRG_PLAN_COUNT; i++) {
     const d0 = new Date(now.getFullYear(), now.getMonth() + i, 1), key = lrgMonthKey(d0);
@@ -8604,15 +8995,19 @@ function renderSalesTargetAdmin(force) {
     if (!LRG_PLAN_DIRTY || !(key in LRG_PLAN_MARKS)) { const a = lrgMarkedDays(key); LRG_PLAN_MARKS[key] = a === null ? null : a.slice(); }
     const marks = LRG_PLAN_MARKS[key];
     const curT = lrgExplicitTarget(key);
-    let fc = 0;
-    if (st) { if (i === 0) fc = st.projected; else if (st.ai.base > 0) fc = lrgForecastMonth(y, m0, st.hist, st.ai.base, i).total; }
+    const info = st ? lrgMonthInfo(i, st) : null;
+    LRG_PLAN_INFO[key] = info;
+    if (!LRG_PLAN_DIRTY || !(key in LRG_PLAN_ADJ)) LRG_PLAN_ADJ[key] = lrgAdjFor(key).map(a => ({ id: a.id, label: a.label, kind: a.kind, value: a.value, days: Array.isArray(a.days) ? a.days.slice() : undefined }));
+    const fc = info ? info.forecast : 0;
     LRG_PLAN_FC[key] = fc;
-    const aiT = fc > 0 ? lrgSuggestTarget(fc) : 0;
+    const bd = info && fc > 0 ? lrgTargetBreakdown(info, LRG_PLAN_ADJ[key], st) : null;
+    const aiT = bd ? bd.target : 0;
     LRG_PLAN_AI[key] = aiT;
     const plan = st && st.ai.base > 0 ? lrgDailyPlan(y, m0, st.hist, st.ai.base, i) : null;
     const sfp = plan ? plan.season : null;
-    const planLine = plan ? `Per trading day: normal ~${lrgShort(plan.normal)}` + LRG_WINDOWS.map(w => (st.hist.win[w.id].f >= 1.03 ? ` · ${w.label} ~${lrgShort(plan[w.id])}` : '')).join('') : '';
+    const planLine = plan ? `Per trading day: normal ~${lrgShort(plan.normal)}` + (plan.strong ? ` · strong days ~${lrgShort(plan.strong)}` : '') : '';
     const seasonBadge = sfp && sfp.src !== 'none' && Math.abs(sfp.f - 1) >= 0.03 ? `<br><span style="font-weight:600;color:var(--yellow);">📅 Seasonal ×${sfp.f.toFixed(2)} (${sfp.src === 'manual' ? 'typed' : 'AI learned'})</span>` : (sfp && sfp.src === 'none' && LRG_SEASON_FLAG.includes(m0 + 1) ? '<br><span style="font-weight:600;color:var(--yellow);">📅 Seasonal month — % not set yet</span>' : '');
+    LRG_PLAN_EXTRA[key] = { planLine, seasonBadge };
     const carried = i === 0 && !curT ? getSalesTargetFor(key) : null;
     const dis = admin ? '' : 'disabled';
     let chips = '';
@@ -8625,7 +9020,7 @@ function renderSalesTargetAdmin(force) {
       <div class="lrg-plan-top">
         <div class="lrg-plan-month">${lrgMonthLabel(key, true)}${i === 0 ? ' <span class="lrg-plan-tag">This month</span>' : ''}</div>
         <div><label for="lrg-pl-t-${key}">Target (LKR) — any amount you need</label><input type="number" id="lrg-pl-t-${key}" min="0" step="any" ${dis} value="${curT > 0 ? curT : ''}" placeholder="${carried && carried.amount ? 'carried ' + carried.amount : 'e.g. 5000000'}" onkeydown="if(event.key==='Enter')saveSalesTargetFromUI()"></div>
-        <div class="lrg-plan-ai">🤖 AI forecast <b>${fc > 0 ? fmt(fc) : '—'}</b><br>🎯 AI target <b>${aiT > 0 ? fmt(aiT) : '—'}</b>${admin && aiT > 0 ? ` <button type="button" class="lrg-setbtn" onclick="lrgUseAiTarget('${key}')">Use</button>` : ''}<br><span style="font-weight:500;">${planLine || '(forecast + 5% stretch)'}</span>${seasonBadge}</div>
+        <div class="lrg-plan-ai" id="lrg-ai-box-${key}">${lrgAiBoxInner(key, admin)}</div>
       </div>
       <div>
         <div class="lrg-hd-head">
@@ -8635,6 +9030,10 @@ function renderSalesTargetAdmin(force) {
         <div class="lrg-hd-grid" id="lrg-hd-${key}" style="margin:.45rem 0 .3rem;">${chips}</div>
         <div class="lrg-hd-status" id="lrg-hd-status-${key}">${lrgPlanStatusText(key)}</div>
       </div>
+      <details class="lrg-bd"${(LRG_PLAN_ADJ[key] || []).length ? ' open' : ''}>
+        <summary>🧮 AI target breakdown · special days / special months (+ addition / − reduction)</summary>
+        <div id="lrg-bd-${key}">${lrgBreakdownInner(key, admin)}</div>
+      </details>
     </div>`;
   }
   planner.innerHTML = lrgSeasonEditorHtml(st, admin) + html;
@@ -8647,10 +9046,10 @@ function renderSalesTargetAdmin(force) {
     : (cur > 0 ? 'Target එක Admin විසින් set කරලා තියෙන්නේ. (View only)' : 'Admin විසින් තවම target එකක් set කරලා නෑ.');
 }
 async function persistSalesTargets() {
-  try { localStorage.setItem('cms_sales_targets', JSON.stringify(SALES_TARGETS)); localStorage.setItem('cms_sales_holiday_days', JSON.stringify(SALES_HOLIDAY_DAYS)); localStorage.setItem('cms_sales_season', JSON.stringify(SALES_SEASON)); } catch (e) { console.error('sales targets local mirror', e); }
+  try { localStorage.setItem('cms_sales_targets', JSON.stringify(SALES_TARGETS)); localStorage.setItem('cms_sales_holiday_days', JSON.stringify(SALES_HOLIDAY_DAYS)); localStorage.setItem('cms_sales_season', JSON.stringify(SALES_SEASON)); localStorage.setItem('cms_sales_adj', JSON.stringify(SALES_ADJ)); } catch (e) { console.error('sales targets local mirror', e); }
   if (!firebaseReady() || !rolePermDocRef) { toast('✅ Saved locally (offline mode)'); return true; }
   try {
-    await rolePermDocRef.set({ salesTargets: SALES_TARGETS, salesHolidayDays: SALES_HOLIDAY_DAYS, salesSeason: SALES_SEASON }, { merge: true });
+    await rolePermDocRef.set({ salesTargets: SALES_TARGETS, salesHolidayDays: SALES_HOLIDAY_DAYS, salesSeason: SALES_SEASON, salesAdj: SALES_ADJ }, { merge: true });
     return true;
   } catch (e) {
     console.error('persistSalesTargets', e);
@@ -8661,7 +9060,7 @@ async function persistSalesTargets() {
 // Saves every month row in the planner at once — the target is stored EXACTLY as typed
 async function saveSalesTargetFromUI() {
   if (!isAdmin()) { toast('⚠️ Admin only', 'red'); return; }
-  const now = new Date(), updT = {}, updH = {}, updS = {}; let clearing = 0, saved = 0;
+  const now = new Date(), updT = {}, updH = {}, updS = {}, updA = {}; let clearing = 0, saved = 0;
   for (let m = 1; m <= 12; m++) {
     const el = $('lrg-ss-' + m); if (!el) continue;
     if (el.value === '') { updS[m] = 0; continue; }
@@ -8682,11 +9081,17 @@ async function saveSalesTargetFromUI() {
     updT[key] = amt;
     const marks = LRG_PLAN_MARKS[key];
     updH[key] = Array.isArray(marks) ? marks.slice().sort((a, b) => a - b) : null;
+    updA[key] = (LRG_PLAN_ADJ[key] || []).filter(a => a && a.label && isFinite(Number(a.value)) && Number(a.value) !== 0).map(a => {
+      const o = { id: a.id || uid(), label: String(a.label).slice(0, 40), kind: a.kind === 'amt' ? 'amt' : 'pct', value: Number(a.value) };
+      if (o.kind === 'pct' && Array.isArray(a.days) && a.days.length) o.days = a.days.map(Number);
+      return o;
+    });
   }
   if (clearing && !confirm(`Target හිස් කළ මාස ${clearing}ක target ඉවත් කරන්නද?`)) return;
   SALES_TARGETS = { ...SALES_TARGETS, ...updT };            // 0 = not set (keeps Firestore merge simple)
   SALES_HOLIDAY_DAYS = { ...SALES_HOLIDAY_DAYS, ...updH };  // null = not marked
   SALES_SEASON = { ...SALES_SEASON, ...updS };              // 0 = not set (AI learns it), otherwise factor e.g. 1.15
+  SALES_ADJ = { ...SALES_ADJ, ...updA };                    // [] = no special additions / reductions for that month
   const ok = await persistSalesTargets();
   LRG_PLAN_DIRTY = false;
   renderSalesTargetAdmin(true); try { renderSalesTargetGauge(); } catch (e) {}
@@ -20048,7 +20453,7 @@ function renderDailySummary() {
   html += `<div class="card" style="margin:1.2rem 1.5rem;">
     <div class="card-head"><div class="card-title">💼 Manager Activity</div></div>`;
   if (data.managerActions.length) {
-    const icons = {ADD_CREDIT:'💳',EDIT_CREDIT:'✏️',DEL_CREDIT:'🗑️',ADD_CHEQUE:'✅',EDIT_CHEQUE:'✏️',DEL_CHEQUE:'🗑️',ADD_CHEQUE_BOOK:'🖐️',DEL_CHEQUE_BOOK:'🗑️',ADD_PAYMENT:'💰',DEL_PAYMENT:'💰',ADD_SUPPLIER:'🏪',EDIT_SUPPLIER:'✏️',DEL_SUPPLIER:'🗑️',ADD_USER:'👥',EDIT_USER:'✏️',DEL_USER:'🗑️',LOGIN:'🔓',LOGOUT:'🔒',REGISTER:'✨',BACKUP:'📥',CHEQUE_LINK:'🔗',ADD_EMPLOYEE:'💲',EDIT_EMPLOYEE:'✏️',DEL_EMPLOYEE:'🗑️',ADD_ADVANCE:'💸',DEL_ADVANCE:'🗑️',PROCESS_PAYROLL:'🧮',DEL_PAYROLL:'🗑️',DEL_CASH_PURCHASE:'🛒',MARK_ATTENDANCE:'🗓️',EDIT_ATTENDANCE:'✏️',DEL_ATTENDANCE:'🗑️',CASH_LOG:'💵',EDIT_CASH_LOG:'✏️',DEL_CASH_LOG:'🗑️',CASH_LOG_RESTORE:'🔧',SYNC_FIX_CREDIT:'🔧',DAILY_SYNC_CHECK:'🔧',CASH_SYNC_IGNORE:'🙈',ADD_CASH:'💵',EDIT_CASH:'✏️',DEL_CASH:'🗑️',ADD_RELOAD:'📶',EDIT_RELOAD:'✏️',DEL_RELOAD:'🗑️',RELOAD_HANDOVER:'🤝',CASH_TEMP_SAVE:'🕓',CASH_TEMP_DELETE:'🗑️'};
+    const icons = {ADD_CREDIT:'💳',EDIT_CREDIT:'✏️',DEL_CREDIT:'🗑️',ADD_CHEQUE:'✅',EDIT_CHEQUE:'✏️',DEL_CHEQUE:'🗑️',ADD_CHEQUE_BOOK:'🖐️',DEL_CHEQUE_BOOK:'🗑️',ADD_PAYMENT:'💰',DEL_PAYMENT:'💰',ADD_SUPPLIER:'🏪',EDIT_SUPPLIER:'✏️',DEL_SUPPLIER:'🗑️',ADD_USER:'👥',EDIT_USER:'✏️',DEL_USER:'🗑️',LOGIN:'🔓',LOGOUT:'🔒',REGISTER:'✨',BACKUP:'📥',CHEQUE_LINK:'🔗',ADD_EMPLOYEE:'💲',EDIT_EMPLOYEE:'✏️',DEL_EMPLOYEE:'🗑️',ADD_ADVANCE:'💸',DEL_ADVANCE:'🗑️',PROCESS_PAYROLL:'🧮',DEL_PAYROLL:'🗑️',DEL_CASH_PURCHASE:'🛒',MARK_ATTENDANCE:'🗓️',EDIT_ATTENDANCE:'✏️',DEL_ATTENDANCE:'🗑️',CASH_LOG:'💵',EDIT_CASH_LOG:'✏️',DEL_CASH_LOG:'🗑️',CASH_LOG_RESTORE:'🔧',SYNC_FIX_CREDIT:'🔧',SALES_DAY_NOTE:'⚠️',DAILY_SYNC_CHECK:'🔧',CASH_SYNC_IGNORE:'🙈',ADD_CASH:'💵',EDIT_CASH:'✏️',DEL_CASH:'🗑️',ADD_RELOAD:'📶',EDIT_RELOAD:'✏️',DEL_RELOAD:'🗑️',RELOAD_HANDOVER:'🤝',CASH_TEMP_SAVE:'🕓',CASH_TEMP_DELETE:'🗑️'};
     html += `<div class="table-wrap"><table>
       <thead><tr><th>🕐 Time</th><th>👤 Manager</th><th>📝 Action</th><th>ℹ️ Details</th></tr></thead>
       <tbody>${data.managerActions.map(e => `<tr><td style="white-space:nowrap;">${e.ts ? new Date(e.ts).toLocaleTimeString() : '—'}</td><td><span class="user-data-badge">${e.actor || '?'}</span> ${e._ownerName || ''}</td><td>${icons[e.action] || '📝'} ${(e.action || '—').replace(/_/g, ' ')}</td><td style="font-size:.82rem;color:var(--muted);">${e.details || ''}</td></tr>`).join('')}</tbody>
@@ -21145,7 +21550,7 @@ function renderActivityLog() {
     renderPagination('activityPagination', 0, activityLogPage, 'goActivityLogPage', ACTIVITY_PAGE_SIZE);
     return;
   }
-  const icons={ADD_CREDIT:'💳',EDIT_CREDIT:'✏️',DEL_CREDIT:'🗑️',ADD_CHEQUE:'✅',EDIT_CHEQUE:'✏️',DEL_CHEQUE:'🗑️',ADD_CHEQUE_BOOK:'🖐️',DEL_CHEQUE_BOOK:'🗑️',ADD_PAYMENT:'💰',DEL_PAYMENT:'💰',ADD_SUPPLIER:'🏪',EDIT_SUPPLIER:'✏️',DEL_SUPPLIER:'🗑️',ADD_USER:'👥',EDIT_USER:'✏️',DEL_USER:'🗑️',LOGIN:'🔓',LOGOUT:'🔒',REGISTER:'✨',BACKUP:'📥',CHEQUE_LINK:'🔗',ADD_EMPLOYEE:'💲',EDIT_EMPLOYEE:'✏️',DEL_EMPLOYEE:'🗑️',ADD_ADVANCE:'💸',DEL_ADVANCE:'🗑️',PROCESS_PAYROLL:'🧮',DEL_PAYROLL:'🗑️',DEL_CASH_PURCHASE:'🛒',MARK_ATTENDANCE:'🗓️',EDIT_ATTENDANCE:'✏️',DEL_ATTENDANCE:'🗑️',CASH_LOG:'💵',EDIT_CASH_LOG:'✏️',DEL_CASH_LOG:'🗑️',CASH_LOG_RESTORE:'🔧',SYNC_FIX_CREDIT:'🔧',DAILY_SYNC_CHECK:'🔧',CASH_SYNC_IGNORE:'🙈',ADD_CASH:'💵',EDIT_CASH:'✏️',DEL_CASH:'🗑️',ADD_RELOAD:'📶',EDIT_RELOAD:'✏️',DEL_RELOAD:'🗑️',RELOAD_HANDOVER:'🤝',CASH_TEMP_SAVE:'🕓',CASH_TEMP_DELETE:'🗑️'};
+  const icons={ADD_CREDIT:'💳',EDIT_CREDIT:'✏️',DEL_CREDIT:'🗑️',ADD_CHEQUE:'✅',EDIT_CHEQUE:'✏️',DEL_CHEQUE:'🗑️',ADD_CHEQUE_BOOK:'🖐️',DEL_CHEQUE_BOOK:'🗑️',ADD_PAYMENT:'💰',DEL_PAYMENT:'💰',ADD_SUPPLIER:'🏪',EDIT_SUPPLIER:'✏️',DEL_SUPPLIER:'🗑️',ADD_USER:'👥',EDIT_USER:'✏️',DEL_USER:'🗑️',LOGIN:'🔓',LOGOUT:'🔒',REGISTER:'✨',BACKUP:'📥',CHEQUE_LINK:'🔗',ADD_EMPLOYEE:'💲',EDIT_EMPLOYEE:'✏️',DEL_EMPLOYEE:'🗑️',ADD_ADVANCE:'💸',DEL_ADVANCE:'🗑️',PROCESS_PAYROLL:'🧮',DEL_PAYROLL:'🗑️',DEL_CASH_PURCHASE:'🛒',MARK_ATTENDANCE:'🗓️',EDIT_ATTENDANCE:'✏️',DEL_ATTENDANCE:'🗑️',CASH_LOG:'💵',EDIT_CASH_LOG:'✏️',DEL_CASH_LOG:'🗑️',CASH_LOG_RESTORE:'🔧',SYNC_FIX_CREDIT:'🔧',SALES_DAY_NOTE:'⚠️',DAILY_SYNC_CHECK:'🔧',CASH_SYNC_IGNORE:'🙈',ADD_CASH:'💵',EDIT_CASH:'✏️',DEL_CASH:'🗑️',ADD_RELOAD:'📶',EDIT_RELOAD:'✏️',DEL_RELOAD:'🗑️',RELOAD_HANDOVER:'🤝',CASH_TEMP_SAVE:'🕓',CASH_TEMP_DELETE:'🗑️'};
   const pageLogs = filtered.slice((activityLogPage-1)*ACTIVITY_PAGE_SIZE, activityLogPage*ACTIVITY_PAGE_SIZE);
   tbody.innerHTML = pageLogs.map(e=>`<tr>
     <td style="font-size:.78rem;white-space:nowrap;">${e.ts?new Date(e.ts).toLocaleString():'—'}</td>
