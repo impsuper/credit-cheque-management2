@@ -933,7 +933,16 @@ tr:hover td{background:var(--row-hover);}
 .reports-mobile-note{display:none;}
 @media(max-width:768px){
   #reportsSection .stats-grid{display:none;}
+  #reportsSection .pdf-strip-row{display:none!important;}
   #reportsSection .reports-mobile-note{display:flex;}
+}
+/* MONTHLY BUSINESS SUMMARY REPORT */
+.chart-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+.ms-hilo-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+.ms-hilo-card{background:var(--surface-2);border-radius:10px;padding:.9rem 1.1rem;}
+@media(max-width:900px){
+  .chart-grid-2{grid-template-columns:1fr;}
+  .ms-hilo-row{grid-template-columns:1fr;}
 }
 /* RELOAD */
 .network-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:.7rem;padding:.9rem 1.2rem;}
@@ -3458,53 +3467,12 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
     <!-- REPORTS -->
     <div id="reportsSection" class="section">
       <div class="tab-bar">
-        <div class="tab active" onclick="switchReportsTab('pdf')" id="rep-tab-pdf">📋 PDF Reports</div>
         <div class="tab" onclick="switchReportsTab('ledger')" id="rep-tab-ledger">🏦 Manager Cash-in-Hand Ledger</div>
-        <div class="tab" onclick="switchReportsTab('sales')" id="rep-tab-sales">📜 Cash Sale History</div>
+        <div class="tab active" onclick="switchReportsTab('sales')" id="rep-tab-sales">📜 Cash Sale History</div>
         <div class="tab" onclick="switchReportsTab('purchases')" id="rep-tab-purchases">🛒 Cash Purchase History</div>
         <div class="tab" onclick="switchReportsTab('disposal')" id="rep-tab-disposal">📤 Cash Disposal Log</div>
         <div class="tab" onclick="switchReportsTab('monthly')" id="rep-tab-monthly">🧾 Monthly Purchase Report</div>
-      </div>
-
-      <div id="reports-tab-content-pdf" class="tab-content show">
-      <div class="card">
-        <div class="card-head"><div class="card-title">📋 PDF Reports</div><div style="font-size:.85rem;color:var(--muted);">Click a card to download</div></div>
-        <div style="padding:1.5rem;">
-          <div class="stats-grid" style="margin-bottom:1.5rem;">
-            <div class="stat-card report-card" onclick="generateReport('credits')">
-              <div class="stat-label">💳 Credits Report</div>
-              <div class="stat-val" style="font-size:1rem;">⬇️ Download PDF</div>
-              <div class="stat-sub">All credit bills with payment status</div>
-            </div>
-            <div class="stat-card yellow report-card" onclick="generateReport('cheques')">
-              <div class="stat-label">✅ Cheques Report</div>
-              <div class="stat-val" style="font-size:1rem;">⬇️ Download PDF</div>
-              <div class="stat-sub">Cheques with bank & due date details</div>
-            </div>
-            <div class="stat-card report-card" style="border-top:3px solid var(--amber2,#fbbf24);" onclick="generateReport('cash')">
-              <div class="stat-label">💰 Cash Report</div>
-              <div class="stat-val" style="font-size:1rem;">⬇️ Download PDF</div>
-              <div class="stat-sub">Daily cash entries, expenses & net</div>
-            </div>
-            <div class="stat-card report-card" style="border-top:3px solid #e63946;" onclick="generateReport('reload')">
-              <div class="stat-label">📱 Reload Report</div>
-              <div class="stat-val" style="font-size:1rem;">⬇️ Download PDF</div>
-              <div class="stat-sub">Network balances & daily snapshot</div>
-            </div>
-            <div class="stat-card green report-card" onclick="generateReport('monthly')">
-              <div class="stat-label">📅 Monthly Summary</div>
-              <div class="stat-val" style="font-size:1rem;">⬇️ Download PDF</div>
-              <div class="stat-sub">Month-wise credit & payment totals</div>
-            </div>
-          </div>
-          <div class="reports-mobile-note" style="align-items:center;gap:.6rem;padding:1.2rem 1.4rem;background:var(--surface-2);border-radius:10px;border:1.5px dashed var(--border);color:var(--muted);font-size:.85rem;margin-bottom:1.5rem;">
-            💻 PDF report downloads are available from the desktop view.
-          </div>
-          <div style="padding:1rem;background:var(--surface-2);border-radius:10px;border-left:3px solid var(--navy3);font-size:.88rem;color:var(--muted);">
-            💡 Reports include all data visible to your account. Admin reports include all users' data.
-          </div>
-        </div>
-      </div>
+        <div class="tab" onclick="switchReportsTab('summary')" id="rep-tab-summary">📊 Monthly Business Summary</div>
       </div>
 
       <div id="reports-tab-content-ledger" class="tab-content">
@@ -3529,8 +3497,23 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
       </div>
       </div>
 
-      <div id="reports-tab-content-sales" class="tab-content">
-      <div class="card" id="cashSaleHistCard" style="margin-top:1.2rem;">
+      <div id="reports-tab-content-sales" class="tab-content show">
+      <!-- Compact PDF downloads (moved here from the old "PDF Reports" tab) -->
+      <div class="card" id="pdfReportsStrip" style="margin-top:1.2rem;">
+        <div class="pdf-strip-row" style="padding:.7rem 1rem;display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;">
+          <span style="font-size:.85rem;font-weight:700;color:var(--navy);">📋 PDF Reports</span>
+          <button class="btn btn-ghost btn-sm" onclick="generateReport('credits')" title="All credit bills with payment status">💳 Credits</button>
+          <button class="btn btn-ghost btn-sm" onclick="generateReport('cheques')" title="Cheques with bank & due date details">✅ Cheques</button>
+          <button class="btn btn-ghost btn-sm" onclick="generateReport('cash')" title="Daily cash entries, expenses & net">💰 Cash</button>
+          <button class="btn btn-ghost btn-sm" onclick="generateReport('reload')" title="Network balances & daily snapshot">📱 Reload</button>
+          <button class="btn btn-ghost btn-sm" onclick="generateReport('monthly')" title="Month-wise credit & payment totals">📅 Monthly Summary</button>
+          <span style="font-size:.74rem;color:var(--muted);">⬇️ Reports include all data visible to your account.</span>
+        </div>
+        <div class="reports-mobile-note" style="align-items:center;gap:.6rem;padding:.6rem 1rem;color:var(--muted);font-size:.8rem;">
+          💻 PDF report downloads are available from the desktop view.
+        </div>
+      </div>
+      <div class="card" id="cashSaleHistCard" style="margin-top:.8rem;">
         <div class="card-head">
           <div class="card-title">📜 Cash Sale History</div>
           <div class="card-actions" style="display:flex;gap:.6rem;flex-wrap:wrap;">
@@ -3636,6 +3619,110 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
           </table>
         </div>
         <div id="mpPagination" class="pg-bar-wrap"></div>
+      </div>
+      </div>
+
+      <div id="reports-tab-content-summary" class="tab-content">
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">📊 Monthly Business Summary</div>
+          <div class="card-actions">
+            <button class="btn btn-ghost btn-sm" onclick="exportMonthlySummaryPDF()">📄 PDF</button>
+          </div>
+        </div>
+        <div style="padding:1rem 1.5rem 0;display:flex;align-items:center;justify-content:center;gap:.6rem;">
+          <button class="btn btn-ghost btn-sm" onclick="msChangeMonth(-1)">◀</button>
+          <div id="ms-month-label" style="font-weight:700;min-width:170px;text-align:center;font-size:1.02rem;"></div>
+          <button class="btn btn-ghost btn-sm" onclick="msChangeMonth(1)">▶</button>
+        </div>
+
+        <!-- Sales Summary -->
+        <div class="ds-mini-grid" id="ms-sales-summary-grid" style="margin-top:1rem;">
+          <div class="ds-mini-stat"><span>💰 Total Sales (Month)</span><b id="ms-total-sales">LKR 0</b></div>
+          <div class="ds-mini-stat"><span>📊 Average / Day</span><b id="ms-avg-sales">LKR 0</b></div>
+          <div class="ds-mini-stat"><span>📈 Growth vs Last Month</span><b id="ms-sales-growth">—</b></div>
+          <div class="ds-mini-stat ds-highlight"><span>🗓️ Days Recorded</span><b id="ms-days-recorded">0</b></div>
+        </div>
+
+        <!-- Highest / Lowest sales days -->
+        <div class="ms-hilo-row" style="padding:0 1.5rem;margin-top:1rem;">
+          <div class="ms-hilo-card" style="border-left:4px solid var(--green);">
+            <div class="stat-label">🏆 Highest Sales Day</div>
+            <div class="stat-val" id="ms-highest-day" style="font-size:1.3rem;">—</div>
+            <div class="stat-sub" id="ms-highest-day-amt">—</div>
+          </div>
+          <div class="ms-hilo-card" style="border-left:4px solid var(--red);">
+            <div class="stat-label">📉 Lowest Sales Day</div>
+            <div class="stat-val" id="ms-lowest-day" style="font-size:1.3rem;">—</div>
+            <div class="stat-sub" id="ms-lowest-day-amt">—</div>
+          </div>
+        </div>
+
+        <!-- Daily Sales chart + Cashier-wise breakdown -->
+        <div class="chart-grid-2" style="padding:1.2rem 1.5rem 0;">
+          <div class="card" style="box-shadow:none;border:1.5px solid var(--border);margin:0;">
+            <div class="card-head"><div class="card-title" style="font-size:.9rem;">📈 Daily Sales Breakdown</div></div>
+            <div id="ms-daily-sales-chart" class="simple-chart mini-chartjs-wrap" style="min-height:200px;"></div>
+          </div>
+          <div class="card" style="box-shadow:none;border:1.5px solid var(--border);margin:0;">
+            <div class="card-head"><div class="card-title" style="font-size:.9rem;">👤 Cashier-wise Sales</div></div>
+            <div id="ms-cashier-chart" class="simple-chart mini-chartjs-wrap" style="min-height:200px;"></div>
+          </div>
+        </div>
+
+        <!-- Credits / Cheques summary -->
+        <div class="ds-mini-grid" style="margin:1.2rem 1.5rem 0;">
+          <div class="ds-mini-stat"><span>🔴 Credit Bills Issued</span><b id="ms-credit-count">0</b><span id="ms-credit-amt" style="font-size:.78rem;color:var(--muted);"></span></div>
+          <div class="ds-mini-stat"><span>🟡 Cheques Issued</span><b id="ms-cheque-count">0</b><span id="ms-cheque-amt" style="font-size:.78rem;color:var(--muted);"></span></div>
+          <div class="ds-mini-stat"><span>⏳ Outstanding Credit Bills</span><b id="ms-outstanding-credit-count">0</b><span id="ms-outstanding-credit-amt" style="font-size:.78rem;color:var(--muted);"></span></div>
+          <div class="ds-mini-stat ds-highlight"><span>⏳ Outstanding Cheques</span><b id="ms-outstanding-cheque-count">0</b><span id="ms-outstanding-cheque-amt" style="font-size:.78rem;color:var(--muted);"></span></div>
+        </div>
+        <div style="padding:.5rem 1.5rem 0;font-size:.78rem;color:var(--muted);">💡 A historical snapshot as of this month's last day — a bill or cheque settled in a later month still counts as outstanding here, exactly as it looked back then.</div>
+
+        <!-- Purchases breakdown + Sales trend -->
+        <div class="chart-grid-2" style="padding:1.2rem 1.5rem 0;">
+          <div class="card" style="box-shadow:none;border:1.5px solid var(--border);margin:0;">
+            <div class="card-head"><div class="card-title" style="font-size:.9rem;">🛒 Purchases Breakdown (Cash / Credit / Cheque)</div></div>
+            <div style="padding:.3rem 1rem 0;font-size:.76rem;color:var(--muted);">Only bills/cheques/cash purchases entered this month (Admin-owned records excluded; credit bills settled by a linked cheque count under Cheque).</div>
+            <div id="ms-purchase-total" style="padding:.4rem 1rem 0;font-size:.82rem;color:var(--muted);"></div>
+            <div id="ms-purchase-breakdown-chart" class="simple-chart mini-chartjs-wrap" style="min-height:200px;"></div>
+          </div>
+          <div class="card" style="box-shadow:none;border:1.5px solid var(--border);margin:0;">
+            <div class="card-head"><div class="card-title" style="font-size:.9rem;">📊 Sales Trend (Last 6 Months)</div></div>
+            <div id="ms-sales-trend-chart" class="simple-chart mini-chartjs-wrap" style="min-height:200px;"></div>
+          </div>
+        </div>
+
+        <!-- Top 10 Suppliers -->
+        <div class="card" style="box-shadow:none;border:1.5px solid var(--border);margin:1.2rem 1.5rem 0;">
+          <div class="card-head"><div class="card-title" style="font-size:.9rem;">🏆 Top 10 Suppliers by Purchase Value (This Month)</div></div>
+          <div id="ms-top-suppliers-chart" class="simple-chart mini-chartjs-wrap" style="min-height:220px;"></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>#</th><th>🏪 Supplier</th><th>👤 Manager</th><th>💰 Purchase Value</th></tr></thead>
+              <tbody id="ms-top-suppliers-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Top 10 Suppliers - Purchase Growth -->
+        <div class="card" style="box-shadow:none;border:1.5px solid var(--border);margin:1.2rem 1.5rem 0;">
+          <div class="card-head"><div class="card-title" style="font-size:.9rem;">📈 Top 10 Suppliers — Purchase Increase vs Last Month</div></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>#</th><th>🏪 Supplier</th><th>👤 Manager</th><th>Last Month</th><th>This Month</th><th>Increase (LKR)</th><th>Increase (%)</th></tr></thead>
+              <tbody id="ms-growth-suppliers-body"></tbody>
+            </table>
+          </div>
+          <div style="padding:.7rem 1.2rem;font-size:.78rem;color:var(--muted);">💡 Only suppliers added by Managers are considered — Admin's own supplier records are excluded.</div>
+        </div>
+
+        <!-- Reload Balance Change -->
+        <div class="ds-mini-grid" style="margin:1.2rem 1.5rem 1.5rem;">
+          <div class="ds-mini-stat"><span>📱 Reload Balance Change (Month)</span><b id="ms-reload-total">LKR 0</b></div>
+          <div class="ds-mini-stat ds-highlight"><span>📈 Change %</span><b id="ms-reload-growth">—</b></div>
+        </div>
+        <div style="padding:0 1.5rem 1.2rem;font-size:.78rem;color:var(--muted);">💡 Based on the first and last Reload Balance entries recorded in the month (Reload is a daily balance snapshot, not a sales total).</div>
       </div>
       </div>
     </div>
@@ -10183,6 +10270,9 @@ function renderBarChartJS(elId, items, valueLabel, colorHex) {
   const tc = chartTextColors();
   const labels = items.map(i => i.label);
   const data = items.map(i => i.value);
+  // Optional: if every item carries its own `color`, each bar uses it (flat fill)
+  // instead of the shared gradient — e.g. Purchases Breakdown's Cash/Credit/Cheque.
+  const perBarColors = items.every(i => i.color) ? items.map(i => i.color) : null;
   // Soft top-to-bottom gradient (full color at the top fading toward the
   // baseline) reads as far more polished than a flat fill, and doubles as a
   // subtle depth cue. Rebuilt on every render so it always matches the
@@ -10212,8 +10302,8 @@ function renderBarChartJS(elId, items, valueLabel, colorHex) {
     const ch = __ovChartJS[elId];
     ch.data.labels = labels;
     ch.data.datasets[0].data = data;
-    ch.data.datasets[0].backgroundColor = ctx => barGradient(ctx.chart.chartArea);
-    ch.data.datasets[0].hoverBackgroundColor = color;
+    ch.data.datasets[0].backgroundColor = perBarColors || (ctx => barGradient(ctx.chart.chartArea));
+    ch.data.datasets[0].hoverBackgroundColor = perBarColors || color;
     Object.assign(ch.options.plugins.tooltip, tooltipStyle);
     ch.options.scales.y.ticks.color = tc.muted;
     ch.options.scales.y.grid.color = tc.border;
@@ -10226,8 +10316,8 @@ function renderBarChartJS(elId, items, valueLabel, colorHex) {
         labels,
         datasets: [{
           data,
-          backgroundColor: ctx => barGradient(ctx.chart.chartArea),
-          hoverBackgroundColor: color,
+          backgroundColor: perBarColors || (ctx => barGradient(ctx.chart.chartArea)),
+          hoverBackgroundColor: perBarColors || color,
           borderRadius: 6,
           maxBarThickness: 46
         }]
@@ -13065,6 +13155,7 @@ function initSettingsSection() {
 }
 
 function switchReportsTab(tab) {
+  if (!tab || tab === 'pdf') tab = 'sales'; // PDF Reports tab was merged into Cash Sale History
   document.querySelectorAll('#reportsSection .tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('#reportsSection .tab-content').forEach(t => t.classList.remove('show'));
   $(`rep-tab-${tab}`)?.classList.add('active');
@@ -13075,10 +13166,11 @@ function switchReportsTab(tab) {
   else if (tab === 'purchases') renderCashPurchaseHistory();
   else if (tab === 'disposal') renderCashLog();
   else if (tab === 'monthly') renderMonthlyPurchaseReport();
+  else if (tab === 'summary') renderMonthlySummaryReport();
 }
 
 function initReportsSection() {
-  switchReportsTab(DB.reportsTab || 'pdf');
+  switchReportsTab(DB.reportsTab || 'sales');
 }
 
 /* ===== SORT PILLS (mobile) ===== */
@@ -13579,6 +13671,7 @@ function quickClearCheque(id, ownerUsername) {
   }
   if (!confirm('✅ Mark this cheque as Cleared?')) return;
   c.status = 'cleared';
+  c.statusDate = today();
   logActivity('EDIT_CHEQUE', `${c.entryId || id} marked as Cleared`);
   syncUser(owner);
   renderCheques();
@@ -13951,6 +14044,16 @@ async function saveCheque() {
       return;
     }
   }
+  // statusDate = the date this cheque's status last actually CHANGED (to
+  // Cleared/Bounced) — used to answer "was this still outstanding as of a
+  // past month's end" accurately (see msOutstandingCheques). Unchanged
+  // status on an edit keeps its existing statusDate; a fresh change to
+  // Cleared/Bounced stamps it with today(); going back to Pending clears it.
+  const prevChequeRec = editId ? (owner.cheques || []).find(c => c.id === editId) : null;
+  const newChequeStatus = $('ch-status').value;
+  const chequeStatusDate = newChequeStatus === 'pending'
+    ? ''
+    : (prevChequeRec && prevChequeRec.status === newChequeStatus ? (prevChequeRec.statusDate || today()) : today());
   const rec = {
     id: editId || uid(),
     entryId: editId ? (owner.cheques || []).find(c => c.id === editId)?.entryId || '' : nextEntryId(owner, 'cheque'),
@@ -13961,7 +14064,8 @@ async function saveCheque() {
     linkedCreditId: $('ch-link-credit')?.value || '',
     amount,
     dueDate: $('ch-due').value,
-    status: $('ch-status').value,
+    status: newChequeStatus,
+    statusDate: chequeStatusDate,
     notes: $('ch-notes').value,
     chequeBookId: editId ? ((owner.cheques || []).find(c => c.id === editId)?.chequeBookId || '') : (poolEntry ? poolEntry.id : '')
   };
@@ -19534,6 +19638,428 @@ async function exportMonthlyPurchasePDF() {
     foot:[[`Total (${rows.length})`,'','',fmt(tot),'','']]
   });
   doc.save('monthly_purchase_report_'+mpMonth+'.pdf');
+}
+
+// ===== MONTHLY BUSINESS SUMMARY REPORT (Reports tab) =====
+// One-stop monthly snapshot: total sales + daily/cashier breakdown, credit &
+// cheque bill counts/amounts for the month, outstanding (unsettled) credit
+// bills & cheques as of the month's end, highest/lowest sales day, sales
+// growth vs the previous month (+ a 6-month trend), the cash/credit/cheque
+// purchases split, Top 10 suppliers by purchase value, Top 10 suppliers whose
+// purchases grew the most vs last month (Manager-added suppliers only — same
+// "exclude Admin-owned records" convention used everywhere else in Reports),
+// and the month's Reload sales total with its growth vs last month. Shares
+// its data-building functions between the on-screen view and the PDF export
+// so the two can never disagree.
+let msMonth = null; // 'YYYY-MM'
+
+function msDefaultMonth() { return new Date().toISOString().slice(0, 7); }
+
+function msMonthLabel(monthKey) {
+  const [y, m] = monthKey.split('-');
+  return new Date(y, m - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+}
+
+function msMonthEndDate(monthKey) {
+  const [y, m] = monthKey.split('-').map(Number);
+  return new Date(y, m, 0).toISOString().split('T')[0]; // last calendar day of the month
+}
+
+function msPrevMonthKey(monthKey) {
+  const [y, m] = monthKey.split('-').map(Number);
+  const d = new Date(y, m - 2, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function msGrowthPct(cur, prev) {
+  if (!prev) return cur > 0 ? 100 : 0;
+  return ((cur - prev) / prev) * 100;
+}
+
+function msFmtPct(p) {
+  const sign = p > 0 ? '+' : '';
+  return sign + p.toFixed(1) + '%';
+}
+
+function msChangeMonth(delta) {
+  if (!msMonth) msMonth = msDefaultMonth();
+  const [y, m] = msMonth.split('-').map(Number);
+  const d = new Date(y, (m - 1) + delta, 1);
+  msMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  renderMonthlySummaryReport();
+}
+
+// Cash entries / cash purchases scoped exactly like getDataRows()/getSupplierRows()
+// (every user visible to the current account — all users for Admin, just the
+// logged-in account otherwise), so this report always matches what Credits/
+// Cheques/Suppliers already show this account.
+function msScopedCashEntries() {
+  const rows = [];
+  getScopeUsers().forEach(u => (u.cashEntries || []).forEach(e => rows.push({ ...e, _owner: u.username })));
+  return rows;
+}
+function msScopedCashPurchases() {
+  const rows = [];
+  getScopeUsers().forEach(u => (u.cashPurchases || []).forEach(p => rows.push({ ...p, _owner: u.username })));
+  return rows;
+}
+
+function msGetCashEntriesForMonth(monthKey) {
+  return msScopedCashEntries().filter(e => (e.date || '').slice(0, 7) === monthKey);
+}
+
+// Total sales for a given month (used for the growth % and the 6-month trend).
+function msTotalSalesForMonth(monthKey) {
+  return msGetCashEntriesForMonth(monthKey).reduce((a, e) => a + (Number(e.totalSales) || 0), 0);
+}
+
+// Sales summary: totals, daily breakdown, highest/lowest day, cashier-wise split.
+function msGetSalesSummary(monthKey) {
+  const entries = msGetCashEntriesForMonth(monthKey);
+  const dayMap = new Map();
+  entries.forEach(e => { if (e.date) dayMap.set(e.date, (dayMap.get(e.date) || 0) + (Number(e.totalSales) || 0)); });
+  const days = [...dayMap.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  const total = days.reduce((a, [, v]) => a + v, 0);
+  const avg = days.length ? total / days.length : 0;
+  let highest = null, lowest = null;
+  days.forEach(([d, v]) => {
+    if (!highest || v > highest.value) highest = { date: d, value: v };
+    if (!lowest || v < lowest.value) lowest = { date: d, value: v };
+  });
+  const cashierNames = getCashiers();
+  const cashierMap = new Map();
+  entries.forEach(e => {
+    const idx = Number(e.cashierIdx) || 0;
+    const name = cashierNames[idx] || ('Cashier ' + (idx + 1));
+    cashierMap.set(name, (cashierMap.get(name) || 0) + (Number(e.totalSales) || 0));
+  });
+  const cashierBreakdown = [...cashierMap.entries()].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
+  return { total, avg, days, highest, lowest, cashierBreakdown, dayCount: days.length };
+}
+
+// Last `count` months' total sales (oldest → newest), for the trend chart.
+function msGetSalesTrend(monthKey, count) {
+  const n = count || 6;
+  const out = [];
+  const [y, m] = monthKey.split('-').map(Number);
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(y, (m - 1) - i, 1);
+    const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    out.push({ key: k, label: d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }), total: msTotalSalesForMonth(k) });
+  }
+  return out;
+}
+
+function msGetCreditsForMonth(monthKey) { return getDataRows('credits').filter(c => (c.date || '').slice(0, 7) === monthKey); }
+function msGetChequesForMonth(monthKey) { return getDataRows('cheques').filter(c => (c.date || '').slice(0, 7) === monthKey); }
+
+// A credit bill's remaining balance AS OF a cutoff date — i.e. its amount
+// minus only the payments that had actually been made by that date (legacy
+// pay1-3 + the payments[] array, each checked against its own payment date).
+// A payment with no recorded date is treated as already made (can't place it
+// in time, so it's excluded from the "still owing" side to stay conservative).
+// This is what makes a past month's "Outstanding Credit Bills" a true
+// historical snapshot instead of today's balance.
+function getCreditBalanceAsOf(c, cutoffDate) {
+  const amount = Number(c.amount) || 0;
+  let paid = 0;
+  [['pay1', 'pay1date'], ['pay2', 'pay2date'], ['pay3', 'pay3date']].forEach(([amtKey, dateKey]) => {
+    const amt = Number(c[amtKey]) || 0;
+    if (amt && (c[dateKey] || '') <= cutoffDate) paid += amt;
+  });
+  (c.payments || []).forEach(p => {
+    if ((p.date || '') <= cutoffDate) paid += Number(p.amount) || 0;
+  });
+  return Math.max(0, amount - paid);
+}
+
+// Outstanding (still-unpaid, AS OF that month's end) credit bills dated
+// on/before the month's end — a bill paid off the following month still
+// shows as outstanding here, exactly as it would have looked on that date.
+function msOutstandingCredits(monthKey) {
+  const endDate = msMonthEndDate(monthKey);
+  const rows = getDataRows('credits')
+    .filter(c => (c.date || '') <= endDate)
+    .map(c => ({ c, balance: getCreditBalanceAsOf(c, endDate) }))
+    .filter(r => r.balance > 0.001);
+  return { count: rows.length, amount: rows.reduce((a, r) => a + r.balance, 0) };
+}
+
+// A cheque's status AS OF a cutoff date. statusDate (stamped in saveCheque()/
+// quickClearCheque() the moment Cleared/Bounced is set) tells us WHEN it
+// actually changed — if that happened after the cutoff, the cheque was still
+// Pending as of that date. Cheques cleared/bounced before this tracking was
+// added have no statusDate; for those we fall back to the due date (the
+// closest date we have) as a best-effort estimate, so very old records may
+// not be 100% exact — anything changed after this update is exact.
+function getChequeStatusAsOf(c, cutoffDate) {
+  const status = c.status || 'pending';
+  if (status === 'pending') return 'pending';
+  const changedDate = c.statusDate || c.dueDate || c.date || '';
+  if (changedDate && changedDate > cutoffDate) return 'pending';
+  return status;
+}
+
+// Outstanding (not yet Cleared, AS OF that month's end) cheques dated
+// on/before the month's end. E.g. a September cheque that only cleared in
+// October still shows as outstanding when viewing September later on.
+function msOutstandingCheques(monthKey) {
+  const endDate = msMonthEndDate(monthKey);
+  const rows = getDataRows('cheques')
+    .filter(c => (c.date || '') <= endDate)
+    .filter(c => getChequeStatusAsOf(c, endDate) !== 'cleared');
+  return { count: rows.length, amount: rows.reduce((a, c) => a + (Number(c.amount) || 0), 0) };
+}
+
+// Cash / Credit / Cheque purchases split for the month, counting ONLY
+// records actually ENTERED (dated) in that month — no cross-month
+// reallocation. A credit bill shows at its full invoice amount under Credit
+// in the month it was raised; a cheque or cash purchase that settles an
+// EXISTING credit bill is a repayment (already counted when that bill was
+// raised), not a new purchase, so it's excluded here regardless of which
+// month it was entered in.
+//
+// Same rules as the Dashboard's computeTotalPurchases() and the P&L, so all
+// three always agree:
+//  • Admin-owned records are excluded (internal/administrative suppliers —
+//    e.g. the Admin's Wijaya Company cheques — are not real purchases).
+//  • The part of a credit bill already settled by a linked Cheque is moved
+//    from Credit into the Cheque bucket (getCreditPurchaseAmt /
+//    getCreditSettledByChequeAmt), so one purchase is never counted twice.
+function msGetPurchasesBreakdown(monthKey) {
+  const credits = msGetCreditsForMonth(monthKey).filter(c => !isAdminOwnedRecord(c._ownerUsername));
+  const cheques = msGetChequesForMonth(monthKey).filter(c => !isAdminOwnedRecord(c._ownerUsername) && !c.linkedCreditId);
+  const cashP = msScopedCashPurchases().filter(p => (p.date || '').slice(0, 7) === monthKey && !isAdminOwnedRecord(p._owner) && !p.linkedCreditId);
+  const creditAmt = credits.reduce((a, c) => a + getCreditPurchaseAmt(c), 0);
+  const chequeAmt = cheques.reduce((a, c) => a + (Number(c.amount) || 0), 0)
+    + credits.reduce((a, c) => a + getCreditSettledByChequeAmt(c), 0);
+  const cashAmt = cashP.reduce((a, p) => a + (Number(p.amount) || 0), 0);
+  return { cashAmt, creditAmt, chequeAmt, total: cashAmt + creditAmt + chequeAmt };
+}
+
+// A supplier's total purchase value (Cash + Credit + Cheque, each purchase
+// counted once) for one specific month — the monthly version of the
+// all-time _purchaseValue figure the Suppliers page sorts by.
+function msSupplierMonthlyPurchase(ownerUsername, supplierId, monthKey) {
+  const creds = getDataRows('credits').filter(c => c._ownerUsername === ownerUsername && c.supplierId === supplierId && (c.date || '').slice(0, 7) === monthKey);
+  const cheqs = getDataRows('cheques').filter(c => c._ownerUsername === ownerUsername && c.supplierId === supplierId && (c.date || '').slice(0, 7) === monthKey);
+  const cashP = msScopedCashPurchases().filter(p => p._owner === ownerUsername && p.supplierId === supplierId && (p.date || '').slice(0, 7) === monthKey);
+  const creditAmt = creds.reduce((a, c) => a + getCreditPurchaseAmt(c), 0);
+  const chequeAmt = cheqs.filter(c => !c.linkedCreditId).reduce((a, c) => a + (Number(c.amount) || 0), 0) + creds.reduce((a, c) => a + getCreditSettledByChequeAmt(c), 0);
+  const cashAmt = cashP.reduce((a, p) => a + (Number(p.amount) || 0), 0);
+  return creditAmt + chequeAmt + cashAmt;
+}
+
+// "Manager-added" supplier = owned by an account with role 'manager' (or the
+// legacy 'user' role) — Admin's own supplier records are excluded, same
+// convention isAdminOwnedRecord() applies everywhere else in Reports.
+function msIsManagerOwned(ownerUsername) {
+  const u = getUserByUsername(ownerUsername);
+  return !!(u && (u.role === 'manager' || u.role === 'user'));
+}
+
+function msTopSuppliers(monthKey, limit) {
+  const suppliers = getSupplierRows().filter(s => msIsManagerOwned(s.ownerUsername));
+  return suppliers.map(s => ({ name: s.name, ownerUsername: s.ownerUsername, ownerName: s.ownerName, value: msSupplierMonthlyPurchase(s.ownerUsername, s.id, monthKey) }))
+    .filter(s => s.value > 0)
+    .sort((a, b) => b.value - a.value)
+    .slice(0, limit || 10);
+}
+
+function msTopGrowthSuppliers(monthKey, limit) {
+  const prevKey = msPrevMonthKey(monthKey);
+  const suppliers = getSupplierRows().filter(s => msIsManagerOwned(s.ownerUsername));
+  return suppliers.map(s => {
+    const cur = msSupplierMonthlyPurchase(s.ownerUsername, s.id, monthKey);
+    const prev = msSupplierMonthlyPurchase(s.ownerUsername, s.id, prevKey);
+    return { name: s.name, ownerUsername: s.ownerUsername, ownerName: s.ownerName, cur, prev, diff: cur - prev, pct: msGrowthPct(cur, prev) };
+  }).filter(s => s.diff > 0)
+    .sort((a, b) => b.diff - a.diff)
+    .slice(0, limit || 10);
+}
+
+// Reload entries are a running BALANCE snapshot (today's leftover reload
+// stock + cash), entered once a day — not a per-day sales figure — so they
+// can never be summed across the month like cash-entry sales. The month's
+// reload movement is the difference between the balance on the first entry
+// recorded that month and the balance on the last entry recorded that month.
+// A rising total usually means stock was topped up faster than sold; a
+// falling total means more reload was sold than restocked.
+function msReloadEntryTotal(e) {
+  return (e.total != null) ? (Number(e.total) || 0)
+    : (Number(e.dialog) || 0) + (Number(e.mobitel) || 0) + (Number(e.hutch) || 0) + (Number(e.airtel) || 0) + (Number(e.cash) || 0);
+}
+function msReloadMonthChange(monthKey) {
+  const entries = getReloadEntries().filter(e => (e.date || '').slice(0, 7) === monthKey).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  if (!entries.length) return { first: 0, last: 0, diff: 0, pct: 0, hasData: false };
+  const first = msReloadEntryTotal(entries[0]);
+  const last = msReloadEntryTotal(entries[entries.length - 1]);
+  return { first, last, diff: last - first, pct: msGrowthPct(last, first), hasData: true };
+}
+
+// Builds the full dataset once, shared by the on-screen render and the PDF export.
+function msGetSummaryData(monthKey) {
+  const sales = msGetSalesSummary(monthKey);
+  const prevSales = msTotalSalesForMonth(msPrevMonthKey(monthKey));
+  const credits = msGetCreditsForMonth(monthKey);
+  const cheques = msGetChequesForMonth(monthKey);
+  const reload = msReloadMonthChange(monthKey);
+  return {
+    monthKey, monthLabel: msMonthLabel(monthKey),
+    sales, salesGrowthPct: msGrowthPct(sales.total, prevSales),
+    salesTrend: msGetSalesTrend(monthKey, 6),
+    creditCount: credits.length, creditAmt: credits.reduce((a, c) => a + (Number(c.amount) || 0), 0),
+    chequeCount: cheques.length, chequeAmt: cheques.reduce((a, c) => a + (Number(c.amount) || 0), 0),
+    outstandingCredit: msOutstandingCredits(monthKey), outstandingCheque: msOutstandingCheques(monthKey),
+    purchases: msGetPurchasesBreakdown(monthKey),
+    topSuppliers: msTopSuppliers(monthKey, 10), growthSuppliers: msTopGrowthSuppliers(monthKey, 10),
+    reload
+  };
+}
+
+function renderMonthlySummaryReport() {
+  if (!$('ms-month-label')) return;
+  if (!msMonth) msMonth = msDefaultMonth();
+  $('ms-month-label').textContent = msMonthLabel(msMonth);
+
+  const d = msGetSummaryData(msMonth);
+
+  // Sales summary
+  $('ms-total-sales').textContent = fmt(d.sales.total);
+  $('ms-avg-sales').textContent = fmt(d.sales.avg);
+  $('ms-days-recorded').textContent = d.sales.dayCount;
+  const growthEl = $('ms-sales-growth');
+  growthEl.textContent = msFmtPct(d.salesGrowthPct);
+  growthEl.style.color = d.salesGrowthPct >= 0 ? 'var(--green)' : 'var(--red)';
+
+  // Highest / lowest day
+  $('ms-highest-day').textContent = d.sales.highest ? d.sales.highest.date : '—';
+  $('ms-highest-day-amt').textContent = d.sales.highest ? fmt(d.sales.highest.value) : 'No data yet';
+  $('ms-lowest-day').textContent = d.sales.lowest ? d.sales.lowest.date : '—';
+  $('ms-lowest-day-amt').textContent = d.sales.lowest ? fmt(d.sales.lowest.value) : 'No data yet';
+
+  // Charts: daily sales + cashier-wise
+  renderBarChartJS('ms-daily-sales-chart', d.sales.days.map(([date, value]) => ({ label: date.slice(5), value })), v => fmt(v), '#2563eb');
+  renderBarChartJS('ms-cashier-chart', d.sales.cashierBreakdown, v => fmt(v), '#0e7490');
+
+  // Credit / Cheque summary
+  $('ms-credit-count').textContent = d.creditCount;
+  $('ms-credit-amt').textContent = fmt(d.creditAmt);
+  $('ms-cheque-count').textContent = d.chequeCount;
+  $('ms-cheque-amt').textContent = fmt(d.chequeAmt);
+  $('ms-outstanding-credit-count').textContent = d.outstandingCredit.count;
+  $('ms-outstanding-credit-amt').textContent = fmt(d.outstandingCredit.amount);
+  $('ms-outstanding-cheque-count').textContent = d.outstandingCheque.count;
+  $('ms-outstanding-cheque-amt').textContent = fmt(d.outstandingCheque.amount);
+
+  // Purchases breakdown (bar) + sales trend (bar). All three types are always
+  // shown (even at 0) so the bars stay comparable month to month; the share of
+  // the month's total goes on a second x-axis label line.
+  const pTotal = d.purchases.total;
+  const pPct = v => pTotal > 0 ? (v / pTotal * 100).toFixed(1) + '%' : '0%';
+  const pItems = [
+    { label: ['💵 Cash', pPct(d.purchases.cashAmt)], value: d.purchases.cashAmt, color: '#16a34a' },
+    { label: ['🔴 Credit', pPct(d.purchases.creditAmt)], value: d.purchases.creditAmt, color: '#dc2626' },
+    { label: ['🟡 Cheque', pPct(d.purchases.chequeAmt)], value: d.purchases.chequeAmt, color: '#d97706' }
+  ];
+  renderBarChartJS('ms-purchase-breakdown-chart', pTotal > 0 ? pItems : [], v => fmt(v), '#d97706');
+  $('ms-purchase-total').innerHTML = pTotal > 0 ? `Total Purchases: <b style="color:var(--navy);">${fmt(pTotal)}</b>` : '';
+  renderBarChartJS('ms-sales-trend-chart', d.salesTrend.map(t => ({ label: t.label, value: t.total })), v => fmt(v), '#7c3aed');
+
+  // Top suppliers (chart + table)
+  renderBarChartJS('ms-top-suppliers-chart', d.topSuppliers.map(s => ({ label: s.name, value: s.value })), v => fmt(v), '#0e7490');
+  $('ms-top-suppliers-body').innerHTML = d.topSuppliers.length
+    ? d.topSuppliers.map((s, i) => `<tr><td>${i + 1}</td><td>🏪 ${escHtml(s.name)}</td><td>${escHtml(s.ownerName || s.ownerUsername)}</td><td class="fw700">${fmt(s.value)}</td></tr>`).join('')
+    : `<tr><td colspan="4" class="no-data"><span class="ico">📭</span>No supplier purchases this month</td></tr>`;
+
+  // Top growth suppliers (table)
+  $('ms-growth-suppliers-body').innerHTML = d.growthSuppliers.length
+    ? d.growthSuppliers.map((s, i) => `<tr><td>${i + 1}</td><td>🏪 ${escHtml(s.name)}</td><td>${escHtml(s.ownerName || s.ownerUsername)}</td><td>${fmt(s.prev)}</td><td>${fmt(s.cur)}</td><td class="fw700" style="color:var(--green);">+${fmt(s.diff)}</td><td style="color:var(--green);font-weight:700;">${msFmtPct(s.pct)}</td></tr>`).join('')
+    : `<tr><td colspan="7" class="no-data"><span class="ico">📭</span>No supplier purchase growth this month</td></tr>`;
+
+  // Reload balance change (first entry of the month → last entry of the month)
+  const reloadTotalEl = $('ms-reload-total');
+  if (!d.reload.hasData) {
+    reloadTotalEl.textContent = 'No data yet';
+    reloadTotalEl.style.color = '';
+  } else {
+    reloadTotalEl.textContent = (d.reload.diff >= 0 ? '+' : '') + fmt(d.reload.diff);
+    reloadTotalEl.style.color = d.reload.diff >= 0 ? 'var(--green)' : 'var(--red)';
+  }
+  const reloadGrowthEl = $('ms-reload-growth');
+  reloadGrowthEl.textContent = d.reload.hasData ? msFmtPct(d.reload.pct) : '—';
+  reloadGrowthEl.style.color = d.reload.pct >= 0 ? 'var(--green)' : 'var(--red)';
+}
+
+function exportMonthlySummaryPDF() {
+  if (!window.jspdf) { toast('PDF library loading… try again in a moment', 'yellow'); return; }
+  if (!msMonth) msMonth = msDefaultMonth();
+  const d = msGetSummaryData(msMonth);
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const biz = DB.currentUser?.business || 'Report';
+  doc.setFontSize(14); doc.text(biz, 14, 16);
+  doc.setFontSize(9); doc.setTextColor(120);
+  doc.text('Generated: ' + new Date().toLocaleDateString() + ' · User: ' + DB.currentUsername, 14, 23);
+  doc.setTextColor(0);
+  doc.setFontSize(12); doc.text('Monthly Business Summary — ' + d.monthLabel, 14, 32);
+
+  doc.autoTable({ startY: 37, styles: { fontSize: 8.5, halign: 'center' }, theme: 'grid', headStyles: { fillColor: [15, 23, 42] },
+    head: [['Total Sales', 'Avg / Day', 'Growth vs Last Month', 'Days Recorded']],
+    body: [[fmt(d.sales.total), fmt(d.sales.avg), msFmtPct(d.salesGrowthPct), String(d.sales.dayCount)]]
+  });
+
+  doc.autoTable({ startY: doc.lastAutoTable.finalY + 6, styles: { fontSize: 8.5, halign: 'center' }, theme: 'grid', headStyles: { fillColor: [15, 23, 42] },
+    head: [['Highest Sales Day', 'Amount', 'Lowest Sales Day', 'Amount']],
+    body: [[d.sales.highest ? d.sales.highest.date : '—', d.sales.highest ? fmt(d.sales.highest.value) : '—',
+             d.sales.lowest ? d.sales.lowest.date : '—', d.sales.lowest ? fmt(d.sales.lowest.value) : '—']]
+  });
+
+  doc.autoTable({ startY: doc.lastAutoTable.finalY + 6, styles: { fontSize: 8.5, halign: 'center' }, theme: 'grid', headStyles: { fillColor: [15, 23, 42] },
+    head: [['Credit Bills', 'Credit Amount', 'Cheques', 'Cheque Amount', 'Outstanding Credit', 'Outstanding Cheques']],
+    body: [[String(d.creditCount), fmt(d.creditAmt), String(d.chequeCount), fmt(d.chequeAmt),
+             `${d.outstandingCredit.count} (${fmt(d.outstandingCredit.amount)})`, `${d.outstandingCheque.count} (${fmt(d.outstandingCheque.amount)})`]]
+  });
+
+  doc.setFontSize(10); doc.text('Purchases Breakdown', 14, doc.lastAutoTable.finalY + 10);
+  doc.autoTable({ startY: doc.lastAutoTable.finalY + 14, styles: { fontSize: 8.5, halign: 'center' }, theme: 'grid', headStyles: { fillColor: [15, 23, 42] },
+    head: [['Cash', 'Credit', 'Cheque', 'Total Purchases']],
+    body: [[fmt(d.purchases.cashAmt), fmt(d.purchases.creditAmt), fmt(d.purchases.chequeAmt), fmt(d.purchases.total)]]
+  });
+
+  doc.setFontSize(10); doc.text('Sales Trend (Last 6 Months)', 14, doc.lastAutoTable.finalY + 10);
+  doc.autoTable({ startY: doc.lastAutoTable.finalY + 14, styles: { fontSize: 8 }, headStyles: { fillColor: [15, 23, 42] },
+    head: [['Month', 'Total Sales']], body: d.salesTrend.map(t => [t.label, fmt(t.total)])
+  });
+
+  doc.setFontSize(10); doc.text('Cashier-wise Sales', 14, doc.lastAutoTable.finalY + 10);
+  doc.autoTable({ startY: doc.lastAutoTable.finalY + 14, styles: { fontSize: 8 }, headStyles: { fillColor: [15, 23, 42] },
+    head: [['Cashier', 'Total Sales']], body: d.sales.cashierBreakdown.map(c => [c.label, fmt(c.value)])
+  });
+
+  if (doc.lastAutoTable.finalY > 250) doc.addPage();
+  doc.setFontSize(10); doc.text('Top 10 Suppliers by Purchase Value', 14, doc.lastAutoTable.finalY > 250 ? 16 : doc.lastAutoTable.finalY + 10);
+  doc.autoTable({ startY: doc.lastAutoTable.finalY > 250 ? 20 : doc.lastAutoTable.finalY + 14, styles: { fontSize: 8 }, headStyles: { fillColor: [15, 23, 42] },
+    head: [['#', 'Supplier', 'Manager', 'Purchase Value']],
+    body: d.topSuppliers.map((s, i) => [i + 1, s.name, s.ownerName || s.ownerUsername, fmt(s.value)])
+  });
+
+  doc.setFontSize(10); doc.text('Top 10 Suppliers — Purchase Increase vs Last Month', 14, doc.lastAutoTable.finalY + 10);
+  doc.autoTable({ startY: doc.lastAutoTable.finalY + 14, styles: { fontSize: 7.5 }, headStyles: { fillColor: [15, 23, 42] },
+    head: [['#', 'Supplier', 'Manager', 'Last Month', 'This Month', 'Increase', '%']],
+    body: d.growthSuppliers.map((s, i) => [i + 1, s.name, s.ownerName || s.ownerUsername, fmt(s.prev), fmt(s.cur), fmt(s.diff), msFmtPct(s.pct)])
+  });
+
+  doc.autoTable({ startY: doc.lastAutoTable.finalY + 10, styles: { fontSize: 8.5, halign: 'center' }, theme: 'grid', headStyles: { fillColor: [15, 23, 42] },
+    head: [['Reload — First Entry', 'Reload — Last Entry', 'Change (Month)', 'Change %']],
+    body: [d.reload.hasData
+      ? [fmt(d.reload.first), fmt(d.reload.last), (d.reload.diff >= 0 ? '+' : '') + fmt(d.reload.diff), msFmtPct(d.reload.pct)]
+      : ['—', '—', 'No data yet', '—']]
+  });
+
+  doc.save('monthly_business_summary_' + msMonth + '.pdf');
+  logActivity('BACKUP', 'Monthly Business Summary PDF downloaded');
+  toast('✅ PDF downloaded!');
 }
 
 function renderCashPurchaseHistory() {
