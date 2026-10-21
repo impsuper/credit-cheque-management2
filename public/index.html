@@ -15760,6 +15760,13 @@ async function saveCashLogEntry() {
           } else {
             freshCashLog.unshift({ id: finalLogId, ...logFieldsPatch, actor: DB.currentUsername, actorName: DB.currentUser?.name||'' });
           }
+          // FIX (CR0153 "Save failed"): logFieldsPatch holds `undefined` for every field that
+          // doesn't apply (bankId, bankName, ...). Firestore SDK 10.x REJECTS `undefined` inside
+          // tx.update() ("Unsupported field value: undefined") unless ignoreUndefinedProperties is
+          // on — so this transaction always threw before writing anything, and the catch below
+          // showed the generic "Save failed". The normal syncUser() path never hit this because
+          // clean() (JSON round-trip) strips undefined. Do the same here.
+          for (let i = 0; i < freshCashLog.length; i++) freshCashLog[i] = clean(freshCashLog[i]);
 
           const creditData = sameDoc ? adminData : creditSnap.data();
           const freshCredits = Array.isArray(creditData.credits) ? creditData.credits.slice() : [];
@@ -15814,7 +15821,8 @@ async function saveCashLogEntry() {
         setSyncStatus('offline');
         if (e.message === 'BALANCE_EXCEEDED') toast('⚠️ මුදල ක්‍රෙඩිට් බිල් ශේෂයට වඩා වැඩියි!', 'red');
         else if (['CREDIT_NOT_FOUND','CREDIT_OWNER_NOT_FOUND','ADMIN_NOT_FOUND','LOG_NOT_FOUND'].includes(e.message)) toast('⚠️ Record not found on server — try refreshing', 'red');
-        else toast('⚠️ Save failed — try again', 'red');
+        else if (e && e.code === 'permission-denied') toast('⚠️ Save කිරීමට අවසර නැත (Firestore rules) — Admin ට දැනුම් දෙන්න', 'red');
+        else toast('⚠️ Save failed — try again (' + ((e && (e.code || e.message)) || 'unknown') + ')', 'red');
         return; // Nothing was written to either document — safe to just stop, no rollback needed.
       }
     }
