@@ -2125,6 +2125,11 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
           <div class="stat-val" id="ov-net-profit-month">LKR 0</div>
           <div class="stat-sub">🧾 Total Sale: <span id="ov-net-profit-month-sales">LKR 0</span></div>
         </div>
+        <div class="stat-card hidden ov-tile-link" id="tile-salesMomentum" style="border-top:3px solid #0891b2;" onclick="goToDashboardTile('tile_salesMomentum')" title="View Sales Target">
+          <div class="stat-label">🚀 Sales Momentum</div>
+          <div class="stat-val" id="ov-sm-val">LKR 0</div>
+          <div class="stat-sub"><span id="ov-sm-pct">— 0%</span> <span id="ov-sm-vs">vs last month (same days)</span></div>
+        </div>
       </div>
       <!-- Rotating carousel 2: cycles Monthly Sales Growth / Daily Total Sales / Daily Sales
            Comparison / This Month vs Past Months (Day-by-Day), one slide at a time, every 6s
@@ -5041,7 +5046,7 @@ const DEFAULT_MANAGER_PERMS = {
   tile_activeCheques: true, tile_outstanding: true, tile_avgDaySale: true,
   tile_lastMonthAvgSale: true,
   tile_cashInHand: true, tile_reloadTotal: true, tile_reloadCash: true,
-  tile_totalPurchasesMonth: true, tile_chequesDueWeek: true, tile_netProfitMonth: true,
+  tile_totalPurchasesMonth: true, tile_chequesDueWeek: true, tile_netProfitMonth: true, tile_salesMomentum: true,
   // Dashboard charts (both mini-chart carousels)
   chart_monthlyCreditTrend: true, chart_chequeDueCalendar: true, chart_chequeDueCalendarWeekly: true, chart_chequeStatusOverview: true,
   chart_monthlySalesTrend: true, chart_paymentBreakdown: true,
@@ -5080,7 +5085,8 @@ const DASHBOARD_TILES = [
   { key: 'tile_reloadCash',    elId: 'rlStatCash',         label: '💵 Reload Cash in Hand' },
   { key: 'tile_totalPurchasesMonth', elId: 'tile-totalPurchasesMonth', label: '🛒 Total Purchases This Month' },
   { key: 'tile_chequesDueWeek',      elId: 'tile-chequesDueWeek',      label: '📆 Cheques Due This Week' },
-  { key: 'tile_netProfitMonth',      elId: 'tile-netProfitMonth',      label: '💰 Net Profit This Month' }
+  { key: 'tile_netProfitMonth',      elId: 'tile-netProfitMonth',      label: '💰 Net Profit This Month' },
+  { key: 'tile_salesMomentum',       elId: 'tile-salesMomentum',       label: '🚀 Sales Momentum' }
 ];
 // Dashboard mini-charts, both carousels. slideId = the chart's carousel-slide
 // wrapper id; dotsId = that carousel's dot-strip id (so its dot can be
@@ -8481,6 +8487,7 @@ function renderDashLiquidityGauge() {
 // W1 = the current week. Cheques already past due show in a red "Overdue" column. Shown on the Dashboard
 // (compact) and in Cheques → 📊 Charts (full). Respects the viewer's scope via getDataRows().
 let COH_WEEKS = 6;
+let COH_SCOPE = 'all'; // 'all' | 'manager' — 'manager' limits to cheques entered on manager-owned accounts
 function cohData() {
   const weeks = [];
   for (let i = 0; i < COH_WEEKS; i++) { const b = chequeCycleBounds(i); weeks.push({ off: i, start: b.start, end: b.end, amt: 0, count: 0 }); }
@@ -8488,6 +8495,7 @@ function cohData() {
   const od = { amt: 0, count: 0 }, banks = new Map(); let later = 0;
   getDataRows('cheques').forEach(c => {
     if (!c.dueDate || isChequeSettled(c)) return;
+    if (COH_SCOPE === 'manager' && !(c._owner && (c._owner.role === 'manager' || c._owner.role === 'user'))) return;
     const amt = Number(c.amount) || 0, name = (c.bank || '').trim() || 'Unknown bank';
     if (c.dueDate > lastEnd) { later++; return; }
     let b = banks.get(name);
@@ -8502,6 +8510,7 @@ function cohData() {
 function cohDay(s) { return new Date(s + 'T00:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }); }
 function cohRange(w) { return cohDay(w.start) + ' – ' + cohDay(w.end); }
 function cohSetWeeks(n) { COH_WEEKS = Math.max(2, Math.min(12, +n || 6)); renderChequeOutflowHeat(); }
+function cohSetScope(v) { COH_SCOPE = v === 'manager' ? 'manager' : 'all'; renderChequeOutflowHeat(); }
 function cohGoTo(bank, from, to) {
   try { populateChequeBankFilter(); } catch (e) {}
   ['ch-search', 'ch-filter-sup', 'ch-filter-user', 'ch-filter-date-from', 'ch-filter-date-to'].forEach(id => { if ($(id)) $(id).value = ''; });
@@ -8522,7 +8531,11 @@ function renderChequeOutflowHeat() {
 function cohRenderInto(host, full) {
   const d = cohData(), W = d.weeks;
   const total = W.reduce((a, w) => a + w.amt, 0) + d.od.amt, count = W.reduce((a, w) => a + w.count, 0) + d.od.count;
-  const sel = `<select class="coh-pill" onchange="cohSetWeeks(this.value)" title="Weeks to show">${[4, 6, 8, 12].map(n => `<option value="${n}"${n === COH_WEEKS ? ' selected' : ''}>Next ${n} weeks</option>`).join('')}</select>`;
+  const scopeSel = `<select class="coh-pill" onchange="cohSetScope(this.value)" title="Filter by who added the cheque">
+    <option value="all"${COH_SCOPE === 'all' ? ' selected' : ''}>🧾 All Cheques</option>
+    <option value="manager"${COH_SCOPE === 'manager' ? ' selected' : ''}>👤 Manager Added Cheques</option>
+  </select>`;
+  const sel = `${scopeSel}<select class="coh-pill" onchange="cohSetWeeks(this.value)" title="Weeks to show">${[4, 6, 8, 12].map(n => `<option value="${n}"${n === COH_WEEKS ? ' selected' : ''}>Next ${n} weeks</option>`).join('')}</select>`;
   const head = `<div class="coh-head"><div><div class="coh-title">${full ? 'Cheque Outflow Heat Timeline' : 'Weekly Cheque Payments by Bank'}</div>${full ? '<div class="coh-sub">Weekly cheque payment forecast by bank (pending cheques, by due date)</div>' : ''}</div>${sel}</div>`;
   if (!count) { host.innerHTML = head + `<div class="lrg-empty"><span class="ico">🌡️</span>No pending cheques are due in the next ${COH_WEEKS} weeks.${d.later ? ` (${d.later} cheque${d.later === 1 ? '' : 's'} fall due after that — increase the number of weeks.)` : ''}</div>`; return false; }
   let peak = W[0]; W.forEach(w => { if (w.amt > peak.amt) peak = w; });
@@ -8543,7 +8556,7 @@ function cohRenderInto(host, full) {
   };
   const rows = d.banks.map(b => `<tr><td class="coh-bank">${escHtml(b.name)}<small>Rs. ${lrgShort(b.amt)} · ${b.count} chk</small></td>${showOd ? cell(b.od, b.name, '', odTo) : ''}${b.cells.map((c, i) => cell(c, b.name, W[i].start, W[i].end)).join('')}</tr>`).join('');
   const table = `${full ? '<div class="coh-h">Weekly Bank Outflow Heatmap</div><div class="coh-note">Each cell shows the amount and the number of cheques. Click a cell to view those cheques under Cheques → Active. W1 = this week (Sat–Fri).</div>' : ''}
-    <div class="coh-scroll"><table class="coh-table"><thead><tr><th style="text-align:left;">Bank</th>${showOd ? '<th class="coh-od">Overdue<small>Past due</small></th>' : ''}${W.map(w => `<th title="${cohRange(w)}">W${w.off + 1}<small>${cohDay(w.start)}</small></th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="coh-scroll"><table class="coh-table"><thead><tr><th style="text-align:left;">Bank</th>${showOd ? `<th class="coh-od">Overdue<small>Past due</small><small>Rs. ${amtS(d.od.amt)} · ${d.od.count} chk</small></th>` : ''}${W.map(w => `<th title="${cohRange(w)}">W${w.off + 1}<small>${cohDay(w.start)}</small><small>Rs. ${amtS(w.amt)} · ${w.count} chk</small></th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>
     <div class="coh-legend"><span>Low</span><span><i style="background:rgba(70,110,170,.16)"></i></span><span><i style="background:rgba(201,162,39,.30)"></i></span><span><i style="background:rgba(201,162,39,.70)"></i></span><span><i style="background:rgba(150,100,8,.95)"></i></span><span>High</span>${d.later ? `<span>· Due later: ${d.later} chk</span>` : ''}</div>`;
   const avg = total / (W.length + (showOd ? 1 : 0));
   const heavy = peak.amt > 0 && W.length > 1 && peak.amt >= avg * 1.3;
@@ -9485,6 +9498,9 @@ function goToDashboardTile(key) {
       break;
     case 'tile_netProfitMonth':     // 💰 Net Profit This Month (admin-only page; showSection() already
       showSection('pl');           // safely bounces a non-admin back to Overview if they somehow see this tile)
+      break;
+    case 'tile_salesMomentum':      // 🚀 Sales Momentum (this month vs last month, same days so far)
+      showSection('salesTarget');
       break;
   }
 }
@@ -11489,6 +11505,23 @@ function renderOverview() {
   const lastMonthLabelShort = lastMonthDateObj.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
   if ($('ov-avg-day-lastmonth-sub')) $('ov-avg-day-lastmonth-sub').textContent = `📆 ${lastMonthLabelShort} · Full Month`;
   if ($('ov-avg-day-lastmonth-today-sub')) $('ov-avg-day-lastmonth-today-sub').textContent = `📆 ${lastMonthLabelShort} · Day 1–${todayDayNum}`;
+
+  // Sales Momentum tile — this month's sales so far vs last month's sales over
+  // the SAME day range (1..todayDayNum), i.e. a fair like-for-like comparison
+  // while the current month is still in progress. Reuses monthSalesTotal /
+  // lastMonthSalesToDate already computed just above.
+  if ($('ov-sm-val')) {
+    const smPct = lastMonthSalesToDate > 0 ? ((monthSalesTotal - lastMonthSalesToDate) / lastMonthSalesToDate) * 100 : (monthSalesTotal > 0 ? 100 : 0);
+    const smUp = smPct >= 0;
+    $('ov-sm-val').textContent = fmt(monthSalesTotal);
+    const smBadge = $('ov-sm-pct');
+    if (smBadge) {
+      smBadge.textContent = `${smUp ? '⬆️' : '⬇️'} ${Math.abs(smPct).toFixed(1)}%`;
+      smBadge.style.color = smUp ? 'var(--green)' : 'var(--red)';
+      smBadge.style.fontWeight = '800';
+    }
+    if ($('ov-sm-vs')) $('ov-sm-vs').textContent = `vs ${lastMonthLabelShort} (Day 1–${todayDayNum}: ${fmt(lastMonthSalesToDate)})`;
+  }
   const cih=calcCashInHand();
   if($('ov-cash-inhand'))$('ov-cash-inhand').textContent=cashInHandDisplayText();
   const rlEntries = getReloadEntries();
@@ -11534,6 +11567,12 @@ function renderOverview() {
     const [y, mo] = k.split('-');
     return computePL(y, mo).netProfit;
   }), 'var(--green)');
+
+  // Sales Momentum tile — last 6 months of total sales (so the sparkline
+  // reads the same direction as the % badge above it)
+  const sparkSalesByMonth = new Map();
+  allCashForAvg.forEach(e => { if (!e.date) return; const k = e.date.slice(0, 7); sparkSalesByMonth.set(k, (sparkSalesByMonth.get(k) || 0) + (Number(e.totalSales) || 0)); });
+  renderStatSparkline('tile-salesMomentum', sparkMonths.map(k => sparkSalesByMonth.get(k) || 0), '#0891b2');
 
   // Chart 1: Monthly Credit Trend (default: last 3 months, adjustable via ov-credit-range)
   const monthMap = new Map();
