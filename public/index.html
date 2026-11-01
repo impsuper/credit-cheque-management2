@@ -3003,15 +3003,15 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
               <footer class="ce-sec-foot"><span>🧾 Total Credit Bill Payments</span><b id="cm-total-creditpay">LKR 0.00</b></footer>
             </section>
 
-            <!-- 6 · Banking -->
+            <!-- 6 · Banked & Hand Over Cash -->
             <section class="ce-sec ce-navy">
-              <header class="ce-sec-head"><span class="ce-step">6</span><div class="ce-sec-title"><h4>🏦 Banking</h4><p>Cash deposited to a registered bank — pick the bank, enter the amount</p></div></header>
+              <header class="ce-sec-head"><span class="ce-step">6</span><div class="ce-sec-title"><h4>🏦 Banked &amp; Hand Over Cash</h4><p>Cash deposited to a registered bank, or handed over directly to the Owner</p></div></header>
               <div class="ce-sec-body">
                 <div id="cash-bank-rows"></div>
-                <button type="button" class="btn btn-ghost btn-sm ce-add" onclick="addBankingRow()">➕ Add Banking</button>
+                <button type="button" class="btn btn-ghost btn-sm ce-add" onclick="addBankingRow()">➕ Add Banking / Hand Over</button>
                 <button type="button" class="btn btn-ghost btn-sm ce-add" id="cm-bank-manage-btn" style="display:none;" onclick="openBankRegistry()">🏦 Register / Manage Banks</button>
               </div>
-              <footer class="ce-sec-foot"><span>🏦 Total Banked</span><b id="cm-total-bank">LKR 0.00</b></footer>
+              <footer class="ce-sec-foot"><span>🏦 Total Banked &amp; Handed Over</span><b id="cm-total-bank">LKR 0.00</b></footer>
             </section>
 
             <!-- 7 · Expenses & withdrawals -->
@@ -3034,10 +3034,10 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
               <div class="ce-sum-line minus"><span>− Cash Advances</span><b id="cs-adv">LKR 0.00</b></div>
               <div class="ce-sum-line minus"><span>− Cash Purchases</span><b id="cs-purchase">LKR 0.00</b></div>
               <div class="ce-sum-line minus"><span>− Credit Bill Payments</span><b id="cs-creditpay">LKR 0.00</b></div>
-              <div class="ce-sum-line minus"><span>− Banking</span><b id="cs-bank">LKR 0.00</b></div>
+              <div class="ce-sum-line minus"><span>− Banked &amp; Hand Over Cash</span><b id="cs-bank">LKR 0.00</b></div>
               <div class="ce-sum-line minus"><span>− Expenses &amp; Withdrawals</span><b id="cs-exp">LKR 0.00</b></div>
               <div class="ce-sum-net"><span>✅ Net Cash</span><b id="cm-net-cash">LKR 0.00</b></div>
-              <div class="ce-sum-eq">Cash − Advances − Purchases − Credit Bill Payments − Banking − Expenses &amp; Withdrawals</div>
+              <div class="ce-sum-eq">Cash − Advances − Purchases − Credit Bill Payments − Banked &amp; Hand Over Cash − Expenses &amp; Withdrawals</div>
             </div>
 
             <!-- Actions -->
@@ -3365,6 +3365,13 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
               <option value="">All Employees</option>
             </select>
           </div>
+          <div style="padding:1rem 1.5rem 0;display:flex;align-items:center;justify-content:center;gap:.6rem;">
+            <button class="btn btn-ghost btn-sm" onclick="advChangeMonth(-1)" title="Previous month">◀</button>
+            <div id="adv-month-label" style="font-weight:700;min-width:170px;text-align:center;font-size:1.02rem;"></div>
+            <button class="btn btn-ghost btn-sm" onclick="advChangeMonth(1)" title="Next month">▶</button>
+            <input type="month" id="adv-month-input" onchange="advSetMonth(this.value)" style="padding:.4rem .6rem;border:1.5px solid var(--border);border-radius:7px;font-size:.82rem;">
+          </div>
+          <div id="adv-emp-summary" style="padding:1rem 1.5rem 0;"></div>
           <div class="table-wrap">
             <table>
               <thead><tr><th>📅 Date</th><th>👤 Employee</th><th>💰 Amount</th><th>📝 Note</th><th>👤 Given By</th><th>🔘 Status</th><th>⚙️</th></tr></thead>
@@ -18188,7 +18195,8 @@ function normalizeExpenses(expenses) {
     const type = hasTypes ? x.type : (['pb', 'sdb', 'other'][i] || 'other');
     if (type === 'bank' || type === 'pb' || type === 'sdb') {
       const bankId = type === 'bank' ? (x.bankId || '') : type;
-      out.push({ kind: 'bank', bankId, bankName: x.bankName || bankNameById(bankId) || 'Bank', amount, reason });
+      const handoverType = (x.handoverType === 'owner' || bankId === 'OWNER') ? 'owner' : 'bank';
+      out.push({ kind: 'bank', bankId, bankName: x.bankName || (handoverType === 'owner' ? '👤 Hand Over to Owner' : bankNameById(bankId)) || 'Bank', amount, reason, handoverType });
     } else {
       out.push({ kind: 'other', amount, reason });
     }
@@ -18265,26 +18273,35 @@ function bankOptionsHtml(selectedId, selectedName) {
   return html;
 }
 
-// prefill: optional array [{bankId, bankName, amount, reason}] indexed like bkRows (used when loading data)
+// prefill: optional array [{bankId, bankName, amount, reason, handoverType}] indexed like bkRows (used when loading data)
 function renderBankingRows(prefill, clear) {
   const wrap = $('cash-bank-rows');
   if (!wrap) return;
   const existing = {};
   bkRows.forEach((i, k) => {
-    if (prefill) { const p = prefill[k] || {}; existing[i] = { bank: p.bankId || '', name: p.bankName || '', amt: p.amount || '', reason: p.reason || '' }; }
-    else if (!clear) existing[i] = { bank: $('cm-bk-bank' + i)?.value || '', name: '', amt: $('cm-bk-amt' + i)?.value || '', reason: $('cm-bk-reason' + i)?.value || '' };
-    else existing[i] = { bank: '', name: '', amt: '', reason: '' };
+    if (prefill) { const p = prefill[k] || {}; existing[i] = { bank: p.bankId || '', name: p.bankName || '', amt: p.amount || '', reason: p.reason || '', type: p.handoverType === 'owner' ? 'owner' : 'bank' }; }
+    else if (!clear) existing[i] = { bank: $('cm-bk-bank' + i)?.value || '', name: '', amt: $('cm-bk-amt' + i)?.value || '', reason: $('cm-bk-reason' + i)?.value || '', type: $('cm-bk-type' + i)?.value === 'owner' ? 'owner' : 'bank' };
+    else existing[i] = { bank: '', name: '', amt: '', reason: '', type: 'bank' };
   });
   const hasBank = getBanks().some(b => b.deposit && b.active !== false);
-  const warn = hasBank ? '' : `<div class="bk-warn">⚠️ Banking සඳහා තවමත් බැංකුවක් Register කර නැත. ${canManageBanks() ? `<button type="button" class="btn btn-yellow btn-sm" onclick="openBankRegistry()">➕ Register Bank</button>` : 'Admin ට Bank එක Register කරන්න කියන්න.'}</div>`;
-  const rowsHtml = bkRows.length ? bkRows.map(i => `
+  const warn = hasBank ? '' : `<div class="bk-warn">⚠️ Banking සඳහා තවමත් බැංකුවක් Register කර නැත — <b>👤 Hand Over to Owner</b> තෝරා Owner ට Cash භාර දිය හැක. ${canManageBanks() ? `<button type="button" class="btn btn-yellow btn-sm" onclick="openBankRegistry()">➕ Register Bank</button>` : 'Admin ට Bank එක Register කරන්න කියන්න.'}</div>`;
+  const rowsHtml = bkRows.length ? bkRows.map(i => {
+    const isOwner = existing[i].type === 'owner';
+    return `
     <div class="ce-bk-row">
-      <div class="form-group" style="margin:0;"><label>🏦 Bank</label><select id="cm-bk-bank${i}" onchange="calcCashNet()">${bankOptionsHtml(existing[i].bank, existing[i].name)}</select></div>
+      <div class="form-group" style="margin:0;"><label>Type</label><select id="cm-bk-type${i}" onchange="renderBankingRows();calcCashNet();">
+        <option value="bank" ${!isOwner ? 'selected' : ''}>🏦 Bank</option>
+        <option value="owner" ${isOwner ? 'selected' : ''}>👤 Hand Over to Owner</option>
+      </select></div>
+      ${isOwner
+        ? `<div class="form-group" style="margin:0;"><label>👤 Hand Over To</label><input type="text" value="Owner" disabled style="color:var(--muted);"></div>`
+        : `<div class="form-group" style="margin:0;"><label>🏦 Bank</label><select id="cm-bk-bank${i}" onchange="calcCashNet()">${bankOptionsHtml(existing[i].bank, existing[i].name)}</select></div>`}
       <div class="form-group" style="margin:0;"><label>Amount (LKR)</label><input type="number" id="cm-bk-amt${i}" placeholder="0.00" step="0.01" min="0" oninput="calcCashNet()" value="${escHtml(existing[i].amt)}"></div>
-      <div class="form-group" style="margin:0;"><label>Reason / Ref</label><input type="text" id="cm-bk-reason${i}" placeholder="Reason..." value="${escHtml(existing[i].reason)}"></div>
+      <div class="form-group" style="margin:0;"><label>Reason / Ref</label><input type="text" id="cm-bk-reason${i}" placeholder="${isOwner ? 'Note (optional)...' : 'Reason...'}" value="${escHtml(existing[i].reason)}"></div>
       <button type="button" class="btn btn-red btn-sm" onclick="removeBankingRow(${i})" title="Remove row" style="height:47px;">🗑️</button>
-    </div>`).join('')
-    : `<div class="no-data" style="padding:.5rem 0 .8rem;color:var(--muted);font-size:.85rem;">No banking added — click "➕ Add Banking" below if needed.</div>`;
+    </div>`;
+  }).join('')
+    : `<div class="no-data" style="padding:.5rem 0 .8rem;color:var(--muted);font-size:.85rem;">No banking / hand over added — click "➕ Add Banking / Hand Over" below if needed.</div>`;
   wrap.innerHTML = warn + rowsHtml;
   const mb = $('cm-bank-manage-btn'); if (mb) mb.style.display = canManageBanks() ? '' : 'none';
 }
@@ -18298,11 +18315,15 @@ function setBankingRows(list) {
   renderBankingRows(list);
 }
 function getBankingRowsData() {
-  return bkRows.map(i => ({
-    bankId: $('cm-bk-bank' + i)?.value || '',
-    amount: Number($('cm-bk-amt' + i)?.value) || 0,
-    reason: $('cm-bk-reason' + i)?.value || ''
-  }));
+  return bkRows.map(i => {
+    const handoverType = $('cm-bk-type' + i)?.value === 'owner' ? 'owner' : 'bank';
+    return {
+      bankId: handoverType === 'owner' ? 'OWNER' : ($('cm-bk-bank' + i)?.value || ''),
+      amount: Number($('cm-bk-amt' + i)?.value) || 0,
+      reason: $('cm-bk-reason' + i)?.value || '',
+      handoverType
+    };
+  });
 }
 function getBankingTotal() { return bkRows.reduce((a, i) => a + (Number($('cm-bk-amt' + i)?.value) || 0), 0); }
 
@@ -18338,10 +18359,12 @@ function getExpenseRowsData() {
 }
 function getExpenseTotal() { return exRows.reduce((a, i) => a + (Number($('cm-ex-amt' + i)?.value) || 0), 0); }
 
-// A banking line with an amount MUST name a registered bank.
+// A banking line with an amount MUST name a registered bank — unless it's a
+// "Hand Over to Owner" line, which needs no bank at all.
 function validateBankingRows(rows) {
   const banks = getBanks();
   for (const r of rows) {
+    if (r.handoverType === 'owner') continue;
     if (r.amount > 0 && !r.bankId) return '⚠️ Banking එකට බැංකුව තෝරන්න (බැංකුව කලින් Register කර තිබිය යුතුයි)';
     if (r.amount > 0 && !banks.some(b => b.id === r.bankId)) return '⚠️ තෝරාගත් බැංකුව Registry එකේ නැත — නැවත තෝරන්න';
   }
@@ -18349,7 +18372,9 @@ function validateBankingRows(rows) {
 }
 function buildExpensesFromRows(bankRows, exRowsData) {
   return [
-    ...bankRows.filter(b => b.amount > 0).map(b => ({ type: 'bank', bankId: b.bankId, bankName: bankNameById(b.bankId), amount: b.amount, reason: b.reason })),
+    ...bankRows.filter(b => b.amount > 0).map(b => b.handoverType === 'owner'
+      ? { type: 'bank', bankId: 'OWNER', bankName: '👤 Hand Over to Owner', amount: b.amount, reason: b.reason, handoverType: 'owner' }
+      : { type: 'bank', bankId: b.bankId, bankName: bankNameById(b.bankId), amount: b.amount, reason: b.reason, handoverType: 'bank' }),
     ...exRowsData.filter(x => x.amount > 0).map(x => ({ type: 'other', amount: x.amount, reason: x.reason }))
   ];
 }
@@ -21238,13 +21263,37 @@ function renderPayrollTab() {
   if (tab === 'history') renderPayrollHistory();
 }
 
+// An inactive employee still belongs in the Process Salary dropdown only if
+// there's actually salary left to pay them — i.e. they have worked days
+// (attendance) in a month that hasn't been processed into a payroll record
+// yet. Once every worked month has a payroll entry, they have nothing left
+// to be paid and are dropped from the list entirely.
+function employeeHasPendingSalary(empId) {
+  const workedPeriods = new Set();
+  PDB.attendance.forEach(a => {
+    if (a.empId !== empId) return;
+    if (a.status === 'present' || a.status === 'half') workedPeriods.add((a.date || '').slice(0, 7));
+  });
+  if (!workedPeriods.size) return false;
+  const processedPeriods = new Set((PDB.payrolls || []).filter(p => p.empId === empId).map(p => p.period));
+  for (const period of workedPeriods) {
+    if (!processedPeriods.has(period) && calcDaysWorkedFromAttendance(empId, period) > 0) return true;
+  }
+  return false;
+}
+
 function populateEmployeeSelects() {
   const activeSorted = PDB.employees.slice().sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   ['adv-emp', 'pv-emp'].forEach(id => {
     const el = $(id);
     if (!el) return;
     const val = el.value;
-    el.innerHTML = '<option value="">Select employee...</option>' + activeSorted.map(e =>
+    // Process Salary (pv-emp) excludes inactive employees who have no
+    // pending salary left to pay; the other dropdowns keep showing everyone.
+    const list = id === 'pv-emp'
+      ? activeSorted.filter(e => e.active !== false || employeeHasPendingSalary(e.empId))
+      : activeSorted;
+    el.innerHTML = '<option value="">Select employee...</option>' + list.map(e =>
       `<option value="${e.empId}" ${val === e.empId ? 'selected' : ''}>${e.name} (${e.empId})${e.active === false ? ' — Inactive' : ''}</option>`
     ).join('');
   });
@@ -21591,16 +21640,63 @@ function markHoliday(dateStr, dateLabel) {
 }
 
 /* ----- Cash Advances ----- */
+let advMonth = null;   // 'YYYY-MM' — currently viewed month in Advance History
+function advDefaultMonth() { return new Date().toISOString().slice(0, 7); }
+
+function advChangeMonth(delta) {
+  if (!advMonth) advMonth = advDefaultMonth();
+  const [y, m] = advMonth.split('-').map(Number);
+  const d = new Date(y, (m - 1) + delta, 1);
+  advMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  renderAdvances();
+}
+function advSetMonth(val) {
+  if (!val) return;
+  advMonth = val;
+  renderAdvances();
+}
+
+function renderAdvanceEmpSummary(monthRows) {
+  const wrap = $('adv-emp-summary');
+  if (!wrap) return;
+  if (!monthRows.length) {
+    wrap.innerHTML = '';
+    return;
+  }
+  const byEmp = {};
+  monthRows.forEach(a => {
+    const key = a.empId || '—';
+    if (!byEmp[key]) byEmp[key] = { empId: a.empId, empName: getEmployeeDisplayName(a.empId, a), total: 0, count: 0 };
+    byEmp[key].total += Number(a.amount) || 0;
+    byEmp[key].count += 1;
+  });
+  const list = Object.values(byEmp).sort((a, b) => b.total - a.total);
+  wrap.innerHTML = `<div class="ds-mini-grid" style="padding:0;">` + list.map(e => `
+    <div class="ds-mini-stat">
+      <span>👤 ${e.empName}</span>
+      <b>${fmt(e.total)}</b>
+      <span>${e.count} ${e.count === 1 ? 'advance' : 'advances'}</span>
+    </div>`).join('') + `</div>`;
+}
+
 function renderAdvances() {
   const tbody = $('advancesBody');
   const mobile = $('advancesMobile');
   if (!tbody) return;
+  if (!advMonth) advMonth = advDefaultMonth();
+  if ($('adv-month-input')) $('adv-month-input').value = advMonth;
+  const [ly, lm] = advMonth.split('-');
+  if ($('adv-month-label')) $('adv-month-label').textContent = new Date(ly, lm - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
   const filterEmp = $('adv-filter-emp')?.value || '';
-  let rows = PDB.advances.slice();
+  let monthRows = PDB.advances.filter(a => (a.date || '').slice(0, 7) === advMonth);
+  renderAdvanceEmpSummary(monthRows);
+
+  let rows = monthRows.slice();
   if (filterEmp) rows = rows.filter(a => a.empId === filterEmp);
   rows.sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.id || '').localeCompare(a.id || ''));
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="7" class="no-data"><span class="ico">💸</span>No cash advances yet</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="no-data"><span class="ico">💸</span>No cash advances in this month</td></tr>';
     if (mobile) mobile.innerHTML = '';
     return;
   }
@@ -21646,6 +21742,7 @@ function saveAdvance() {
   savePayrollDB();
   $('adv-amount').value = '';
   $('adv-note').value = '';
+  advMonth = date.slice(0, 7);
   renderAdvances();
   toast('✅ Cash advance recorded!');
 }
