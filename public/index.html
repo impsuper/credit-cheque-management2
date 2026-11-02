@@ -1803,16 +1803,27 @@ html .btn.btn-ghost{border:1.5px solid color-mix(in srgb,var(--navy) 28%,transpa
 .lrg-ss-in{display:flex;align-items:center;gap:.25rem;}
 .lrg-ss-in input{width:100%;min-width:0;padding:.25rem .35rem;font-size:.8rem;border:1px solid var(--border);border-radius:6px;background:var(--bg,var(--surface));color:var(--text);}
 .lrg-ss-in i{font-style:normal;font-size:.72rem;color:var(--muted);}
-.lrg-days{display:flex;align-items:flex-end;gap:2px;height:100px;margin-top:.9rem;padding-top:4px;}
-.lrg-day{flex:1;min-width:0;border-radius:3px 3px 0 0;}
-.lrg-day.act{background:var(--navy3);}
-.lrg-day.pred{background:var(--accent);opacity:.5;}
-.lrg-day.late{box-shadow:inset 0 3px 0 var(--yellow);}
-.lrg-day.pred.late{opacity:.9;}
-.lrg-day.off{background:var(--border);min-height:3px;}
+.lrg-days{position:relative;display:flex;align-items:flex-end;gap:3px;height:100px;margin-top:1.4rem;padding-top:4px;}
+.lrg-day-grp{flex:1;min-width:0;display:flex;align-items:flex-end;gap:1.5px;height:100%;}
+.lrg-bar{flex:1;min-width:0;border-radius:2px 2px 0 0;}
+.lrg-bar.fc{background-image:repeating-linear-gradient(135deg, var(--accent) 0 3px, color-mix(in srgb, var(--accent) 40%, transparent) 3px 6px);opacity:.85;}
+.lrg-bar.fc.late{box-shadow:inset 0 3px 0 var(--yellow);}
+.lrg-bar.act.up{background:var(--green);}
+.lrg-bar.act.down{background:var(--red);}
+.lrg-bar.off{background:var(--border);min-height:3px;}
+.lrg-bar.cl{background:transparent;border-bottom:2px dotted var(--muted);min-height:3px;opacity:.7;}
+.lrg-bar.empty{background:transparent;}
+.lrg-days-axis{display:flex;gap:3px;margin-top:4px;}
+.lrg-days-axis span{flex:1;min-width:0;text-align:center;font-size:.62rem;line-height:1;color:var(--muted);font-weight:600;white-space:nowrap;overflow:hidden;}
 .lrg-days-cap{display:flex;flex-wrap:wrap;gap:.9rem;font-size:.68rem;color:var(--muted);font-weight:600;margin-top:.5rem;}
 .lrg-days-cap i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px;}
-.lrg-day.cl{background:transparent;border-bottom:2px dotted var(--muted);min-height:3px;opacity:.7;}
+.lrg-today-line{position:absolute;top:0;bottom:0;width:0;border-left:2px dashed var(--muted);pointer-events:none;}
+.lrg-today-line span{position:absolute;top:-17px;left:0;transform:translateX(-50%);font-size:.62rem;font-weight:800;color:var(--muted);white-space:nowrap;background:var(--surface);padding:0 4px;border-radius:3px;}
+.lrg-days-compare{display:flex;flex-wrap:wrap;justify-content:space-between;gap:.6rem 1rem;font-size:.78rem;font-weight:700;margin-top:.55rem;}
+.lrg-days-compare span{display:inline-flex;align-items:center;gap:.3rem;color:var(--muted);font-weight:600;}
+.lrg-days-compare b{color:var(--navy);font-weight:800;}
+.lrg-days-compare .up{color:var(--green);}
+.lrg-days-compare .down{color:var(--red);}
 .lrg-wd-row{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem;margin-top:.85rem;}
 .lrg-wd-title{font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-right:.3rem;}
 .lrg-wd{display:inline-flex;flex-direction:column;align-items:center;min-width:52px;padding:.25rem .5rem;border-radius:9px;border:1px solid var(--border);background:var(--surface);font-size:.68rem;font-weight:700;color:var(--muted);line-height:1.25;}
@@ -3742,15 +3753,21 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
     <!-- SALES TARGET (Liquidity Runway Gauge + AI forecast chart + Monthly Sales Target planner) -->
     <div id="salesTargetSection" class="section">
       <div class="card lrg-card" id="salesTargetGaugeCard">
-        <div class="card-head">
-          <div class="card-title">🎯 Liquidity Runway Gauge <span id="lrg-month-label" style="font-weight:500;font-size:.8rem;color:var(--muted);margin-left:.4rem;"></span></div>
+        <div class="card-head" style="flex-wrap:wrap;gap:.6rem;">
+          <div class="card-title">🎯 Liquidity Runway Gauge</div>
+          <div style="display:flex;align-items:center;gap:.5rem;margin-left:auto;">
+            <button class="btn btn-ghost btn-sm" onclick="lrgChangeMonth(-1)" title="Previous month">◀</button>
+            <div id="lrg-month-label" style="font-weight:700;min-width:150px;text-align:center;font-size:.9rem;"></div>
+            <button class="btn btn-ghost btn-sm" id="lrg-month-next-btn" onclick="lrgChangeMonth(1)" title="Next month">▶</button>
+            <input type="month" id="lrg-month-input" onchange="lrgGoToMonth(this.value)" style="padding:.4rem .6rem;border:1.5px solid var(--border);border-radius:7px;font-size:.8rem;">
+          </div>
         </div>
         <div id="lrg-content"></div>
       </div>
 
       <div class="card lrg-card" id="lrg-month-fc-card">
         <div class="card-head">
-          <div class="card-title">📊 This Month — Sales Forecast &amp; Prediction <span id="lrg-mfc-label" style="font-weight:500;font-size:.8rem;color:var(--muted);margin-left:.4rem;"></span></div>
+          <div class="card-title">📊 Sales Forecast &amp; Prediction <span id="lrg-mfc-label" style="font-weight:500;font-size:.8rem;color:var(--muted);margin-left:.4rem;"></span></div>
         </div>
         <div id="lrg-mfc-content"></div>
       </div>
@@ -8218,7 +8235,12 @@ function computeSalesTargetStats(now) {
   const dim = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   const today = now.getDate();
   const todayDone = (byDay.get(lrgDayKey(key, today)) || 0) > 0;
-  const daysElapsed = todayDone ? today : today - 1;        // days whose sales are already counted
+  // For any month that isn't the REAL current month (i.e. one being browsed via the
+  // ◀ / ▶ month navigation), the whole month is history — count every day as elapsed
+  // regardless of whether its last day happens to have a logged figure.
+  const realNow = new Date();
+  const isRealCurrentMonth = now.getFullYear() === realNow.getFullYear() && now.getMonth() === realNow.getMonth();
+  const daysElapsed = isRealCurrentMonth ? (todayDone ? today : today - 1) : dim;   // days whose sales are already counted
   const daysLeft = dim - daysElapsed;                         // calendar days still to come
   const target = tgt.amount;
   const hist = lrgHistory(now);
@@ -8251,8 +8273,10 @@ function lrgColor(status) {
 // (seasonal months, learned strong days, pace vs target, target realism, abnormal days)
 // ---------------------------------------------------------------------------
 function lrgAiSuggestions(st) {
-  const out = [], ai = st.ai, h = st.hist, now = new Date(), y = now.getFullYear(), mo = now.getMonth();
-  const mon = now.toLocaleDateString('en-US', { month: 'short' });
+  // y/mo/mon are derived from st.key (the VIEWED month), not the real "today", so
+  // these suggestions stay correct when browsing an older month via ◀ / ▶.
+  const out = [], ai = st.ai, h = st.hist, [vy, vm] = st.key.split('-').map(Number), y = vy, mo = vm - 1;
+  const mon = new Date(y, mo, 1).toLocaleDateString('en-US', { month: 'short' });
   const add = (icon, html, lvl) => out.push({ icon, html, lvl: lvl || 'info' });
   const srcTxt = s => s === 'manual' ? 'ඔබ ලබාදුන් %' : 'පෙර වසරවල දත්ත';
 
@@ -8375,33 +8399,71 @@ function lrgWeekdayChips(h) {
 function lrgAiPanel(st) {
   const ai = st.ai, h = st.hist;
   const confTxt = { hi: 'High confidence', mid: 'Medium confidence', lo: 'Low confidence' }[ai.confidence];
-  const monthShort = new Date().toLocaleDateString('en-US', { month: 'short' });
+  const [vyK, vmK] = st.key.split('-').map(Number);
+  const monthShort = new Date(vyK, vmK - 1, 1).toLocaleDateString('en-US', { month: 'short' });
   const gap = st.projected - st.target;
   const probClr = ai.prob >= 70 ? 'c-green' : ai.prob >= 40 ? 'c-yellow' : 'c-red';
   const hitTxt = ai.hitDay === 0 ? 'Achieved 🎉' : ai.hitDay ? `${monthShort} ${ai.hitDay}` : 'Not this month';
   const hitStrong = ai.hitDay > 0 && lrgIsStrong(h, ai.hitDay);
   const hitSub = ai.hitDay === 0 ? 'Target already reached' : ai.hitDay ? (hitStrong ? 'Helped by a strong sales day' : 'At the predicted daily rate') : 'Forecast falls short of target';
   const sfm = ai.season || { f: 1, src: 'none' };
-  // day-by-day bars: actual (past) + AI forecast (future)
-  const y = new Date().getFullYear(), mo = new Date().getMonth();
-  const vals = [], bars = [];
+  // day-by-day bars: TWO bars per day — 🔮 AI Forecast (the model's expected value
+  // for that date, computed the same way whether the date is past or future) next
+  // to ✅ Actual (once that day's sale is entered). The Actual bar is coloured
+  // green when it beat the AI forecast for that day, red when it fell short.
+  // Derived from st.key (the month being VIEWED), not the real "today" — so this
+  // stays correct when browsing an earlier month via the ◀ / ▶ navigation.
+  const [vy, vm] = st.key.split('-').map(Number), y = vy, mo = vm - 1;
+  const dayCells = []; let maxV = 1;
   for (let d = 1; d <= st.dim; d++) {
-    const dn = LRG_DOW[new Date(y, mo, d).getDay()], marked = lrgIsMarked(st.key, d);
-    let cls, v, tip;
-    if (d <= st.daysElapsed) {
-      const a = st.byDay.get(lrgDayKey(st.key, d)) || 0;
-      if (a > 0) { cls = 'act'; v = a; tip = `${dn} ${d}: ${fmt(a)} (actual${marked ? ' — worked on a marked holiday' : ''})`; }
-      else if (marked) { cls = 'cl'; v = 0; tip = `${dn} ${d}: holiday (marked)`; }
-      else { cls = 'off'; v = 0; tip = `${dn} ${d}: no sales logged`; }
-    } else {
-      const p = ai.preds[d - st.daysElapsed - 1]; v = p ? p.v : 0;
-      if (p && p.marked) { cls = 'cl'; tip = `${dn} ${d}: holiday (marked)`; } else { cls = 'pred'; tip = `${dn} ${d}: ~${fmt(v)} (AI forecast${p && p.est ? ', closure estimated' : ''})`; }
+    const dn = LRG_DOW[new Date(y, mo, d).getDay()];
+    const dm = lrgDayOpen(h, y, mo, d, st.key);
+    const strong = lrgIsStrong(h, d);
+    const fcV = ai.base * lrgDayMul(h, y, mo, d) * dm.open;
+    const isElapsed = d <= st.daysElapsed;
+    const actualV = isElapsed ? (st.byDay.get(lrgDayKey(st.key, d)) || 0) : null;
+    const closedNoWork = dm.marked && !(actualV > 0);
+    let actCls = 'empty', actTip = '';
+    if (isElapsed) {
+      if (closedNoWork) { actCls = 'cl'; actTip = `${dn} ${d}: holiday (marked)`; }
+      else if (!(actualV > 0) && !dm.marked) { actCls = 'off'; actTip = `${dn} ${d}: no sales logged`; }
+      else {
+        const up = actualV >= fcV, diff = actualV - fcV;
+        actCls = up ? 'up' : 'down';
+        actTip = `${dn} ${d}: ${fmt(actualV)} actual — ${up ? '▲ above' : '▼ below'} AI forecast ${fmt(fcV)} (${diff >= 0 ? '+' : ''}${fmt(diff)})${dm.marked ? ' — worked on a marked holiday' : ''}`;
+      }
     }
-    if (lrgIsStrong(h, d) && cls !== 'cl') cls += ' late';
-    vals.push(v); bars.push({ cls, v, tip });
+    const fcCls = closedNoWork ? 'cl' : (strong ? 'fc late' : 'fc');
+    const fcTip = closedNoWork ? `${dn} ${d}: holiday (marked)` : `${dn} ${d}: ~${fmt(fcV)} (AI forecast${dm.est ? ', closure estimated' : ''})`;
+    maxV = Math.max(maxV, fcV, actualV || 0);
+    dayCells.push({ fcV, fcCls, fcTip, actualV, actCls, actTip, isElapsed });
   }
-  const maxV = Math.max(1, ...vals);
-  const barsHtml = bars.map(b => `<div class="lrg-day ${b.cls}" style="height:${(b.cls.startsWith('off') || b.cls.startsWith('cl')) ? 0 : Math.max((b.v / maxV) * 100, 2).toFixed(1)}%" title="${b.tip}"></div>`).join('');
+  const barH = v => Math.max((v / maxV) * 100, 2).toFixed(1);
+  const barsHtml = dayCells.map(c => `
+    <div class="lrg-day-grp">
+      <div class="lrg-bar ${c.fcCls}" style="height:${c.fcCls === 'cl' ? 0 : barH(c.fcV)}%" title="${c.fcTip}"></div>
+      <div class="lrg-bar act ${c.actCls}" style="height:${(c.actCls === 'empty' || c.actCls === 'cl') ? 0 : barH(c.actualV)}%" title="${c.actTip}"></div>
+    </div>`).join('');
+  // Date axis under the bars — 1, 5, 10, 15 … so the calendar date under any bar is
+  // obvious at a glance. Only a handful of days are actually labelled (every 5th, plus
+  // day 1 and the month's last day) — with up to 31 narrow columns, labelling every
+  // single day just makes the numbers overlap and tangle into each other.
+  const axisHtml = `<div class="lrg-days-axis">` + dayCells.map((c, i) => {
+    const d = i + 1;
+    return `<span>${(d === 1 || d % 5 === 0 || d === st.dim) ? d : ''}</span>`;
+  }).join('') + `</div>`;
+  // "Today" divider between the elapsed days and the pure-forecast days, plus a
+  // running total so the Actual-vs-Forecast difference reads clearly in numbers too.
+  const todayLineHtml = (st.daysElapsed > 0 && st.daysElapsed < st.dim)
+    ? `<div class="lrg-today-line" style="left:${(st.daysElapsed / st.dim * 100).toFixed(2)}%;"><span>Today ▸</span></div>` : '';
+  let actualSum = 0, fcToDateSum = 0;
+  dayCells.forEach(c => { if (c.isElapsed) { actualSum += (c.actualV || 0); fcToDateSum += c.fcV; } });
+  const toDateDiff = actualSum - fcToDateSum;
+  const compareHtml = st.daysElapsed ? `<div class="lrg-days-compare">
+    <span>✅ Actual so far (Day 1–${st.daysElapsed}): <b>${fmt(actualSum)}</b></span>
+    <span>🔮 AI Forecast (same days): <b>${fmt(fcToDateSum)}</b></span>
+    <span class="${toDateDiff >= 0 ? 'up' : 'down'}">${toDateDiff >= 0 ? '▲' : '▼'} ${toDateDiff >= 0 ? '+' : ''}${fmt(toDateDiff)} vs forecast</span>
+  </div>` : '';
   const upLine = ((h.strongDays || []).length ? `ඉගෙනගත් ඉහළ දින (${lrgRangesText(h.strongDays)}) වල සාමාන්‍යයෙන් <b>${((h.strongDays.reduce((s, d) => s + lrgDomFactor(h, d), 0) / h.strongDays.length - 1) * 100).toFixed(0)}%</b> කින් වැඩියි` : 'ඉහළ යන විශේෂ මාස-දින තවම පේන්නේ නෑ') + (sfm.src !== 'none' ? `; මේ මාසයට සීසනල් ගැලපුම ×${sfm.f.toFixed(2)} (${sfm.src === 'manual' ? 'ඔබ ලබාදුන්' : 'AI ඉගෙනගත්'})` : '');
   const holLine = ai.monthMarked || ai.markedAll > 0
     ? `ඔබ ලකුණු කළ නිවාඩු දින <b>${ai.markedAll}</b>ක් (ඉතිරි දින වල <b>${ai.markedLeft}</b>ක්) සලකා ඉතිරි දිනවල විකුණුම් ගණනය කළා`
@@ -8422,8 +8484,10 @@ function lrgAiPanel(st) {
     </div>
     <div class="lrg-wd-row"><span class="lrg-wd-title">Weekday pattern (AI learned)</span>${lrgWeekdayChips(h)}</div>
     <div class="lrg-wd-row"><span class="lrg-wd-title">Day-of-month &amp; season (AI learned)</span>${lrgWindowChips(h, sfm)}</div>
-    <div class="lrg-days">${barsHtml}</div>
-    <div class="lrg-days-cap"><span><i style="background:var(--navy3)"></i>Actual</span><span><i style="background:var(--accent);opacity:.6"></i>AI forecast</span><span><i style="background:var(--yellow)"></i>Strong days (AI learned)</span><span><i style="background:var(--border)"></i>No sales / holiday</span><span style="margin-left:auto;">Day 1 → ${st.dim}</span></div>
+    <div class="lrg-days">${barsHtml}${todayLineHtml}</div>
+    ${axisHtml}
+    ${compareHtml}
+    <div class="lrg-days-cap"><span><i style="background-image:repeating-linear-gradient(135deg, var(--accent) 0 3px, color-mix(in srgb, var(--accent) 40%, transparent) 3px 6px);opacity:.85"></i>AI forecast</span><span><i style="background:var(--green)"></i>Actual ▲ above forecast</span><span><i style="background:var(--red)"></i>Actual ▼ below forecast</span><span><i style="background:var(--yellow)"></i>Strong days (AI learned)</span><span><i style="background:var(--border)"></i>No sales / holiday</span><span style="margin-left:auto;">Day 1 → ${st.dim}</span></div>
     ${lrgSuggestionsHtml(st)}
     <div class="lrg-ai-note">${note}</div>
   </div></div>`;
@@ -8581,14 +8645,49 @@ function cohRenderInto(host, full) {
   return true;
 }
 
+// ---- Month navigation for the Liquidity Runway Gauge / Forecast cards ----
+// Lets the Admin/Manager step back with ◀ (or a month picker) to look at an
+// older month's target, actual-vs-forecast day bars and AI suggestions —
+// not just the live current month.
+let lrgViewMonth = null;   // 'YYYY-MM'; null means "the real current month"
+function lrgCurrentMonthKey() { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}`; }
+// The Date to run computeSalesTargetStats() against: the real "now" for the actual
+// current month (keeps the live partial-month forecast ticking day by day), or the
+// last calendar day of any earlier month (so the whole month reads as history).
+function lrgViewDate() {
+  const cur = lrgCurrentMonthKey();
+  if (!lrgViewMonth || lrgViewMonth === cur) return new Date();
+  const [y, m] = lrgViewMonth.split('-').map(Number);
+  return new Date(y, m, 0);
+}
+function lrgChangeMonth(delta) {
+  const cur = lrgCurrentMonthKey();
+  const [y, m] = (lrgViewMonth || cur).split('-').map(Number);
+  const d = new Date(y, (m - 1) + delta, 1);
+  const next = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  if (next > cur) return;   // can't navigate past the real current month
+  lrgViewMonth = next === cur ? null : next;
+  renderSalesTargetGauge();
+}
+function lrgGoToMonth(val) {
+  if (!val) return;
+  const cur = lrgCurrentMonthKey();
+  lrgViewMonth = val >= cur ? null : val;
+  renderSalesTargetGauge();
+}
+
 function renderSalesTargetGauge() {
   const host = $('lrg-content'); if (!host || !DB.currentUser || isCashier()) return;
   try { renderAbnormalDays(); } catch (e) { console.error('renderAbnormalDays', e); }
-  const st = computeSalesTargetStats();
+  const st = computeSalesTargetStats(lrgViewDate());
   try { renderMonthForecastChart(st); } catch (e) { console.error('renderMonthForecastChart', e); }
   try { renderSalesTargetChart(st); } catch (e) { console.error('renderSalesTargetChart', e); }
-  const monthLabel = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-  if ($('lrg-month-label')) $('lrg-month-label').textContent = '· ' + monthLabel;
+  const cur = lrgCurrentMonthKey();
+  const [ly, lm] = st.key.split('-').map(Number);
+  const monthLabel = new Date(ly, lm - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  if ($('lrg-month-label')) $('lrg-month-label').textContent = monthLabel + (st.key === cur ? ' (current)' : '');
+  if ($('lrg-month-input')) $('lrg-month-input').value = st.key;
+  if ($('lrg-month-next-btn')) $('lrg-month-next-btn').disabled = st.key >= cur;
   if (st.target <= 0) {
     host.innerHTML = `<div class="lrg-empty"><span class="ico">🎯</span>
       <b>Monthly sales target එකක් තවම set කරලා නෑ.</b><br>
@@ -8687,11 +8786,11 @@ function lrgChartRows(st) {
 // gold line = the Admin's monthly target. Uses the same forecast engine as the gauge (no new maths).
 function renderMonthForecastChart(st) {
   const host = $('lrg-mfc-content'); if (!host) return;
-  st = st || computeSalesTargetStats();
+  st = st || computeSalesTargetStats(lrgViewDate());
   const ai = st.ai, h = st.hist, dim = st.dim, de = st.daysElapsed, key = st.key;
-  const lab = $('lrg-mfc-label'); if (lab) lab.textContent = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const [vy, vm] = key.split('-').map(Number), y = vy, mo = vm - 1;
+  const lab = $('lrg-mfc-label'); if (lab) lab.textContent = new Date(y, mo, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   if (!(st.sales > 0) && !(ai.R > 0)) { host.innerHTML = '<div class="lrg-empty"><span class="ico">📊</span>මේ මාසයේ Sales දත්ත ටිකක් ඇතුල් වුණාම forecast ප්‍රස්තාරය මෙතන පෙන්වනවා.</div>'; return; }
-  const y = new Date().getFullYear(), mo = new Date().getMonth();
   const sdDaily = ai.base * (h.cv || 0);
   // cumulative series, index d = 0..dim
   const cum = [0], dayV = [0], band = [0]; let c = 0, work = 0, fr = 0;
@@ -8743,14 +8842,14 @@ function renderMonthForecastChart(st) {
   if (de > 0) {
     const pts = []; for (let d = 0; d <= de; d++) pts.push(`${px(d).toFixed(1)},${py(cum[d]).toFixed(1)}`);
     g += `<polygon points="${px(0).toFixed(1)},${py(0).toFixed(1)} ${pts.join(' ')} ${px(de).toFixed(1)},${py(0).toFixed(1)}" fill="var(--navy3)" opacity=".10"/><polyline points="${pts.join(' ')}" fill="none" stroke="var(--navy3)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>`;
-    g += `<line x1="${px(de).toFixed(1)}" y1="${mt}" x2="${px(de).toFixed(1)}" y2="${mt + plotH}" stroke="var(--muted)" stroke-width="1" stroke-dasharray="2 3" opacity=".7"/><circle cx="${px(de).toFixed(1)}" cy="${py(cum[de]).toFixed(1)}" r="4.5" fill="var(--navy3)" stroke="var(--surface, #fff)" stroke-width="2"/><text x="${px(de).toFixed(1)}" y="${(mt - 8).toFixed(1)}" text-anchor="middle" font-size="10" font-weight="700" fill="var(--muted)">${de === st.today ? 'Today' : 'Last entry'} · ${lrgShort(cum[de])}</text>`;
+    g += `<line x1="${px(de).toFixed(1)}" y1="${mt}" x2="${px(de).toFixed(1)}" y2="${mt + plotH}" stroke="var(--muted)" stroke-width="1" stroke-dasharray="2 3" opacity=".7"/><circle cx="${px(de).toFixed(1)}" cy="${py(cum[de]).toFixed(1)}" r="4.5" fill="var(--navy3)" stroke="var(--surface, #fff)" stroke-width="2"/><text x="${px(de).toFixed(1)}" y="${(mt - 8).toFixed(1)}" text-anchor="middle" font-size="10" font-weight="700" fill="var(--muted)">${(de === st.today && key === lrgCurrentMonthKey()) ? 'Today' : 'Last entry'} · ${lrgShort(cum[de])}</text>`;
   }
   // predicted target-hit marker
   if (ai.hitDay > 0 && target > 0) g += `<circle cx="${px(ai.hitDay).toFixed(1)}" cy="${py(target).toFixed(1)}" r="5" fill="var(--green)" stroke="var(--surface, #fff)" stroke-width="2"/><text x="${px(ai.hitDay).toFixed(1)}" y="${(py(target) + 18).toFixed(1)}" text-anchor="middle" font-size="9.5" font-weight="800" fill="var(--green)">Hit ~${ai.hitDay}</text>`;
   // month-end predicted value
   if (de < dim) g += `<circle cx="${px(dim).toFixed(1)}" cy="${py(cum[dim]).toFixed(1)}" r="4.5" fill="var(--accent)" stroke="var(--surface, #fff)" stroke-width="2"/><text x="${W - mr + 5}" y="${(py(cum[dim]) - (target > 0 && Math.abs(py(cum[dim]) - py(target)) < 24 ? 14 : 0) + 3.5).toFixed(1)}" font-size="10.5" font-weight="800" fill="var(--accent)">${lrgShort(cum[dim])}</text>`;
   // hover tips
-  const mon = new Date().toLocaleDateString('en-US', { month: 'short' });
+  const mon = new Date(y, mo, 1).toLocaleDateString('en-US', { month: 'short' });
   const tips = [];
   for (let d = 1; d <= dim; d++) {
     const dn = LRG_DOW[new Date(y, mo, d).getDay()], isAct = d <= de;
