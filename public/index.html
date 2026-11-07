@@ -2367,6 +2367,7 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
           <div class="card-actions">
             <button class="btn btn-navy btn-sm" onclick="openModal('creditModal')">➕ Add Credit</button>
             <button class="btn btn-ghost btn-sm" onclick="openReconcileModal()" title="Cash Management / Cash Disposal Log වලින් credit bills වලට link වුනු payments, actual bill records එක්ක match වෙනවද කියලා check කරන්න">🔧 Sync Check</button>
+            <button class="btn btn-ghost btn-sm" id="chequeSyncBtn" onclick="openChequeSyncModal()" title="Credit bills වලට link කරපු (auto-settle) cheques, ඒ bill එකේම Payment History එකට හරියටම link වී තියෙනවද කියලා මෙතනින් check කරනවා">🔧 Cheque Payment Sync Check</button>
           </div>
         </div>
         <div id="cr-total-bar" style="margin:1rem 1.5rem 0;padding:.75rem 1.1rem;background:var(--hover-tint);border:1.5px solid var(--accent);border-radius:10px;display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">
@@ -4078,6 +4079,29 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
 </div>
 
 
+<!-- ===== CHEQUE PAYMENT SYNC-CHECK / RECONCILE MODAL ===== -->
+<div id="chequeSyncModal" class="overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>🔧 Cheque Payment Sync Check</h3>
+      <button class="modal-close" onclick="closeModal('chequeSyncModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--muted);font-size:.85rem;margin-bottom:1rem;">
+        Credit bill එකකට link කරපු (auto-settle) Cheques, ඒ bill එකේම Payment History එකට හරියටම link වී තියෙනවද කියලා මෙතනින් check කරනවා. Cheque එක link කරලා තිබුනත් bill එකේ balance එකට එකතු නොවුනු ඒවා පහළ පෙන්නනවා — "Fix" click කරලා ඒවා නිවැරදි කරගන්න පුළුවන්.
+      </p>
+      <div id="chequesync-status" style="font-weight:700;margin-bottom:.8rem;">🔎 Checking...</div>
+      <div id="chequesync-list"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('chequeSyncModal')">Close</button>
+      <button class="btn btn-ghost" onclick="runDailySyncCheck(true)" title="හැමදාම උදේ 10.45 ට auto run වෙන Daily Sync Check එක දැන්ම run කරලා Admin/Manager ට notify කරන්න (test)">🔔 Daily Check + Notify now</button>
+      <button class="btn btn-green" id="chequesync-fixall-btn" onclick="fixAllChequePaymentGaps()" style="display:none;">✅ Fix All</button>
+    </div>
+  </div>
+</div>
+
+
 <!-- ===== MANAGER CASH-IN-HAND SYNC-CHECK MODAL ===== -->
 <div id="cashSyncModal" class="overlay">
   <div class="modal" style="max-width:640px;">
@@ -4095,7 +4119,7 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
     </div>
     <div class="modal-foot">
       <button class="btn btn-ghost" onclick="closeModal('cashSyncModal')">Close</button>
-      <button class="btn btn-ghost" onclick="runDailySyncCheck(true)" title="හැමදාම 11AM වෙද්දි auto run වෙන Daily Sync Check එක දැන්ම run කරලා Admin/Manager ට notify කරන්න (test)">🔔 Daily Check + Notify now</button>
+      <button class="btn btn-ghost" onclick="runDailySyncCheck(true)" title="හැමදාම උදේ 10.45 ට auto run වෙන Daily Sync Check එක දැන්ම run කරලා Admin/Manager ට notify කරන්න (test)">🔔 Daily Check + Notify now</button>
       <button class="btn btn-green" id="cashsync-fixall-btn" onclick="restoreAllCashSyncIssues()" style="display:none;">✅ Restore All</button>
     </div>
   </div>
@@ -6101,6 +6125,86 @@ async function fixCreditPaymentGap(gap) {
   }, gap.row.supplierId);
 }
 
+// scanChequePaymentGaps() — same pattern as scanCreditPaymentGaps(), but for
+// cheques that auto-settle a linked credit bill (ch.linkedCreditId, see
+// autoSettleLinkedCredit()). A cheque's settlement payment is identified on
+// the credit by payments[].chequeId (new fixes write this), falling back for
+// older/original auto-settle payments to the note marker
+// "Auto: Cheque <number|entryId> cleared" that autoSettleLinkedCredit() and
+// delCheque() already use to find/undo that payment. If the sum linked to a
+// cheque doesn't match the cheque's amount, that's a gap (save failed /
+// record got lost). Same manual-match + overpay safety as credits:
+//   - if a payment that matches the missing amount exists on the bill but
+//     isn't linked to any cash/cheque record, treat it as already fixed by
+//     hand (resolvedManually) and never touch it again.
+//   - if "fixing" the gap would push payments past the bill's own amount,
+//     mark wouldOverpay and leave it for a human (don't auto-fix).
+function chequeSettleMarker(ch) {
+  return `Auto: Cheque ${ch.number || ch.entryId} cleared`;
+}
+
+async function scanChequePaymentGaps() {
+  const gaps = [];
+  const usedManualPaymentIds = new Set();
+
+  function findManualMatch(credit, amount) {
+    if (!credit) return null;
+    return (credit.payments || []).find(p =>
+      !p.cashEntryId && !p.cashLogId && !p.chequeId && !usedManualPaymentIds.has(p.id) &&
+      Math.abs((Number(p.amount) || 0) - amount) <= 0.01
+    ) || null;
+  }
+
+  function pushGap(base, credit, missing) {
+    const manualMatch = findManualMatch(credit, missing);
+    if (manualMatch) {
+      usedManualPaymentIds.add(manualMatch.id);
+      gaps.push(Object.assign({}, base, { credit, missing, resolvedManually: true, manualMatch }));
+      return;
+    }
+    const wouldOverpay = missing > getCreditBalance(credit) + 0.01;
+    gaps.push(Object.assign({}, base, { credit, missing, wouldOverpay }));
+  }
+
+  for (const owner of DB.users) {
+    for (const ch of (owner.cheques || [])) {
+      if (!ch.linkedCreditId) continue;
+      const amt = Number(ch.amount) || 0;
+      if (amt <= 0) continue;
+      const credit = (owner.credits || []).find(x => x.id === ch.linkedCreditId);
+      if (!credit) {
+        gaps.push({ kind: 'cheque', entry: ch, row: ch, creditOwner: null, credit: null, missing: amt, reason: 'CREDIT_NOT_FOUND' });
+        continue;
+      }
+      const marker = chequeSettleMarker(ch);
+      const linkedAmt = (credit.payments || [])
+        .filter(p => p.chequeId === ch.id || (!p.chequeId && p.note === marker))
+        .reduce((s, p) => s + (Number(p.amount) || 0), 0);
+      if (Math.abs(linkedAmt - amt) > 0.01) {
+        pushGap({ kind: 'cheque', entry: ch, row: ch, creditOwner: owner }, credit, amt - linkedAmt);
+      }
+    }
+  }
+  return gaps;
+}
+
+async function fixChequePaymentGap(gap) {
+  if (!gap.credit || !gap.creditOwner || gap.resolvedManually || gap.wouldOverpay || !(gap.missing > 0.001)) return false;
+  const ch = gap.entry;
+  const note = chequeSettleMarker(ch);
+  const newPayment = { id: uid(), amount: gap.missing, date: ch.dueDate || ch.date || today(), note, method: 'cheque', chequeId: ch.id };
+  return applyCreditPaymentsChange(gap.creditOwner, gap.credit.id, payments => {
+    // Idempotency guard: a payment already linked to this exact cheque (by id,
+    // or by the note marker for older auto-settle payments) means this gap is
+    // already closed — don't add it again.
+    if (payments.some(p => p.chequeId === ch.id || (!p.chequeId && p.note === note))) return payments;
+    // Last-moment overpay guard against the server's LIVE payments.
+    const paidSoFar = payments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+    if (paidSoFar + gap.missing > (Number(gap.credit.amount) || 0) + 0.01) return payments;
+    return [...payments, newPayment];
+  }, ch.supplierId);
+}
+
 function saveDBLocal() {
   localStorage.setItem('cms_users', JSON.stringify(DB.users));
 }
@@ -6324,10 +6428,23 @@ function todoNextDueDate(t, nowMs) {
 function todoMuted(t) { return t.muteOverdue === true; }              // "no daily overdue alerts"
 function todoQuiet(t, nowMs) { return Number(t.quietUntil) > nowMs; } // just completed a repeat → hush until tomorrow
 // Should this to-do appear in the popup right now? Overdue ones only while NOT muted.
+// The due moment (or, if an early reminder is set, the moment that window opens) —
+// used so the login popup waits for the actual time instead of firing all day just
+// because the to-do's date happens to be today.
+function todoAttentionThreshold(t) {
+  const due = todoDueOf(t);
+  const early = Number(t.earlyMins) || 0;
+  return early > 0 ? due - early * 60000 : due;
+}
 function todoNeedsAttention(t, nowMs) {
   if (todoQuiet(t, nowMs)) return false;
   const s = todoState(t, nowMs);
-  return s === 'over' ? !todoMuted(t) : s !== 'up';
+  if (s === 'up') return false;
+  if (s === 'over') return !todoMuted(t);
+  // 'today' or 'early' — only count it once its due time (or early-reminder window)
+  // has actually arrived, not merely because the date matches; otherwise a to-do due
+  // later today would pop up on every single login from midnight onward.
+  return nowMs >= todoAttentionThreshold(t);
 }
 // Sidebar badge: due today, or overdue-and-not-muted.
 function todoCountsForBadge(t, nowMs) {
@@ -12805,6 +12922,187 @@ async function fixAllCreditPaymentGaps() {
   toast(fixedCount === pending.length ? `✅ ${fixedCount} fixed` : `⚠️ ${fixedCount}/${pending.length} fixed — remaining ones failed, try again`, fixedCount === pending.length ? 'green' : 'red');
 }
 
+/* ===== CHEQUE PAYMENT SYNC-CHECK / RECONCILE MODAL =====
+   Same pattern as the Credit Payment Sync Check above, for cheques that
+   auto-settle a linked credit bill. */
+let _chequeSyncGaps = [];
+
+// Stable identity for one flagged gap (mirrors reconcileGapKey) so an
+// admin's "I fixed this by hand" answer survives across scans/sessions.
+function chequeSyncGapKey(g) {
+  const chId = (g.row && g.row.id) || (g.entry && g.entry.id) || '';
+  const amt = Number(g.missing || 0).toFixed(2);
+  return `${g.kind}|${chId}|${amt}`;
+}
+
+function getChequeSyncAckList() {
+  const adminUser = getUserByUsername('admin');
+  return (adminUser && adminUser.chequeSyncAck) || [];
+}
+
+function isChequeSyncAcked(g) {
+  const key = chequeSyncGapKey(g);
+  return getChequeSyncAckList().some(a => a.key === key);
+}
+
+// Admin confirms they already sorted this one out manually → remember it so
+// the Sync Check never lists it again.
+function markChequeSyncGapManuallyFixed(rid) {
+  const g = _chequeSyncGaps.find(x => x._rid === rid);
+  if (!g || !isAdmin()) return;
+  const ok = confirm('මේ එක ඔබ manually fix කරලාද?\n\n"OK" ඔබපුවොත් මේක නැවත Sync Check එකේ පෙන්වන්නේ නැහැ.');
+  if (!ok) return;
+  const adminUser = getUserByUsername('admin');
+  if (!adminUser) return;
+  adminUser.chequeSyncAck = adminUser.chequeSyncAck || [];
+  const key = chequeSyncGapKey(g);
+  if (!adminUser.chequeSyncAck.some(a => a.key === key)) {
+    adminUser.chequeSyncAck.push({
+      key,
+      ts: new Date().toISOString(),
+      by: DB.currentUsername,
+      note: `${g.kind} · ${g.entry && g.entry.date || ''} · ${fmt(g.missing)}${g.reason === 'CREDIT_NOT_FOUND' ? ' · bill not found' : ' · would overpay'}`
+    });
+  }
+  syncUser(adminUser);
+  g.ackedManually = true;
+  logActivity('CHEQUE_SYNC_ACK', `Marked as manually fixed: ${key}`);
+  toast('✅ Manually fixed ලෙස සටහන් කළා');
+  renderChequeSyncResults();
+}
+
+async function openChequeSyncModal() {
+  if (!isAdmin()) { toast('Admin only', 'red'); return; }
+  openModal('chequeSyncModal');
+  $('chequesync-status').textContent = '🔎 Checking...';
+  $('chequesync-list').innerHTML = '';
+  $('chequesync-fixall-btn').style.display = 'none';
+  const gaps = await scanChequePaymentGaps();
+  const open = gaps.filter(g => !isChequeSyncAcked(g));
+  _chequeSyncGaps = open.map((g, i) => Object.assign({}, g, { _rid: i, fixed: false }));
+  renderChequeSyncResults();
+}
+
+function renderChequeSyncResults() {
+  const statusEl = $('chequesync-status'), listEl = $('chequesync-list'), fixAllBtn = $('chequesync-fixall-btn');
+  if (!statusEl || !listEl) return;
+  if (!_chequeSyncGaps.length || (!_chequeSyncGaps.some(g => !g.ackedManually))) {
+    statusEl.innerHTML = '✅ සියල්ල Sync වී ඇත — කිසිම ගැටළුවක් හමු නොවුනි.';
+    fixAllBtn.style.display = 'none';
+    listEl.innerHTML = '';
+    return;
+  }
+  const alreadyOk = _chequeSyncGaps.filter(g => g.resolvedManually);
+  const visible = _chequeSyncGaps.filter(g => !g.resolvedManually && !g.ackedManually);
+  const fixablePending = visible.filter(g => !g.fixed && g.credit && !g.wouldOverpay);
+  const needsReview = visible.filter(g => !g.fixed && (g.wouldOverpay || g.reason === 'CREDIT_NOT_FOUND'));
+
+  let statusHtml = '';
+  if (alreadyOk.length) statusHtml += `✅ ${alreadyOk.length} ට දැනටමත් manually fix කර ඇත — action අවශ්‍ය නැත.<br>`;
+  statusHtml += fixablePending.length
+    ? `⚠️ ${fixablePending.length} ට "Fix" කිරීම සුරක්ෂිතයි (missing amount එකම record කරලා නෑ):`
+    : (visible.length ? `✅ Fix කළ හැකි ඒවා ඉවරයි.` : '');
+  if (needsReview.length) statusHtml += `<br>🛑 ${needsReview.length} ට ඔබේ අවධානය අවශ්‍යයි (පහළ බලන්න — auto-fix කර නෑ).`;
+  statusEl.innerHTML = statusHtml || '✅ සියල්ල Sync වී ඇත.';
+  fixAllBtn.style.display = fixablePending.length ? '' : 'none';
+
+  listEl.innerHTML = visible.map(g => {
+    const ch = g.entry;
+    const supplierName = (ch && ch.supplierName) || (g.credit ? getSupplierName(g.credit.supplierId, g.creditOwner) : '—');
+    const billLabel = g.credit ? g.credit.entryId : '⚠️ Bill not found';
+    const chequeLabel = ch ? `${ch.entryId || ''}${ch.number ? ' · #' + ch.number : ''}` : '—';
+    let actionHtml;
+    if (g.fixed) {
+      actionHtml = `<span style="color:var(--green);font-weight:700;white-space:nowrap;">✅ Fixed</span>`;
+    } else if (g.reason === 'CREDIT_NOT_FOUND') {
+      actionHtml = `<div style="display:flex;flex-direction:column;gap:.35rem;align-items:flex-end;"><span style="color:var(--red);font-size:.8rem;white-space:nowrap;">🛑 Bill not found — check manually</span><button class="btn btn-ghost btn-sm" onclick="markChequeSyncGapManuallyFixed(${g._rid})">✔️ Manually Fixed</button></div>`;
+    } else if (g.wouldOverpay) {
+      actionHtml = `<div style="display:flex;flex-direction:column;gap:.35rem;align-items:flex-end;"><span style="color:var(--red);font-size:.8rem;white-space:nowrap;">🛑 Would overpay bill — check manually</span><button class="btn btn-ghost btn-sm" onclick="markChequeSyncGapManuallyFixed(${g._rid})">✔️ Manually Fixed</button></div>`;
+    } else if (g.credit) {
+      actionHtml = `<button class="btn btn-green btn-sm" onclick="fixOneChequePaymentGap(${g._rid})">Fix</button>`;
+    } else {
+      actionHtml = `<span style="color:var(--muted);font-size:.8rem;white-space:nowrap;">Manual check</span>`;
+    }
+    const warnNote = g.wouldOverpay
+      ? `<div style="color:var(--red);">⚠️ Bill balance එක දැනටමත් මේ මුදල ආවරණය කරනවා විය හැක — cheque record එකේ duplicate link එකක් ද කියලා පරීක්ෂා කරන්න.</div>`
+      : '';
+    return `<div style="display:flex;justify-content:space-between;align-items:center;gap:.6rem;padding:.6rem .2rem;border-bottom:1px solid var(--border);${g.fixed ? 'opacity:.55;' : ''}">
+      <div style="font-size:.85rem;">
+        <div><strong>${billLabel}</strong> · ${supplierName}</div>
+        <div style="color:var(--muted);">🧾 Cheque ${chequeLabel} · ${ch && ch.date || ''} · Missing: <strong style="color:var(--red);">${fmt(g.missing)}</strong></div>
+        ${warnNote}
+      </div>
+      ${actionHtml}
+    </div>`;
+  }).join('');
+}
+
+// Activity-Log record of a credit-bill payment added by the Cheque Payment
+// Sync Check (who owns the bill, which bill, which cheque, how much).
+function _logSyncChequeFix(g, balanceBefore) {
+  try {
+    const owner = g.creditOwner && g.creditOwner.username || '—';
+    const ownerU = g.creditOwner || getUserByUsername(owner);
+    const c = g.credit || {};
+    const ch = g.entry || {};
+    const supName = (ch && ch.supplierName) || getSupplierName(c.supplierId, owner);
+    const fresh = ownerU && (ownerU.credits || []).find(x => x.id === c.id);
+    const paid = fresh ? (fresh.payments || []).reduce((t, p) => t + (Number(p.amount) || 0), 0) : null;
+    const balAfter = fresh ? Math.max(0, (Number(fresh.amount) || 0) - paid) : null;
+    const parts = [
+      `🔧 Cheque Sync Check · Credit Bill payment ADDED`,
+      `👤 Bill owner: ${ownerU && ownerU.role ? '(' + (ownerU.role === 'user' ? 'manager' : ownerU.role) + ') ' : ''}${owner}${ownerU && ownerU.name ? ' – ' + ownerU.name : ''}`,
+      `🧾 Bill ${c.entryId || c.id}`,
+      `🏪 ${supName}`,
+      `🧾 Cheque ${ch.entryId || ''}${ch.number ? ' · #' + ch.number : ''}`,
+      `+ ${fmt(g.missing)} paid`,
+      `📅 ${ch.date || ''}`
+    ];
+    if (balanceBefore != null && balAfter != null) parts.push(`Bill balance: ${fmt(balanceBefore)} → ${fmt(balAfter)}`);
+    logActivity('SYNC_FIX_CHEQUE_CREDIT', parts.join(' | '));
+  } catch (e) { console.error('_logSyncChequeFix', e); }
+}
+function _chequeCreditBalanceNow(g) {
+  try {
+    const ow = g.creditOwner;
+    const c = ow && (ow.credits || []).find(x => x.id === g.credit.id);
+    return c ? Math.max(0, (Number(c.amount) || 0) - (c.payments || []).reduce((t, p) => t + (Number(p.amount) || 0), 0)) : null;
+  } catch (e) { return null; }
+}
+
+async function fixOneChequePaymentGap(rid) {
+  const g = _chequeSyncGaps.find(x => x._rid === rid);
+  if (!g || g.fixed || !g.credit || g.resolvedManually || g.wouldOverpay) return;
+  const balBefore = _chequeCreditBalanceNow(g);
+  const ok = await fixChequePaymentGap(g);
+  if (ok) {
+    g.fixed = true;
+    _logSyncChequeFix(g, balBefore);
+    toast('✅ Fixed');
+    renderCredits(); renderOverview();
+    if (DB.analyticsOpen) renderSupplierAnalytics();
+    if (DB.purchaseHistoryOpen) renderSupplierPurchaseHistory();
+  } else {
+    toast('⚠️ Fix failed — try again', 'red');
+  }
+  renderChequeSyncResults();
+}
+
+async function fixAllChequePaymentGaps() {
+  const pending = _chequeSyncGaps.filter(g => !g.fixed && g.credit && !g.resolvedManually && !g.wouldOverpay);
+  let fixedCount = 0;
+  for (const g of pending) {
+    const balBefore = _chequeCreditBalanceNow(g);
+    const ok = await fixChequePaymentGap(g);
+    if (ok) { g.fixed = true; fixedCount++; _logSyncChequeFix(g, balBefore); }
+  }
+  renderCredits(); renderOverview();
+  if (DB.analyticsOpen) renderSupplierAnalytics();
+  if (DB.purchaseHistoryOpen) renderSupplierPurchaseHistory();
+  renderChequeSyncResults();
+  toast(fixedCount === pending.length ? `✅ ${fixedCount} fixed` : `⚠️ ${fixedCount}/${pending.length} fixed — remaining ones failed, try again`, fixedCount === pending.length ? 'green' : 'red');
+}
+
 /* ===== PENDING HANDOVERS — inline card in Cash tab ===== */
 function renderPendingHandoversCard() {
   const card   = $('pendingHandoversCard');
@@ -18151,19 +18449,22 @@ function ignoreCashSyncIssue(rid) {
   renderCashSyncResults();
 }
 
-/* ===== DAILY AUTO SYNC CHECK (~11:00 AM) =====
-   Once a day, the first Admin/Manager session that is open after 11:00 AM runs the same checks as the
-   🔧 Sync Check buttons — Credit bill payments (scanCreditPaymentGaps) and Cash-in-Hand deductions /
-   duplicate Day Sales (scanCashLogGaps) — on a FRESH server read. It only DETECTS and NOTIFIES, it never
-   changes any data. If anything is wrong it
-     • drops an in-app alert for the Admin ('admin') and for every Manager ('*') in the ✉️ Notification Center, and
+/* ===== DAILY AUTO SYNC CHECK (~10:45 AM) =====
+   Once a day, the first Admin/Manager session that is open after 10:45 AM runs the same checks as the
+   🔧 Sync Check buttons — Credit bill payments (scanCreditPaymentGaps), Cheque-linked credit payments
+   (scanChequePaymentGaps) and Cash-in-Hand deductions / duplicate Day Sales (scanCashLogGaps) — on a
+   FRESH server read. It only DETECTS and NOTIFIES, it never changes any data. If anything is wrong it
+     • drops an in-app alert for the Admin ('admin') in the ✉️ Notification Center with a "go fix it"
+       instruction, and a SEPARATE, info-only alert (no fix instruction — fixing is Admin-only) for
+       every Manager ('*'), and
      • queues a push notification (Cloud Function sendQueuedPush),
    and records { date, issues } on the runner's own user doc (dailySyncCheck) so the other devices skip it.
-   Re-checked every 15 min, so a session left open across 11:00 still catches it.
+   Re-checked every 15 min, so a session left open across 10:45 still catches it.
    IMPORTANT — like the 11:00 AM cloud backup this is client-side, not a server cron job: it runs once
-   SOMEONE with the app open crosses 11:00. If nobody opens the app that day it is skipped (a guaranteed
+   SOMEONE with the app open crosses 10:45. If nobody opens the app that day it is skipped (a guaranteed
    wall-clock run would need a scheduled Cloud Function). */
-const DAILY_SYNC_HOUR = 11;
+const DAILY_SYNC_HOUR = 10;
+const DAILY_SYNC_MINUTE = 45;
 let _dailySyncRunning = false;
 let _dailySyncTimer = null;
 
@@ -18172,10 +18473,15 @@ function _dsCheckedToday(dateStr) {
     && u.dailySyncCheck && u.dailySyncCheck.date === dateStr);
 }
 
+function _dsPastDailyTime() {
+  const n = new Date();
+  return (n.getHours() * 60 + n.getMinutes()) >= (DAILY_SYNC_HOUR * 60 + DAILY_SYNC_MINUTE);
+}
+
 async function runDailySyncCheck(force) {
   if (!(isAdmin() || isManager())) return;
   if (!firebaseReady() || !usersCol || _dailySyncRunning) return;
-  if (!force && new Date().getHours() < DAILY_SYNC_HOUR) return;
+  if (!force && !_dsPastDailyTime()) return;
   const t = _csLocalDate(Date.now());
   if (!force && _dsCheckedToday(t)) return;
   _dailySyncRunning = true;
@@ -18192,27 +18498,37 @@ async function runDailySyncCheck(force) {
 
     const gaps = await scanCreditPaymentGaps();
     const creditOpen = gaps.filter(g => !isReconcileAcked(g) && !g.resolvedManually);
+    const chGaps = await scanChequePaymentGaps();
+    const chequeOpen = chGaps.filter(g => !isChequeSyncAcked(g) && !g.resolvedManually);
     const cs = scanCashLogGaps();
     if (cs.error) return;
     const cashOpen = cs.issues;
 
     const creditSum = creditOpen.reduce((s, g) => s + (Number(g.missing) || 0), 0);
+    const chequeSum = chequeOpen.reduce((s, g) => s + (Number(g.missing) || 0), 0);
     const cashSum = cashOpen.reduce((s, g) => s + (g.entry.type === 'owner_topup' ? -1 : 1) * (Number(g.amount) || 0), 0);
     const lines = [];
     if (creditOpen.length) lines.push(`📒 Credit: bill payments ${creditOpen.length} ක් sync නෑ (${fmt(creditSum)})`);
+    if (chequeOpen.length) lines.push(`🧾 Cheque: linked bill payments ${chequeOpen.length} ක් sync නෑ (${fmt(chequeSum)})`);
     if (cashOpen.length) lines.push(`💵 Cash-in-Hand: අඩු නොවී ඉතිරි වූ deductions ${cashOpen.length} ක් (${fmt(Math.abs(cashSum))} ${cashSum >= 0 ? 'වැඩියෙන්' : 'අඩුවෙන්'} පෙන්නන්න පුළුවන්)`);
     cs.warnings.forEach(w => lines.push(w.replace(/^⚠️\s*/, '⚠️ ')));
-    const total = creditOpen.length + cashOpen.length + cs.warnings.length;
+    const total = creditOpen.length + chequeOpen.length + cashOpen.length + cs.warnings.length;
 
-    me.dailySyncCheck = { date: t, at: new Date().toISOString(), by: me.username, issues: total, credit: creditOpen.length, cash: cashOpen.length, warnings: cs.warnings.length };
+    me.dailySyncCheck = { date: t, at: new Date().toISOString(), by: me.username, issues: total, credit: creditOpen.length, cheque: chequeOpen.length, cash: cashOpen.length, warnings: cs.warnings.length };
     syncUser(me);
-    logActivity('DAILY_SYNC_CHECK', total ? `ගැටළු ${total} ක් (credit ${creditOpen.length}, cash ${cashOpen.length}, warnings ${cs.warnings.length})` : 'ගැටළු නෑ — සියල්ල Sync');
+    logActivity('DAILY_SYNC_CHECK', total ? `ගැටළු ${total} ක් (credit ${creditOpen.length}, cheque ${chequeOpen.length}, cash ${cashOpen.length}, warnings ${cs.warnings.length})` : 'ගැටළු නෑ — සියල්ල Sync');
 
     if (total > 0) {
       const title = `🔧 Daily Sync Check — ගැටළු ${total} ක් හමු වුනා`;
-      const body = lines.join(' | ') + ' — Owner (Admin) ට දැනුම් දී, Credits / Reports වල 🔧 Sync Check එකෙන් හදාගන්න.';
-      try { mgrAlert('admin', 'syncCheck', title, body); mgrAlert('*', 'syncCheck', title, body); } catch (e) { console.error('dailySync alert', e); }
-      queuePushEvent(cashOpen.length || cs.warnings.length ? 'disposal' : 'credit', title, body);
+      const summary = lines.join(' | ');
+      // Admin gets the full detail plus where to go and fix it.
+      const adminBody = summary + ' — Credits වල 🔧 Sync Check / 🔧 Cheque Payment Sync Check එකෙන් හදාගන්න.';
+      // Manager only gets told WHAT was found — never an invitation to fix it
+      // (fixing those Sync Check modals is Admin-only); Admin has already
+      // been alerted and will handle it.
+      const managerBody = summary + ' — Admin ට දැනුම් දී ඇත. Admin විසින් හදාගනු ලැබේ.';
+      try { mgrAlert('admin', 'syncCheck', title, adminBody); mgrAlert('*', 'syncCheck', title, managerBody); } catch (e) { console.error('dailySync alert', e); }
+      queuePushEvent(cashOpen.length || cs.warnings.length ? 'disposal' : 'credit', title, adminBody);
       toast(title, 'red');
     } else if (force) {
       toast('✅ Daily Sync Check — ගැටළු කිසිවක් නෑ', 'green');
