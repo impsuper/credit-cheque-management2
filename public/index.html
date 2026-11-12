@@ -18048,8 +18048,11 @@ const CASH_SYNC_LINKED_TYPES = ['cash_purchase', 'credit_payment', 'salary'];
 const CASH_SYNC_LABELS = {
   banked: '🏦 Banked', handed_owner: '🤝 Handed to Owner', owner_topup: '➕👑 Cash from Owner',
   cash_purchase: '🛒 Cash Purchase', credit_payment: '🧾 Credit Bill Payment', salary: '💼 Salary',
-  other1: '📝 Other 1', other2: '📝 Other 2', other3: '📝 Other 3'
+  other1: '📝 Other 1', other2: '📝 Other 2', other3: '📝 Other 3', day_sale: '☀️ Day Sale (Net Cash)'
 };
+// Entry types that ADD to Cash-in-Hand instead of reducing it — used to pick +/- sign and color
+// everywhere a gap is shown, and to keep them out of the deduction-only "Restore All" bulk action.
+const CASH_SYNC_ADD_TYPES = ['owner_topup', 'day_sale'];
 
 // uid() starts with Date.now().toString(36) (8 chars) — so an entry's id tells us when it was created.
 function _csIdTime(id) {
@@ -18127,6 +18130,52 @@ function scanCashLogGaps() {
       });
     });
   }
+
+  // ---- 1d) Day Sale (Net Cash) ADDITIONS that silently went missing ------------------------
+  // Everything above hunts for lost DEDUCTIONS (which make Cash-in-Hand look too HIGH). But the
+  // same stale-overwrite / dropped-write failure can just as easily eat a Manager's/Cashier's
+  // Day Sale entry — and that makes Cash-in-Hand look too LOW (it can even go negative), with
+  // nothing above ever catching it, because cashEntries never had a gap check at all.
+  // Evidence: every Day Sale save writes an "ADD_CASH · date · Net: LKR x" row to ITS OWNER's own
+  // activityLog (never admin's). If no cashEntries record of that date+amount exists for that
+  // owner, and it wasn't deleted on purpose shortly after (DEL_CASH by the same owner), the
+  // money that activity row says was added is actually missing from Cash-in-Hand.
+  DB.users.forEach(u => {
+    const ces = u.cashEntries || [];
+    const adds = [], dels = [];
+    (u.activityLog || []).forEach(a => {
+      const ts = Date.parse(a.ts || '');
+      if (!isFinite(ts)) return;
+      if (a.action === 'ADD_CASH') {
+        const m = /^(\d{4}-\d{2}-\d{2})\s*·\s*Net:\s*LKR\s*([\d,]+(?:\.\d+)?)/.exec(a.details || '');
+        if (m) adds.push({ id: a.id, ts, date: m[1], amount: parseFloat(m[2].replace(/,/g, '')), actor: a.actor || u.username, actorName: a.actorName || u.name || '' });
+      } else if (a.action === 'DEL_CASH') {
+        dels.push({ ts });
+      }
+    });
+    const usedCE = new Set();
+    adds.forEach(a => {
+      if (!(a.amount > 0)) return;
+      const hit = ces.find(e => !usedCE.has(e.id) && e.date === a.date && _csSameAmount(e.netCash, a.amount)
+        && Math.abs((_csIdTime(e.id) || a.ts) - a.ts) <= CASH_SYNC_WINDOW_MS);
+      if (hit) { usedCE.add(hit.id); return; }
+      // DEL_CASH carries no amount, so any delete by this owner shortly after the add is treated
+      // as that same entry being intentionally removed — not a loss.
+      if (dels.some(d => d.ts >= a.ts && d.ts - a.ts <= CASH_SYNC_WINDOW_MS)) return;
+      push({
+        key: 'daysale|' + a.id, group: 'review', entryKind: 'cashEntry', ownerUsername: u.username,
+        source: 'Activity Log එකේ Day Sale සටහන තියෙනවා (' + u.username + '), ඒ Cash Entry එක නෑ',
+        label: CASH_SYNC_LABELS.day_sale, detail: '👤 ' + (a.actorName || a.actor) + ' — breakdown (cashier/expenses) නැවත සෑදිය නොහැක, Net Cash එකක් විදියට restore වෙනවා, manual check කරන්න',
+        date: a.date, editDate: true, amount: a.amount, refTime: a.ts, type: 'day_sale',
+        entry: { id: uid(), date: a.date, totalCash: a.amount, creditSales: 0, cardPayments: 0, cardSalesExtra: [],
+          qrPayments: 0, chequeReceived: 0, totalSales: a.amount, advances: [], purchases: [], creditPayments: [],
+          expenses: [], cashierIdx: 0, totalExpenses: 0, totalBanking: 0, totalOtherExpenses: 0, totalAdvances: 0,
+          totalPurchases: 0, totalCreditPayments: 0, netCash: a.amount,
+          description: '⚠️ Sync Check මගින් restore කළා — breakdown විස්තර manual check කරන්න',
+          actor: a.actor, actorName: a.actorName, origActivityId: a.id, restoredBySync: true }
+      });
+    });
+  });
 
   // ---- 2) Activity-log rows ("CASH_LOG · type · LKR x") with no matching cashLog entry --------
   const acts = [];
@@ -18211,7 +18260,7 @@ function scanCashLogGaps() {
     });
   });
   if (dayDup.length) out.warnings.push('⚠️ දෙපාරක් save වූ Day Sale entries ' + dayDup.length + ' ක් ඇති: ' + dayDup.slice(0, 3).join(' | ') + ' — Cash Sale History එකෙන් එකක් delete කරන්න (Net Cash දෙපාරක් එකතු වෙලා Cash-in-Hand වැඩියි).');
-  if (calcCashInHand() < -0.005) out.warnings.push('⚠️ Cash-in-Hand දැන් negative (' + fmt(calcCashInHand()) + ') — disposal entries වැඩියෙන් තියෙනවා හෝ day-sale entries අඩුයි.');
+  if (calcCashInHand() < -0.005) out.warnings.push('⚠️ Cash-in-Hand දැන් negative (' + fmt(calcCashInHand()) + ') — disposal entries වැඩියෙන් තියෙනවා හෝ day-sale entries අඩුයි. පහළ list එකේ "☀️ Day Sale" issue එකක් නැත්නම්, මේ අහිමි වීම Activity Log එක (දින 30) තියෙනවට වඩා පරණයි — එය මෙතනින් auto-detect කළ නොහැක, පරණ PDF Report/backup එකක් එක්ක compare කර manual check කරන්න.');
   return out;
 }
 
@@ -18261,28 +18310,28 @@ function renderCashSyncResults() {
   const open = _cashSyncIssues.filter(g => !g.ignored);
   const todo = open.filter(g => !g.fixed);
   if (!open.length) {
-    statusEl.innerHTML = '✅ සියල්ල Sync වී ඇත — අඩු නොවී ඉතිරි වූ Cash-in-Hand deductions හමු නොවුනි.';
+    statusEl.innerHTML = '✅ සියල්ල Sync වී ඇත — අහිමි වූ Cash-in-Hand deductions හෝ Day Sale entries (අවසන් දින 30 තුළ) හමු නොවුනි.';
     listEl.innerHTML = ''; fixAllBtn.style.display = 'none';
     return;
   }
   const exact = todo.filter(g => g.group === 'exact');
   const review = todo.filter(g => g.group === 'review');
-  const signed = g => (g.entry.type === 'owner_topup' ? -1 : 1) * g.amount;
+  const signed = g => (CASH_SYNC_ADD_TYPES.includes(g.entry.type) ? -1 : 1) * g.amount;
   const nowCash = calcCashInHand();
   const afterAll = nowCash - exact.reduce((s, g) => s + signed(g), 0);
   let html = '';
   if (!todo.length) html = '✅ හමු වූ සියල්ල Restore කර ඇත.';
   else {
-    html += `⚠️ අඩු වී නැති deduction <strong>${todo.length}</strong> ක් හමු වුනා.`;
+    html += `⚠️ Cash-in-Hand එකට සම්බන්ධ gap <strong>${todo.length}</strong> ක් හමු වුනා (අහිමි වූ deductions සහ/හෝ Day Sale entries).`;
     if (exact.length) html += `<div style="font-weight:500;font-size:.85rem;margin-top:.3rem;">දැන් Cash-in-Hand: <strong>${fmt(nowCash)}</strong> → ✅ Restore All පසු: <strong style="color:#16a34a;">${fmt(afterAll)}</strong></div>`;
-    if (review.length) html += `<div style="font-weight:500;font-size:.82rem;color:var(--muted);margin-top:.3rem;">🔍 ${review.length} ක් Bill/Purchase/Payslip link නැති ඒවා — මුදල් අඩු කිරීම පමණක් "📝 Other 1" ලෙස Restore කළ හැක (Restore All එකට ඇතුළත් නෑ).</div>`;
+    if (review.length) html += `<div style="font-weight:500;font-size:.82rem;color:var(--muted);margin-top:.3rem;">🔍 ${review.length} ක් manual check කළ යුතු ඒවා (Bill/Purchase/Payslip link නැති deductions, හෝ breakdown නැවත සෑදිය නොහැකි Day Sale entries) — එකින් එක "Restore as Other" කළ හැක (Restore All එකට ඇතුළත් නෑ).</div>`;
   }
   statusEl.innerHTML = html;
   fixAllBtn.style.display = exact.length ? '' : 'none';
   fixAllBtn.textContent = `✅ Restore All (${exact.length})`;
 
   listEl.innerHTML = open.map(g => {
-    const sign = g.entry.type === 'owner_topup' ? '+' : '−';
+    const sign = CASH_SYNC_ADD_TYPES.includes(g.entry.type) ? '+' : '−';
     const dateCell = g.editDate && !g.fixed
       ? `<input type="date" id="cs-date-${g._rid}" value="${escHtml(g.date)}" style="padding:.25rem .4rem;border:1.5px solid var(--border);border-radius:6px;font-size:.8rem;">`
       : `<span>${escHtml(g.date)}</span>`;
@@ -18350,6 +18399,50 @@ async function restoreCashLogEntry(rawEntry) {
   }
 }
 
+// Re-creates ONE missing Day Sale (cashEntries) record, on its OWNER's own doc (not admin's) —
+// same "read fresh inside a transaction, only add if not already there" safety as restoreCashLogEntry.
+async function restoreCashEntryRecord(ownerUsername, rawEntry) {
+  const entry = clean(rawEntry);
+  entry.restoredBySync = true;
+  entry.restoredAt = new Date().toISOString();
+  entry.restoredBy = DB.currentUsername;
+  const isDup = list => list.some(e => e.id === entry.id || (entry.origActivityId && e.origActivityId === entry.origActivityId));
+  const mirrorLocal = () => {
+    const u = getUserByUsername(ownerUsername);
+    if (!u) return;
+    if (!Array.isArray(u.cashEntries)) u.cashEntries = [];
+    if (!isDup(u.cashEntries)) u.cashEntries.unshift(entry);
+  };
+  if (!firebaseReady() || !usersCol) {
+    mirrorLocal();
+    const u = getUserByUsername(ownerUsername);
+    if (u) syncUser(u);
+    return { ok: true };
+  }
+  setSyncStatus('syncing');
+  try {
+    let dup = false;
+    await fdb.runTransaction(async tx => {
+      dup = false;
+      const ref = usersCol.doc(ownerUsername);
+      const snap = await tx.get(ref);
+      if (!snap.exists) throw new Error('OWNER_NOT_FOUND');
+      const fresh = Array.isArray(snap.data().cashEntries) ? snap.data().cashEntries.slice() : [];
+      if (isDup(fresh)) { dup = true; return; }
+      fresh.unshift(entry);
+      tx.update(ref, { cashEntries: fresh });
+    });
+    mirrorLocal();
+    try { saveDBLocal(); } catch (e) { console.error('restoreCashEntryRecord local mirror', e); }
+    markSynced('cloud');
+    return { ok: true, dup };
+  } catch (e) {
+    console.error('restoreCashEntryRecord', e);
+    setSyncStatus('offline');
+    return { ok: false, reason: e && e.message };
+  }
+}
+
 function _csRefreshAfterChange() {
   try { renderManagerCashLedger(); } catch (e) {}
   try { renderCashLog(); } catch (e) {}
@@ -18364,7 +18457,7 @@ async function _csRestoreIssue(g) {
     g.entry.date = v; g.date = v;
   }
   const cashBefore = calcCashInHand();
-  const r = await restoreCashLogEntry(g.entry);
+  const r = g.entryKind === 'cashEntry' ? await restoreCashEntryRecord(g.ownerUsername, g.entry) : await restoreCashLogEntry(g.entry);
   if (!r.ok) return false;
   g.fixed = true;
   if (r.dup) {
@@ -18383,10 +18476,10 @@ function _logSyncCashRestore(g, before, after) {
   const ownerU = e.actor ? getUserByUsername(e.actor) : null;
   const who = e.actor ? `${ownerU && ownerU.role ? '(' + (ownerU.role === 'user' ? 'manager' : ownerU.role) + ') ' : ''}${e.actor}${(e.actorName || (ownerU && ownerU.name)) ? ' – ' + (e.actorName || ownerU.name) : ''}` : '—';
   const parts = [
-    `🔧 Sync Check · Cash Disposal Log RESTORE`,
+    g.entryKind === 'cashEntry' ? `🔧 Sync Check · Day Sale (Cash Entry) RESTORE` : `🔧 Sync Check · Cash Disposal Log RESTORE`,
     `👤 Entry made by: ${who}`,
     `${g.label}`,
-    `${e.type === 'owner_topup' ? '+' : '−'} ${fmt(g.amount)}`,
+    `${CASH_SYNC_ADD_TYPES.includes(g.type) ? '+' : '−'} ${fmt(g.amount)}`,
     `📅 ${e.date}`
   ];
   const extra = [];
@@ -18506,11 +18599,11 @@ async function runDailySyncCheck(force) {
 
     const creditSum = creditOpen.reduce((s, g) => s + (Number(g.missing) || 0), 0);
     const chequeSum = chequeOpen.reduce((s, g) => s + (Number(g.missing) || 0), 0);
-    const cashSum = cashOpen.reduce((s, g) => s + (g.entry.type === 'owner_topup' ? -1 : 1) * (Number(g.amount) || 0), 0);
+    const cashSum = cashOpen.reduce((s, g) => s + (CASH_SYNC_ADD_TYPES.includes(g.entry.type) ? -1 : 1) * (Number(g.amount) || 0), 0);
     const lines = [];
     if (creditOpen.length) lines.push(`📒 Credit: bill payments ${creditOpen.length} ක් sync නෑ (${fmt(creditSum)})`);
     if (chequeOpen.length) lines.push(`🧾 Cheque: linked bill payments ${chequeOpen.length} ක් sync නෑ (${fmt(chequeSum)})`);
-    if (cashOpen.length) lines.push(`💵 Cash-in-Hand: අඩු නොවී ඉතිරි වූ deductions ${cashOpen.length} ක් (${fmt(Math.abs(cashSum))} ${cashSum >= 0 ? 'වැඩියෙන්' : 'අඩුවෙන්'} පෙන්නන්න පුළුවන්)`);
+    if (cashOpen.length) lines.push(`💵 Cash-in-Hand: gap ${cashOpen.length} ක් (deductions/Day Sale entries) — (${fmt(Math.abs(cashSum))} ${cashSum >= 0 ? 'වැඩියෙන්' : 'අඩුවෙන්'} පෙන්නන්න පුළුවන්)`);
     cs.warnings.forEach(w => lines.push(w.replace(/^⚠️\s*/, '⚠️ ')));
     const total = creditOpen.length + chequeOpen.length + cashOpen.length + cs.warnings.length;
 
