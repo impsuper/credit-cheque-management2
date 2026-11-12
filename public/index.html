@@ -18044,6 +18044,12 @@ let _cashSyncError = '';
 let _cashSyncBusy = false;
 const CASH_SYNC_WINDOW_MS = 30 * 60 * 1000;   // activity ↔ entry matching window (same type + amount)
 const CASH_SYNC_QUICK_MS  = 2 * 60 * 1000;    // looser match (type/amount may have been edited since)
+// A double-tap on Save, or an automatic retry after a slow/failed write, logs the SAME action
+// twice within milliseconds-to-seconds of each other — far too fast to be two genuinely separate
+// manual entries. Without collapsing these first, the extra log line has no "partner" entry of its
+// own and looks exactly like a real lost deduction/Day-Sale, so the scan would offer to "Restore"
+// it — which actually creates a phantom second entry and inflates Cash-in-Hand by that amount.
+const CASH_SYNC_DUPLICATE_LOG_MS = 5000;
 const CASH_SYNC_LINKED_TYPES = ['cash_purchase', 'credit_payment', 'salary'];
 const CASH_SYNC_LABELS = {
   banked: '🏦 Banked', handed_owner: '🤝 Handed to Owner', owner_topup: '➕👑 Cash from Owner',
@@ -18080,6 +18086,19 @@ function scanCashLogGaps() {
   const logIds = new Set(log.map(e => e.id));
   const ack = new Set((admin.cashSyncAck || []).map(a => a.key));
   const push = iss => { if (!ack.has(iss.key)) out.issues.push(iss); };
+  let dupLogsIgnored = 0;   // count of duplicate-log rows collapsed below (see CASH_SYNC_DUPLICATE_LOG_MS)
+  // Collapses activity rows that are near-certainly the SAME save logged twice (double-tap / retry):
+  // same groupKey(a) and amount, timestamps within CASH_SYNC_DUPLICATE_LOG_MS of each other. Keeps
+  // the earliest row as the representative; the rest are dropped (not treated as separate events).
+  const dedupeActivityRows = (rows, groupKey) => {
+    const out2 = [];
+    rows.slice().sort((x, y) => x.ts - y.ts).forEach(a => {
+      const dup = out2.find(o => groupKey(o) === groupKey(a) && _csSameAmount(o.amount, a.amount) && (a.ts - o.ts) <= CASH_SYNC_DUPLICATE_LOG_MS);
+      if (dup) { dupLogsIgnored++; return; }
+      out2.push(a);
+    });
+    return out2;
+  };
 
   // ---- 1) Mirror records whose Cash Disposal Log entry is gone ------------------------------
   // 1a) Cash purchases made from Cash-in-Hand (supplier ledger row → cashLogId)
@@ -18154,7 +18173,7 @@ function scanCashLogGaps() {
       }
     });
     const usedCE = new Set();
-    adds.forEach(a => {
+    dedupeActivityRows(adds, a => a.actor + '|' + a.date).forEach(a => {
       if (!(a.amount > 0)) return;
       const hit = ces.find(e => !usedCE.has(e.id) && e.date === a.date && _csSameAmount(e.netCash, a.amount)
         && Math.abs((_csIdTime(e.id) || a.ts) - a.ts) <= CASH_SYNC_WINDOW_MS);
@@ -18186,7 +18205,7 @@ function scanCashLogGaps() {
     if (!p || !isFinite(ts)) return;
     acts.push({ id: a.id, action: a.action, actor: a.actor || u.username, actorName: a.actorName || u.name || '', ts, type: p.type, amount: p.amount });
   }));
-  const adds = acts.filter(a => a.action === 'CASH_LOG').sort((x, y) => x.ts - y.ts);
+  const adds = dedupeActivityRows(acts.filter(a => a.action === 'CASH_LOG'), a => a.actor + '|' + a.type);
   const dels = acts.filter(a => a.action === 'DEL_CASH_LOG').sort((x, y) => x.ts - y.ts);
   const restoredActs = new Set(log.map(e => e.origActivityId).filter(Boolean));
   const used = new Set();
@@ -18261,6 +18280,7 @@ function scanCashLogGaps() {
   });
   if (dayDup.length) out.warnings.push('⚠️ දෙපාරක් save වූ Day Sale entries ' + dayDup.length + ' ක් ඇති: ' + dayDup.slice(0, 3).join(' | ') + ' — Cash Sale History එකෙන් එකක් delete කරන්න (Net Cash දෙපාරක් එකතු වෙලා Cash-in-Hand වැඩියි).');
   if (calcCashInHand() < -0.005) out.warnings.push('⚠️ Cash-in-Hand දැන් negative (' + fmt(calcCashInHand()) + ') — disposal entries වැඩියෙන් තියෙනවා හෝ day-sale entries අඩුයි. පහළ list එකේ "☀️ Day Sale" issue එකක් නැත්නම්, මේ අහිමි වීම Activity Log එක (දින 30) තියෙනවට වඩා පරණයි — එය මෙතනින් auto-detect කළ නොහැක, පරණ PDF Report/backup එකක් එක්ක compare කර manual check කරන්න.');
+  if (dupLogsIgnored) out.warnings.push('ℹ️ Double-tap/retry නිසා දෙපාරක් log වුනු (real entry එකක් නැති වී නැති) activity-log රේඛා ' + dupLogsIgnored + ' ක් සොයා, gap ලෙස නොසලකා හරින ලදී — Cash-in-Hand එකට බලපෑමක් නැත.');
   return out;
 }
 
