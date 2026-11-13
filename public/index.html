@@ -18764,14 +18764,20 @@ async function runDailySyncCheck(force) {
     if (chequeOpen.length) lines.push(`🧾 Cheque: linked bill payments ${chequeOpen.length} ක් sync නෑ (${fmt(chequeSum)})`);
     if (cashOpen.length) lines.push(`💵 Cash-in-Hand: gap ${cashOpen.length} ක් (deductions/Day Sale entries) — (${fmt(Math.abs(cashSum))} ${cashSum >= 0 ? 'වැඩියෙන්' : 'අඩුවෙන්'} පෙන්නන්න පුළුවන්)`);
     cs.warnings.forEach(w => lines.push(w.replace(/^⚠️\s*/, '⚠️ ')));
-    const total = creditOpen.length + chequeOpen.length + cashOpen.length + cs.warnings.length;
+    // "fixable" = has an actual action button in one of the Sync Check modals (Restore / Restore as
+    // Other / Remove Duplicate). cs.warnings are informational only — e.g. "Cash-in-Hand is negative,
+    // check an old PDF/backup manually" — nothing in any Sync Check button can act on them, so they
+    // must NOT by themselves push an alert to the Message Center; they only ride along as extra
+    // context inside a notification that something fixable already triggered.
+    const fixable = creditOpen.length + chequeOpen.length + cashOpen.length;
+    const total = fixable + cs.warnings.length;
 
-    me.dailySyncCheck = { date: t, at: new Date().toISOString(), by: me.username, issues: total, credit: creditOpen.length, cheque: chequeOpen.length, cash: cashOpen.length, warnings: cs.warnings.length };
+    me.dailySyncCheck = { date: t, at: new Date().toISOString(), by: me.username, issues: total, fixable, credit: creditOpen.length, cheque: chequeOpen.length, cash: cashOpen.length, warnings: cs.warnings.length };
     syncUser(me);
-    logActivity('DAILY_SYNC_CHECK', total ? `ගැටළු ${total} ක් (credit ${creditOpen.length}, cheque ${chequeOpen.length}, cash ${cashOpen.length}, warnings ${cs.warnings.length})` : 'ගැටළු නෑ — සියල්ල Sync');
+    logActivity('DAILY_SYNC_CHECK', total ? `ගැටළු ${total} ක් — auto-fixable ${fixable} (credit ${creditOpen.length}, cheque ${chequeOpen.length}, cash ${cashOpen.length}), warnings ${cs.warnings.length} (manual-only)` : 'ගැටළු නෑ — සියල්ල Sync');
 
-    if (total > 0) {
-      const title = `🔧 Daily Sync Check — ගැටළු ${total} ක් හමු වුනා`;
+    if (fixable > 0) {
+      const title = `🔧 Daily Sync Check — ගැටළු ${fixable} ක් හමු වුනා`;
       const summary = lines.join(' | ');
       // Admin gets the full detail plus where to go and fix it.
       const adminBody = summary + ' — Credits වල 🔧 Sync Check / 🔧 Cheque Payment Sync Check එකෙන් හදාගන්න.';
@@ -18780,10 +18786,10 @@ async function runDailySyncCheck(force) {
       // been alerted and will handle it.
       const managerBody = summary + ' — Admin ට දැනුම් දී ඇත. Admin විසින් හදාගනු ලැබේ.';
       try { mgrAlert('admin', 'syncCheck', title, adminBody); mgrAlert('*', 'syncCheck', title, managerBody); } catch (e) { console.error('dailySync alert', e); }
-      queuePushEvent(cashOpen.length || cs.warnings.length ? 'disposal' : 'credit', title, adminBody);
+      queuePushEvent(cashOpen.length ? 'disposal' : 'credit', title, adminBody);
       toast(title, 'red');
     } else if (force) {
-      toast('✅ Daily Sync Check — ගැටළු කිසිවක් නෑ', 'green');
+      toast(cs.warnings.length ? `✅ Auto-fix කළ හැකි ගැටළු නෑ — ⚠️ warnings ${cs.warnings.length} ක් තියෙනවා (Cash Sync Check එකේ manual check කරන්න), Message Center එකට alert එකක් ගියේ නෑ` : '✅ Daily Sync Check — ගැටළු කිසිවක් නෑ', 'green');
     }
   } catch (e) {
     console.error('runDailySyncCheck', e);
