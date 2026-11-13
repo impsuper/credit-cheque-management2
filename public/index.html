@@ -2677,6 +2677,7 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
           <div class="tab" onclick="switchSettingsTab('localbackup')" id="set-tab-localbackup">💾 Backup &amp; Restore</div>
           <div class="tab" onclick="switchSettingsTab('alerts')" id="set-tab-alerts">🔔 Alerts</div>
           <div class="tab" onclick="switchSettingsTab('banks')" id="set-tab-banks">🏦 Banks</div>
+          <div class="tab" onclick="switchSettingsTab('synccheck')" id="set-tab-synccheck">🔧 Sync Checks</div>
           <div class="tab" onclick="switchSettingsTab('theme')" id="set-tab-theme">🎨 Theme</div>
         </div>
 
@@ -2790,6 +2791,35 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
           <div style="padding:1.2rem 1.5rem;">
             <p style="color:var(--muted);font-size:.85rem;margin-bottom:1rem;">🏦 බැංකු මෙතන කලින් Register කරන්න. <b>Banking</b> tick කළ බැංකු Cash Entry හි 🏦 Banking එකේ තෝරන්න පුළුවන්; <b>Card machine</b> tick කළ බැංකු Sales Breakdown හි 💳 Card Sale field ලෙස එයි. මේක සියලුම users ලාට අදාළයි.</p>
             <div class="bank-registry-host"></div>
+          </div>
+        </div>
+
+        <!-- SYNC CHECKS (all 3, in one place — same tools also live next to their own Reports/Credit tabs) -->
+        <div id="settings-tab-content-synccheck" class="tab-content">
+          <div class="card-head">
+            <div class="card-title">🔧 Sync Checks</div>
+          </div>
+          <div style="padding:1.2rem 1.5rem;">
+            <p style="color:var(--muted);font-size:.85rem;margin-bottom:1.1rem;">
+              Save fail වීම්, පරණ data overwrite වීම් වගේ දේවලින් Credits, Cheques සහ Cash-in-Hand වල ඇති වෙන gaps මෙතනින් check කරලා safely fix කරගන්න පුළුවන් — මේ tool 3ම ඒවායේම tabs (Credit Management / Reports) හිත් තියෙනවා, මෙතන තියෙන්නේ එකම තැනකින් ලගාගන්න විතරයි.
+            </p>
+            <div style="display:flex;flex-direction:column;gap:.8rem;max-width:480px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:.8rem;padding:.7rem .9rem;border:1.5px solid var(--border);border-radius:10px;">
+                <div><strong>📒 Credit Bill Payments</strong><div style="font-size:.78rem;color:var(--muted);">Cash Disposal Log payments ↔ actual bill records</div></div>
+                <button class="btn btn-ghost btn-sm" onclick="openReconcileModal()">🔧 Sync Check</button>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:.8rem;padding:.7rem .9rem;border:1.5px solid var(--border);border-radius:10px;">
+                <div><strong>🧾 Cheque-Linked Payments</strong><div style="font-size:.78rem;color:var(--muted);">Auto-settle cheques ↔ bill Payment History</div></div>
+                <button class="btn btn-ghost btn-sm" onclick="openChequeSyncModal()">🔧 Cheque Payment Sync Check</button>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:.8rem;padding:.7rem .9rem;border:1.5px solid var(--border);border-radius:10px;">
+                <div><strong>💵 Cash-in-Hand</strong><div style="font-size:.78rem;color:var(--muted);">Lost Cash Disposal Log deductions / Day Sale entries</div></div>
+                <button class="btn btn-ghost btn-sm" onclick="openCashSyncModal()">🔧 Sync Check</button>
+              </div>
+            </div>
+            <div style="margin-top:1.2rem;">
+              <button class="btn btn-ghost btn-sm" onclick="runDailySyncCheck(true)" title="හැමදාම උදේ 10.45 ට auto run වෙන Daily Sync Check එක දැන්ම run කරලා Admin/Manager ට notify කරන්න (test)">🔔 Daily Check + Notify now</button>
+            </div>
           </div>
         </div>
 
@@ -4120,6 +4150,7 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
     <div class="modal-foot">
       <button class="btn btn-ghost" onclick="closeModal('cashSyncModal')">Close</button>
       <button class="btn btn-ghost" onclick="runDailySyncCheck(true)" title="හැමදාම උදේ 10.45 ට auto run වෙන Daily Sync Check එක දැන්ම run කරලා Admin/Manager ට notify කරන්න (test)">🔔 Daily Check + Notify now</button>
+      <button class="btn btn-red" id="cashsync-dedupeall-btn" onclick="removeAllCashSyncDuplicates()" style="display:none;" title="Sync Check විසින්ම දෙපාරක් Restore වූ entries — ආරක්ෂිතව ඉවත් කරයි">🧹 Remove Duplicates</button>
       <button class="btn btn-green" id="cashsync-fixall-btn" onclick="restoreAllCashSyncIssues()" style="display:none;">✅ Restore All</button>
     </div>
   </div>
@@ -18263,6 +18294,30 @@ function scanCashLogGaps() {
   log.forEach(e => seen.set(e.id, (seen.get(e.id) || 0) + 1));
   const dupIds = [...seen.entries()].filter(([, n]) => n > 1).map(([id]) => id);
   if (dupIds.length) out.warnings.push('⚠️ Cash Log එකේ ID දෙපාරක් ඇති entries ' + dupIds.length + ' ක් තියෙනවා (' + dupIds.slice(0, 3).join(', ') + ').');
+  // Same lost activity row restored MORE THAN ONCE (different ids, same origActivityId). restoreCashLogEntry's
+  // own isDup() check should block this — it can still happen if, between the two restores, the FIRST restored
+  // copy was wiped off the server by an unrelated save elsewhere that overwrote admin.cashLog from a stale local
+  // array (one that didn't yet include it). Each extra copy double-counts that deduction, so Cash-in-Hand reads
+  // too LOW by the extra amount(s). This IS safe to auto-fix (unlike a judgment-call "is this really the same
+  // sale?" case): every copy here was built by Sync Check itself from the SAME origActivityId, so removing all
+  // but the earliest one can never delete a genuine, independent entry — it only undoes Sync Check's own
+  // double-restore. Surfaced as its own 'dup' group (not lumped into Restore All's math, which only ever ADDS).
+  const byOrigAct = new Map();
+  log.forEach(e => { if (e.origActivityId) { if (!byOrigAct.has(e.origActivityId)) byOrigAct.set(e.origActivityId, []); byOrigAct.get(e.origActivityId).push(e); } });
+  byOrigAct.forEach((list, origId) => {
+    if (list.length < 2) return;
+    const sorted = list.slice().sort((a, b) => (_csIdTime(a.id) || 0) - (_csIdTime(b.id) || 0));
+    const keep = sorted[0], extras = sorted.slice(1);
+    const extraAmount = extras.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+    const detail = keep.supplierName ? '🏪 ' + keep.supplierName : keep.empName ? '👤 ' + keep.empName : keep.bankName ? '🏦 ' + keep.bankName : (keep.description || '—');
+    push({
+      key: 'duprestore|' + origId, group: 'dup', isDuplicateRemoval: true,
+      source: '🚨 Sync Check මගින් මේම Activity Log සටහනම දෙපාරක් Restore වී ඇත (' + list.length + ' copies) — extra ' + extras.length + 'ක් Cash-in-Hand එකෙන් අමතරව අඩු කරයි',
+      label: CASH_SYNC_LABELS[keep.type] || keep.type, detail,
+      date: keep.date || today(), editDate: false, amount: extraAmount, refTime: _csIdTime(keep.id), type: keep.type,
+      removeIds: extras.map(e => e.id), keepId: keep.id
+    });
+  });
   const bad = log.filter(e => !e.date || !isFinite(Number(e.amount)) || Number(e.amount) <= 0);
   if (bad.length) out.warnings.push('⚠️ දිනය හෝ මුදල වැරදි Cash Log entries ' + bad.length + ' ක් තියෙනවා — Cash Disposal Log එකේ බලන්න.');
   // identical Day Sale entries saved twice (same date + cashier + amounts, ids created within 10 min)
@@ -18325,6 +18380,7 @@ function renderCashSyncResults() {
   if (_cashSyncError) {
     statusEl.innerHTML = escHtml(_cashSyncError);
     listEl.innerHTML = ''; fixAllBtn.style.display = 'none';
+    const dab = $('cashsync-dedupeall-btn'); if (dab) dab.style.display = 'none';
     return;
   }
   const open = _cashSyncIssues.filter(g => !g.ignored);
@@ -18332,33 +18388,40 @@ function renderCashSyncResults() {
   if (!open.length) {
     statusEl.innerHTML = '✅ සියල්ල Sync වී ඇත — අහිමි වූ Cash-in-Hand deductions හෝ Day Sale entries (අවසන් දින 30 තුළ) හමු නොවුනි.';
     listEl.innerHTML = ''; fixAllBtn.style.display = 'none';
+    const dab = $('cashsync-dedupeall-btn'); if (dab) dab.style.display = 'none';
     return;
   }
   const exact = todo.filter(g => g.group === 'exact');
   const review = todo.filter(g => g.group === 'review');
-  const signed = g => (CASH_SYNC_ADD_TYPES.includes(g.entry.type) ? -1 : 1) * g.amount;
+  const dup = todo.filter(g => g.group === 'dup');
+  const signed = g => (CASH_SYNC_ADD_TYPES.includes(g.type) ? -1 : 1) * g.amount;
   const nowCash = calcCashInHand();
   const afterAll = nowCash - exact.reduce((s, g) => s + signed(g), 0);
+  const afterDup = nowCash + dup.reduce((s, g) => s + g.amount, 0);
   let html = '';
   if (!todo.length) html = '✅ හමු වූ සියල්ල Restore කර ඇත.';
   else {
-    html += `⚠️ Cash-in-Hand එකට සම්බන්ධ gap <strong>${todo.length}</strong> ක් හමු වුනා (අහිමි වූ deductions සහ/හෝ Day Sale entries).`;
+    const n = exact.length + review.length;
+    if (n) html += `⚠️ Cash-in-Hand එකට සම්බන්ධ gap <strong>${n}</strong> ක් හමු වුනා (අහිමි වූ deductions සහ/හෝ Day Sale entries).`;
     if (exact.length) html += `<div style="font-weight:500;font-size:.85rem;margin-top:.3rem;">දැන් Cash-in-Hand: <strong>${fmt(nowCash)}</strong> → ✅ Restore All පසු: <strong style="color:#16a34a;">${fmt(afterAll)}</strong></div>`;
     if (review.length) html += `<div style="font-weight:500;font-size:.82rem;color:var(--muted);margin-top:.3rem;">🔍 ${review.length} ක් manual check කළ යුතු ඒවා (Bill/Purchase/Payslip link නැති deductions, හෝ breakdown නැවත සෑදිය නොහැකි Day Sale entries) — එකින් එක "Restore as Other" කළ හැක (Restore All එකට ඇතුළත් නෑ).</div>`;
+    if (dup.length) html += `<div style="font-weight:500;font-size:.85rem;margin-top:.3rem;color:#dc2626;">🚨 Sync Check විසින්ම දෙපාරක් Restore වී ඇති entries <strong>${dup.length}</strong> ක් හමු වුනා — මේවා auto-fix කරන්න ආරක්ෂිතයි (manual delete අවශ්‍ය නෑ). Fix කළාට පසු Cash-in-Hand: <strong style="color:#16a34a;">${fmt(afterDup)}</strong></div>`;
   }
   statusEl.innerHTML = html;
   fixAllBtn.style.display = exact.length ? '' : 'none';
   fixAllBtn.textContent = `✅ Restore All (${exact.length})`;
+  const dupAllBtn = $('cashsync-dedupeall-btn');
+  if (dupAllBtn) { dupAllBtn.style.display = dup.length ? '' : 'none'; dupAllBtn.textContent = `🧹 Remove Duplicates (${dup.length})`; }
 
   listEl.innerHTML = open.map(g => {
-    const sign = CASH_SYNC_ADD_TYPES.includes(g.entry.type) ? '+' : '−';
+    const sign = CASH_SYNC_ADD_TYPES.includes(g.type) ? '+' : '−';
     const dateCell = g.editDate && !g.fixed
       ? `<input type="date" id="cs-date-${g._rid}" value="${escHtml(g.date)}" style="padding:.25rem .4rem;border:1.5px solid var(--border);border-radius:6px;font-size:.8rem;">`
       : `<span>${escHtml(g.date)}</span>`;
     let actions;
-    if (g.fixed) actions = `<span style="color:var(--green);font-weight:700;white-space:nowrap;">✅ Restored</span>`;
+    if (g.fixed) actions = `<span style="color:var(--green);font-weight:700;white-space:nowrap;">✅ ${g.isDuplicateRemoval ? 'Removed' : 'Restored'}</span>`;
     else actions = `<div style="display:flex;flex-direction:column;gap:.35rem;align-items:flex-end;">
-        <button class="btn btn-green btn-sm" onclick="restoreCashSyncIssue(${g._rid})">${g.group === 'review' ? 'Restore as Other' : 'Restore'}</button>
+        <button class="btn ${g.isDuplicateRemoval ? 'btn-red' : 'btn-green'} btn-sm" onclick="restoreCashSyncIssue(${g._rid})">${g.isDuplicateRemoval ? '🧹 Remove Duplicate' : (g.group === 'review' ? 'Restore as Other' : 'Restore')}</button>
         <button class="btn btn-ghost btn-sm" onclick="ignoreCashSyncIssue(${g._rid})" title="මේක දැනටමත් හරි / අවශ්‍ය නෑ — නැවත පෙන්වන්න එපා">🙈 Ignore</button>
       </div>`;
     return `<div style="display:flex;justify-content:space-between;align-items:center;gap:.6rem;padding:.65rem .2rem;border-bottom:1px solid var(--border);${g.fixed ? 'opacity:.55;' : ''}">
@@ -18463,6 +18526,47 @@ async function restoreCashEntryRecord(ownerUsername, rawEntry) {
   }
 }
 
+// Removes specific duplicate entries from admin.cashLog (by id) — the auto-fix for the "same
+// activity restored twice" finding above. Re-reads the server copy inside a transaction first and
+// only removes ids that are STILL there, so it can never collide with (or re-delete) anything else;
+// if another admin/device already cleaned it up, this is a safe no-op.
+async function removeCashLogDuplicates(ids) {
+  const idSet = new Set(ids);
+  const mirrorLocal = () => {
+    const a = getUserByUsername('admin');
+    if (a && Array.isArray(a.cashLog)) a.cashLog = a.cashLog.filter(e => !idSet.has(e.id));
+  };
+  if (!firebaseReady() || !usersCol) {
+    mirrorLocal();
+    const a = getUserByUsername('admin');
+    if (a) syncUser(a);
+    return { ok: true };
+  }
+  setSyncStatus('syncing');
+  try {
+    let removed = 0;
+    await fdb.runTransaction(async tx => {
+      removed = 0;
+      const ref = usersCol.doc('admin');
+      const snap = await tx.get(ref);
+      if (!snap.exists) throw new Error('ADMIN_NOT_FOUND');
+      const fresh = Array.isArray(snap.data().cashLog) ? snap.data().cashLog.slice() : [];
+      const kept = fresh.filter(e => !idSet.has(e.id));
+      removed = fresh.length - kept.length;
+      if (!removed) return;
+      tx.update(ref, { cashLog: kept });
+    });
+    mirrorLocal();
+    try { saveDBLocal(); } catch (e) { console.error('removeCashLogDuplicates local mirror', e); }
+    markSynced('cloud');
+    return { ok: true, removed };
+  } catch (e) {
+    console.error('removeCashLogDuplicates', e);
+    setSyncStatus('offline');
+    return { ok: false, reason: e && e.message };
+  }
+}
+
 function _csRefreshAfterChange() {
   try { renderManagerCashLedger(); } catch (e) {}
   try { renderCashLog(); } catch (e) {}
@@ -18518,14 +18622,34 @@ function _logSyncCashRestore(g, before, after) {
   logActivity('CASH_LOG_RESTORE', parts.join(' | '));
 }
 
+// Auto-fix for a "same activity restored twice" finding — removes the extra copy(ies) from
+// admin.cashLog. Safe to run unattended (unlike a normal Restore, this never invents new money:
+// it only removes entries Sync Check itself already proved are duplicates of one it's keeping).
+async function _csRemoveDuplicateIssue(g) {
+  const cashBefore = calcCashInHand();
+  const r = await removeCashLogDuplicates(g.removeIds);
+  if (!r.ok) return false;
+  g.fixed = true;
+  if (!r.removed) {
+    logActivity('CASH_LOG_RESTORE', `ℹ️ Sync Check: ${g.label} duplicate — දැනටමත් clean කරලා තිබුණා, වෙනසක් කළේ නෑ`);
+    return true;
+  }
+  logActivity('CASH_LOG_RESTORE', [
+    `🧹 Sync Check · Duplicate Restore REMOVED`, `${g.label}`, `− ${fmt(g.amount)}`,
+    `📅 ${g.date}`, `(keep: ${g.keepId}, removed: ${g.removeIds.join(', ')})`,
+    `Cash-in-Hand: ${fmt(cashBefore)} → ${fmt(calcCashInHand())}`
+  ].join(' | '));
+  return true;
+}
+
 async function restoreCashSyncIssue(rid) {
   const g = _cashSyncIssues.find(x => x._rid === rid);
   if (!g || g.fixed || g.ignored || _cashSyncBusy) return;
   _cashSyncBusy = true;
   try {
-    const ok = await _csRestoreIssue(g);
-    if (ok) toast('✅ Restored — Cash-in-Hand නැවත ගණනය කළා');
-    else if (ok === false) toast('⚠️ Restore failed — try again', 'red');
+    const ok = g.isDuplicateRemoval ? await _csRemoveDuplicateIssue(g) : await _csRestoreIssue(g);
+    if (ok) toast(g.isDuplicateRemoval ? '✅ Duplicate entry ඉවත් කළා — Cash-in-Hand නැවත ගණනය කළා' : '✅ Restored — Cash-in-Hand නැවත ගණනය කළා');
+    else if (ok === false) toast('⚠️ Failed — try again', 'red');
   } finally { _cashSyncBusy = false; }
   _csRefreshAfterChange();
 }
@@ -18544,6 +18668,21 @@ async function restoreAllCashSyncIssues() {
   _csRefreshAfterChange();
 }
 
+// Bulk auto-fix for every "restored twice" duplicate found — no confirm needed (unlike Restore All,
+// this only ever removes entries Sync Check proved are its own duplicates; Cash-in-Hand goes UP).
+async function removeAllCashSyncDuplicates() {
+  if (_cashSyncBusy) return;
+  const pendingDups = _cashSyncIssues.filter(g => !g.fixed && !g.ignored && g.group === 'dup');
+  if (!pendingDups.length) return;
+  _cashSyncBusy = true;
+  let n = 0;
+  try {
+    for (const g of pendingDups) { if (await _csRemoveDuplicateIssue(g)) n++; }
+  } finally { _cashSyncBusy = false; }
+  toast(n === pendingDups.length ? `✅ ${n} duplicate(s) ඉවත් කළා` : `⚠️ ${n}/${pendingDups.length} ඉවත් කළා — ඉතුරු ඒවා try again`, n === pendingDups.length ? 'green' : 'red');
+  _csRefreshAfterChange();
+}
+
 // "Ignore" is remembered on admin's doc (cashSyncAck) so the same finding is never listed again.
 function ignoreCashSyncIssue(rid) {
   const g = _cashSyncIssues.find(x => x._rid === rid);
@@ -18553,7 +18692,7 @@ function ignoreCashSyncIssue(rid) {
   if (!a) return;
   if (!Array.isArray(a.cashSyncAck)) a.cashSyncAck = [];
   if (!a.cashSyncAck.some(x => x.key === g.key)) {
-    a.cashSyncAck.push({ key: g.key, ts: new Date().toISOString(), by: DB.currentUsername, note: `${g.entry.type} · ${g.date} · ${fmt(g.amount)}` });
+    a.cashSyncAck.push({ key: g.key, ts: new Date().toISOString(), by: DB.currentUsername, note: `${g.type} · ${g.date} · ${fmt(g.amount)}` });
   }
   syncUser(a);
   g.ignored = true;
@@ -18619,7 +18758,7 @@ async function runDailySyncCheck(force) {
 
     const creditSum = creditOpen.reduce((s, g) => s + (Number(g.missing) || 0), 0);
     const chequeSum = chequeOpen.reduce((s, g) => s + (Number(g.missing) || 0), 0);
-    const cashSum = cashOpen.reduce((s, g) => s + (CASH_SYNC_ADD_TYPES.includes(g.entry.type) ? -1 : 1) * (Number(g.amount) || 0), 0);
+    const cashSum = cashOpen.reduce((s, g) => s + (g.isDuplicateRemoval ? -1 : (CASH_SYNC_ADD_TYPES.includes(g.type) ? -1 : 1)) * (Number(g.amount) || 0), 0);
     const lines = [];
     if (creditOpen.length) lines.push(`📒 Credit: bill payments ${creditOpen.length} ක් sync නෑ (${fmt(creditSum)})`);
     if (chequeOpen.length) lines.push(`🧾 Cheque: linked bill payments ${chequeOpen.length} ක් sync නෑ (${fmt(chequeSum)})`);
