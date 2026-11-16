@@ -18117,6 +18117,11 @@ function scanCashLogGaps() {
   const logIds = new Set(log.map(e => e.id));
   const ack = new Set((admin.cashSyncAck || []).map(a => a.key));
   const push = iss => { if (!ack.has(iss.key)) out.issues.push(iss); };
+  // Informational warnings (section 3 below) have nothing to "fix" — admin can choose, once, whether
+  // a given one should keep nagging the Daily Check every morning (see muteCashSyncWarning()). Same
+  // ack-list idea as issues above, just a separate field so muting a warning never touches cashSyncAck.
+  const warnAck = new Set((admin.cashWarnAck || []).map(a => a.key));
+  const pushWarn = (key, text) => { if (!warnAck.has(key)) out.warnings.push({ key, text }); };
   let dupLogsIgnored = 0;   // count of duplicate-log rows collapsed below (see CASH_SYNC_DUPLICATE_LOG_MS)
   // Collapses activity rows that are near-certainly the SAME save logged twice (double-tap / retry):
   // same groupKey(a) and amount, timestamps within CASH_SYNC_DUPLICATE_LOG_MS of each other. Keeps
@@ -18293,7 +18298,7 @@ function scanCashLogGaps() {
   const seen = new Map();
   log.forEach(e => seen.set(e.id, (seen.get(e.id) || 0) + 1));
   const dupIds = [...seen.entries()].filter(([, n]) => n > 1).map(([id]) => id);
-  if (dupIds.length) out.warnings.push('⚠️ Cash Log එකේ ID දෙපාරක් ඇති entries ' + dupIds.length + ' ක් තියෙනවා (' + dupIds.slice(0, 3).join(', ') + ').');
+  if (dupIds.length) pushWarn('warn|dup_ids', '⚠️ Cash Log එකේ ID දෙපාරක් ඇති entries ' + dupIds.length + ' ක් තියෙනවා (' + dupIds.slice(0, 3).join(', ') + ').');
   // Same lost activity row restored MORE THAN ONCE (different ids, same origActivityId). restoreCashLogEntry's
   // own isDup() check should block this — it can still happen if, between the two restores, the FIRST restored
   // copy was wiped off the server by an unrelated save elsewhere that overwrote admin.cashLog from a stale local
@@ -18319,7 +18324,7 @@ function scanCashLogGaps() {
     });
   });
   const bad = log.filter(e => !e.date || !isFinite(Number(e.amount)) || Number(e.amount) <= 0);
-  if (bad.length) out.warnings.push('⚠️ දිනය හෝ මුදල වැරදි Cash Log entries ' + bad.length + ' ක් තියෙනවා — Cash Disposal Log එකේ බලන්න.');
+  if (bad.length) pushWarn('warn|bad_entries', '⚠️ දිනය හෝ මුදල වැරදි Cash Log entries ' + bad.length + ' ක් තියෙනවා — Cash Disposal Log එකේ බලන්න.');
   // identical Day Sale entries saved twice (same date + cashier + amounts, ids created within 10 min)
   const dayDup = [];
   DB.users.forEach(u => {
@@ -18333,9 +18338,9 @@ function scanCashLogGaps() {
       }
     });
   });
-  if (dayDup.length) out.warnings.push('⚠️ දෙපාරක් save වූ Day Sale entries ' + dayDup.length + ' ක් ඇති: ' + dayDup.slice(0, 3).join(' | ') + ' — Cash Sale History එකෙන් එකක් delete කරන්න (Net Cash දෙපාරක් එකතු වෙලා Cash-in-Hand වැඩියි).');
-  if (calcCashInHand() < -0.005) out.warnings.push('⚠️ Cash-in-Hand දැන් negative (' + fmt(calcCashInHand()) + ') — disposal entries වැඩියෙන් තියෙනවා හෝ day-sale entries අඩුයි. පහළ list එකේ "☀️ Day Sale" issue එකක් නැත්නම්, මේ අහිමි වීම Activity Log එක (දින 30) තියෙනවට වඩා පරණයි — එය මෙතනින් auto-detect කළ නොහැක, පරණ PDF Report/backup එකක් එක්ක compare කර manual check කරන්න.');
-  if (dupLogsIgnored) out.warnings.push('ℹ️ Double-tap/retry නිසා දෙපාරක් log වුනු (real entry එකක් නැති වී නැති) activity-log රේඛා ' + dupLogsIgnored + ' ක් සොයා, gap ලෙස නොසලකා හරින ලදී — Cash-in-Hand එකට බලපෑමක් නැත.');
+  if (dayDup.length) pushWarn('warn|day_dup', '⚠️ දෙපාරක් save වූ Day Sale entries ' + dayDup.length + ' ක් ඇති: ' + dayDup.slice(0, 3).join(' | ') + ' — Cash Sale History එකෙන් එකක් delete කරන්න (Net Cash දෙපාරක් එකතු වෙලා Cash-in-Hand වැඩියි).');
+  if (calcCashInHand() < -0.005) pushWarn('warn|negative_cih', '⚠️ Cash-in-Hand දැන් negative (' + fmt(calcCashInHand()) + ') — disposal entries වැඩියෙන් තියෙනවා හෝ day-sale entries අඩුයි. පහළ list එකේ "☀️ Day Sale" issue එකක් නැත්නම්, මේ අහිමි වීම Activity Log එක (දින 30) තියෙනවට වඩා පරණයි — එය මෙතනින් auto-detect කළ නොහැක, පරණ PDF Report/backup එකක් එක්ක compare කර manual check කරන්න.');
+  if (dupLogsIgnored) pushWarn('warn|dup_logs_ignored', 'ℹ️ Double-tap/retry නිසා දෙපාරක් log වුනු (real entry එකක් නැති වී නැති) activity-log රේඛා ' + dupLogsIgnored + ' ක් සොයා, gap ලෙස නොසලකා හරින ලදී — Cash-in-Hand එකට බලපෑමක් නැත.');
   return out;
 }
 
@@ -18376,7 +18381,7 @@ async function openCashSyncModal() {
 function renderCashSyncResults() {
   const statusEl = $('cashsync-status'), listEl = $('cashsync-list'), warnEl = $('cashsync-warn'), fixAllBtn = $('cashsync-fixall-btn');
   if (!statusEl || !listEl) return;
-  warnEl.innerHTML = _cashSyncWarnings.map(w => `<div style="font-size:.82rem;color:#92400e;background:#fffbea;border:1px solid #fef08a;border-radius:8px;padding:.45rem .7rem;margin-bottom:.4rem;">${escHtml(w)}</div>`).join('');
+  warnEl.innerHTML = _cashSyncWarnings.map(w => `<div style="font-size:.82rem;color:#92400e;background:#fffbea;border:1px solid #fef08a;border-radius:8px;padding:.45rem .7rem;margin-bottom:.4rem;display:flex;justify-content:space-between;align-items:center;gap:.6rem;"><span>${escHtml(w.text)}</span><button class="btn btn-ghost btn-sm" style="flex-shrink:0;" onclick="muteCashSyncWarning('${escHtml(w.key)}', '${escHtml(w.text.replace(/'/g, "\\'"))}'); this.closest('div').remove();" title="මේක හැමදාම Daily Check එකේ repeat වෙන්න එපා">🔕 Mute</button></div>`).join('');
   if (_cashSyncError) {
     statusEl.innerHTML = escHtml(_cashSyncError);
     listEl.innerHTML = ''; fixAllBtn.style.display = 'none';
@@ -18684,6 +18689,20 @@ async function removeAllCashSyncDuplicates() {
 }
 
 // "Ignore" is remembered on admin's doc (cashSyncAck) so the same finding is never listed again.
+// Mutes an informational warning (key from scanCashLogGaps' pushWarn) so it stops appearing in both
+// the Sync Check modal and the Daily Check — the admin has seen it and explicitly chosen "don't tell
+// me this one again every day" (it never had a fix button to begin with, unlike an issue).
+function muteCashSyncWarning(key, text) {
+  if (!isAdmin()) return;
+  const a = getUserByUsername('admin');
+  if (!a) return;
+  if (!Array.isArray(a.cashWarnAck)) a.cashWarnAck = [];
+  if (!a.cashWarnAck.some(x => x.key === key)) {
+    a.cashWarnAck.push({ key, ts: new Date().toISOString(), by: DB.currentUsername, note: text || '' });
+  }
+  syncUser(a);
+}
+
 function ignoreCashSyncIssue(rid) {
   const g = _cashSyncIssues.find(x => x._rid === rid);
   if (!g || g.fixed || !isAdmin()) return;
@@ -18730,14 +18749,49 @@ function _dsPastDailyTime() {
   return (n.getHours() * 60 + n.getMinutes()) >= (DAILY_SYNC_HOUR * 60 + DAILY_SYNC_MINUTE);
 }
 
+// Atomically claims today's run so only ONE tab/device/user actually scans and alerts, even when
+// several of them cross 10:45 within moments of each other. _dsCheckedToday()'s plain read-then-write
+// has a race window: several tabs can each read "not done yet" from a stale/pre-write cache and all
+// proceed, each sending its own alert a few seconds apart. A Firestore transaction on a dedicated,
+// single-purpose doc closes that window — Firestore serializes conflicting transactions against the
+// SAME doc, so exactly one caller's tx.set() succeeds (claimed = true, snap didn't exist yet); every
+// other simultaneous caller's tx.get() sees that first one's write and gets claimed = false, and must
+// bail out before running any scan or sending any alert. A dedicated doc (not admin.dailySyncCheck,
+// which is one field of the whole-array-overwrite-prone admin user doc) keeps the claim uncontended
+// by unrelated writes elsewhere.
+async function _claimDailySyncCheck(dateStr) {
+  if (!firebaseReady() || !fdb) return false;
+  try {
+    let claimed = false;
+    await fdb.runTransaction(async tx => {
+      const ref = fdb.collection('cms_daily_sync').doc(dateStr);
+      const snap = await tx.get(ref);
+      if (snap.exists) { claimed = false; return; }
+      tx.set(ref, { date: dateStr, claimedAt: new Date().toISOString(), claimedBy: DB.currentUsername || '' });
+      claimed = true;
+    });
+    return claimed;
+  } catch (e) {
+    console.error('_claimDailySyncCheck', e);
+    return false;   // can't prove we won the claim → skip rather than risk a duplicate alert
+  }
+}
+
 async function runDailySyncCheck(force) {
   if (!(isAdmin() || isManager())) return;
   if (!firebaseReady() || !usersCol || _dailySyncRunning) return;
   if (!force && !_dsPastDailyTime()) return;
   const t = _csLocalDate(Date.now());
-  if (!force && _dsCheckedToday(t)) return;
+  if (!force && _dsCheckedToday(t)) return;   // cheap local pre-check — avoids a transaction on every 15-min tick once today is already done
   _dailySyncRunning = true;
   try {
+    // The actual duplicate-alert guard: claim the day BEFORE doing anything else. force=true (the
+    // manual "Daily Check + Notify now" test button) always re-runs on purpose, so it skips the claim.
+    if (!force) {
+      const claimed = await _claimDailySyncCheck(t);
+      if (!claimed) return;   // another tab/device/user already claimed today — stay silent
+    }
+
     // Never judge from a possibly-stale local copy: read everything fresh from the server first.
     // If that fails (offline etc.) stay silent — a false alarm is worse than skipping until the next try.
     const snap = await _withTimeout(usersCol.get({ source: 'server' }), 12000);
@@ -18746,7 +18800,7 @@ async function runDailySyncCheck(force) {
     if (!me) return;
     DB.currentUser = me;
     DB.dataIncomplete = false;
-    if (!force && _dsCheckedToday(t)) return;   // another device got there first
+    if (!force && _dsCheckedToday(t)) return;   // defensive fallback, now redundant with the claim above but harmless to keep
 
     const gaps = await scanCreditPaymentGaps();
     const creditOpen = gaps.filter(g => !isReconcileAcked(g) && !g.resolvedManually);
@@ -18763,7 +18817,7 @@ async function runDailySyncCheck(force) {
     if (creditOpen.length) lines.push(`📒 Credit: bill payments ${creditOpen.length} ක් sync නෑ (${fmt(creditSum)})`);
     if (chequeOpen.length) lines.push(`🧾 Cheque: linked bill payments ${chequeOpen.length} ක් sync නෑ (${fmt(chequeSum)})`);
     if (cashOpen.length) lines.push(`💵 Cash-in-Hand: gap ${cashOpen.length} ක් (deductions/Day Sale entries) — (${fmt(Math.abs(cashSum))} ${cashSum >= 0 ? 'වැඩියෙන්' : 'අඩුවෙන්'} පෙන්නන්න පුළුවන්)`);
-    cs.warnings.forEach(w => lines.push(w.replace(/^⚠️\s*/, '⚠️ ')));
+    cs.warnings.forEach(w => lines.push(w.text));
     // "fixable" = has an actual action button in one of the Sync Check modals (Restore / Restore as
     // Other / Remove Duplicate). cs.warnings are informational only — e.g. "Cash-in-Hand is negative,
     // check an old PDF/backup manually" — nothing in any Sync Check button can act on them, so they
@@ -18789,7 +18843,20 @@ async function runDailySyncCheck(force) {
       queuePushEvent(cashOpen.length ? 'disposal' : 'credit', title, adminBody);
       toast(title, 'red');
     } else if (force) {
-      toast(cs.warnings.length ? `✅ Auto-fix කළ හැකි ගැටළු නෑ — ⚠️ warnings ${cs.warnings.length} ක් තියෙනවා (Cash Sync Check එකේ manual check කරන්න), Message Center එකට alert එකක් ගියේ නෑ` : '✅ Daily Sync Check — ගැටළු කිසිවක් නෑ', 'green');
+      // Nothing fixable → no Message Center alert either way (see above). But the test button is the
+      // one place admin is actively looking right now, so for each unfixable warning: ask once whether
+      // it should keep showing up in the Daily Check every morning. Cancel = mute it permanently
+      // (muteCashSyncWarning) — the exact "ask → tick no → stop sending" flow that was asked for.
+      if (cs.warnings.length) {
+        let anyKept = false;
+        cs.warnings.slice().forEach(w => {
+          const keep = confirm(`⚠️ ${w.text}\n\nමේක auto-fix කළ හැකි ගැටළුවක් නෙවෙයි — Cash Sync Check එකේ manual check කළ යුතුයි.\n\nමේක Daily Sync Check එකෙන් හැමදාම Message Center එකට notify කරන්නද?\n\nOK = ඔව්, දිනපතා කියන්න\nCancel = එපා, මින්පසු මේක notify කරන්න එපා`);
+          if (keep) anyKept = true; else muteCashSyncWarning(w.key, w.text);
+        });
+        toast(anyKept ? '✅ Auto-fix කළ හැකි ගැටළු නෑ — ⚠️ warnings තියෙනවා, Message Center එකට alert එකක් ගියේ නෑ' : '✅ Auto-fix කළ හැකි ගැටළු නෑ — ⚠️ warnings සියල්ල mute කළා, මින්පසු Daily Check එකේ පෙන්වන්නේ නෑ', 'green');
+      } else {
+        toast('✅ Daily Sync Check — ගැටළු කිසිවක් නෑ', 'green');
+      }
     }
   } catch (e) {
     console.error('runDailySyncCheck', e);
