@@ -2053,6 +2053,7 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
     <div class="sb-link hidden" id="payrollNavLink" title="Payroll" onclick="showSection('payroll')"><span class="ico">💲</span><span>Payroll</span></div>
     <div class="sb-link hidden" id="todoNavLink" title="To-Do" onclick="showSection('todo')"><span class="ico">📝</span><span>To-Do</span><em class="todo-nav-badge hidden" id="todoNavBadge">0</em></div>
     <div class="sb-link" id="navLink-reload" title="Reload" onclick="showSection('reload')"><span class="ico">📱</span><span>Reload</span></div>
+    <div class="sb-link hidden" id="navLink-notes" title="Notes" onclick="showSection('notes')"><span class="ico">🗒️</span><span>Notes</span></div>
     <div class="sb-link" id="navLink-aiinsights" title="AI Insights" onclick="showSection('aiinsights')"><span class="ico">🤖</span><span>AI Insights</span></div>
     <div class="sb-link" id="navLink-reports" title="Reports" onclick="showSection('reports')"><span class="ico">📋</span><span>Reports</span></div>
     <div class="sb-link" id="navLink-analytics" title="Analytics" onclick="showSection('analytics')"><span class="ico">📈</span><span>Analytics</span></div>
@@ -2941,6 +2942,21 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
         </div>
         <div id="reloadHistPagination" class="pg-bar-wrap"></div>
         <div id="reloadHistArchiveWrap"></div>
+      </div>
+    </div>
+
+    <!-- NOTES -->
+    <div id="notesSection" class="section">
+      <div class="card">
+        <div class="card-head" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.6rem;">
+          <div class="card-title">🗒️ Notes</div>
+          <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
+            <input type="text" id="notes-search" placeholder="🔍 වචනයකින් search කරන්න..." oninput="renderNotesSection()" style="padding:.5rem .8rem;border:1.5px solid var(--border);border-radius:8px;font-size:.85rem;min-width:200px;background:var(--surface);color:var(--text);">
+            <button class="btn btn-green btn-sm" onclick="openNoteEditor()">➕ New Note</button>
+          </div>
+        </div>
+        <div class="tab-bar" id="notes-tabs" style="padding:0 1.2rem;margin-top:.6rem;"></div>
+        <div id="notes-list" style="padding:1rem 1.2rem;"></div>
       </div>
     </div>
 
@@ -4156,6 +4172,53 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
   </div>
 </div>
 
+
+<!-- ===== NOTE EDITOR MODAL ===== -->
+<div id="noteEditorModal" class="overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="noteEditorModalTitle">➕ New Note</h3>
+      <button class="modal-close" onclick="closeModal('noteEditorModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="note-edit-id">
+      <div class="form-group">
+        <label>Title</label>
+        <input type="text" id="note-title" placeholder="Title" maxlength="140">
+      </div>
+      <div class="form-group">
+        <label>Note</label>
+        <textarea id="note-body" rows="7" placeholder="Note එක මෙතන ලියන්න..." maxlength="4000"></textarea>
+      </div>
+      <div class="form-group" id="note-share-wrap">
+        <label style="display:flex;align-items:center;gap:.5rem;font-weight:500;cursor:pointer;">
+          <input type="checkbox" id="note-share" style="width:auto;">
+          👁️ Manager ට පෙන්වන්න
+        </label>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('noteEditorModal')">Cancel</button>
+      <button class="btn btn-green" onclick="saveNoteFromForm()">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== NOTE HISTORY MODAL (Admin only) ===== -->
+<div id="noteHistoryModal" class="overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="noteHistoryModalTitle">🕐 Edit History</h3>
+      <button class="modal-close" onclick="closeModal('noteHistoryModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="note-history-list"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('noteHistoryModal')">Close</button>
+    </div>
+  </div>
+</div>
 
 <!-- ===== CHEQUE MODAL ===== -->
 <div id="chequeModal" class="overlay">
@@ -9605,6 +9668,7 @@ function initDashboard() {
   applyNavPermissions();
   $('plNavLink')?.classList.toggle('hidden', !isAdmin());
   $('todoNavLink')?.classList.toggle('hidden', !isAdmin());
+  $('navLink-notes')?.classList.toggle('hidden', !(isAdmin() || isManager()));
   if (isAdmin()) startTodoLiveSync();
   $('notifBtn')?.classList.toggle('hidden', !(isAdmin() || isManager()));
   if (isAdmin()) startNotifSync();
@@ -9659,6 +9723,7 @@ const sectionTitles = {
   cash: '💰 Cash Management',
   dailySummary: '📅 Daily Summary',
   reload: '📱 Reload Management',
+  notes: '🗒️ Notes',
   payroll: '💲 Payroll',
   todo: '📝 To-Do Reminders',
   settings: '⚙️ Settings'
@@ -9715,6 +9780,7 @@ function showSection(name) {
   if (name === 'dailySummary') initDailySummarySection();
   if (name === 'reports') initReportsSection();
   if (name === 'reload') { if($('rl-date')&&!$('rl-date').value)$('rl-date').value=today(); renderReloadSection(); }
+  if (name === 'notes') { if (!(isAdmin() || isManager())) { showSection('overview'); return; } renderNotesSection(); }
   if (name === 'analytics') initAnalytics();
   if (name === 'aiinsights') renderAIInsights();
   if (name === 'settings') { if (!isAdmin()) { showSection('overview'); return; } initSettingsSection(); }
@@ -18872,6 +18938,232 @@ function startDailySyncCheck() {
   if (!_dailySyncTimer) _dailySyncTimer = setInterval(() => runDailySyncCheck(), 15 * 60 * 1000);
 }
 
+/* ===== NOTES (Admin + Manager) =====
+   Each person's notes live on their OWN user doc as a `notes` array — the same shape of field as
+   cashLog, so saveNote()/deleteNote() use the same Firestore-transaction read-modify-write pattern
+   we added for Cash Disposal Log, for the same reason: two tabs editing notes at once must never
+   silently drop one of them. Visibility is asymmetric by design: a manager's notes are ALWAYS visible
+   to admin (oversight — no tick needed); an admin's notes are PRIVATE until admin explicitly ticks
+   "Manager ට පෙන්වන්න" on that note. Only the note's own owner can edit it; only Admin can delete
+   (any note) or see a note's Edit History. */
+let _notesTab = 'mine';   // 'mine' | 'other' — which tab is currently showing
+
+function myNotesList() {
+  return (DB.currentUser && Array.isArray(DB.currentUser.notes)) ? DB.currentUser.notes.slice() : [];
+}
+
+// What the OTHER party's tab shows: admin → every manager's notes (always visible, tagged by owner,
+// future-proofed for more than one manager); manager → only the admin notes ticked visibleToManager.
+function otherPartyNotesList() {
+  if (isAdmin()) {
+    return DB.users.filter(u => u.role === 'manager').flatMap(u =>
+      (Array.isArray(u.notes) ? u.notes : []).map(n => Object.assign({}, n, { _ownerUsername: u.username, _ownerName: u.name || u.username })));
+  }
+  if (isManager()) {
+    const adm = getUserByUsername('admin');
+    return adm && Array.isArray(adm.notes)
+      ? adm.notes.filter(n => n.visibleToManager).map(n => Object.assign({}, n, { _ownerUsername: adm.username, _ownerName: adm.name || 'Admin' }))
+      : [];
+  }
+  return [];
+}
+
+// "Word search": every space-separated word in the query must appear somewhere in title+body —
+// stricter (and more useful for finding a specific note) than a single substring match.
+function _notesSearchMatch(n, query) {
+  const words = (query || '').toLowerCase().trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return true;
+  const hay = ((n.title || '') + ' ' + (n.body || '')).toLowerCase();
+  return words.every(w => hay.includes(w));
+}
+
+function renderNotesSection() {
+  if (!(isAdmin() || isManager())) return;
+  const tabsEl = $('notes-tabs'), listEl = $('notes-list');
+  if (!tabsEl || !listEl) return;
+  const otherLabel = isAdmin() ? '👤 Manager ගේ Notes' : '📌 Admin ගෙන් Shared';
+  tabsEl.innerHTML = `
+    <div class="tab ${_notesTab === 'mine' ? 'active' : ''}" onclick="_notesTab='mine';renderNotesSection();">📝 මගේ Notes</div>
+    <div class="tab ${_notesTab === 'other' ? 'active' : ''}" onclick="_notesTab='other';renderNotesSection();">${otherLabel}</div>
+  `;
+  const q = ($('notes-search')?.value || '').trim();
+  let list = (_notesTab === 'mine' ? myNotesList() : otherPartyNotesList()).filter(n => _notesSearchMatch(n, q));
+  list.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+  if (!list.length) {
+    listEl.innerHTML = `<div style="color:var(--muted);text-align:center;padding:2.2rem 1rem;">${q ? '🔍 Search ගැලපෙන Notes නෑ' : '🗒️ Notes නෑ'}</div>`;
+    return;
+  }
+  listEl.innerHTML = list.map(n => _noteCardHtml(n, _notesTab === 'mine')).join('');
+}
+
+function _noteCardHtml(n, isMine) {
+  const when = n.updatedAt ? new Date(n.updatedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+  const ownerTag = n._ownerName ? `<div style="font-size:.75rem;color:var(--muted);margin-top:.1rem;">👤 ${escHtml(n._ownerName)}</div>` : '';
+  const shareBadge = (isAdmin() && isMine)
+    ? (n.visibleToManager
+        ? '<span style="font-size:.7rem;background:#dcfce7;color:#166534;padding:.15rem .55rem;border-radius:20px;white-space:nowrap;flex-shrink:0;">👁️ Manager ට පෙනේ</span>'
+        : '<span style="font-size:.7rem;background:#f1f5f9;color:var(--muted);padding:.15rem .55rem;border-radius:20px;white-space:nowrap;flex-shrink:0;">🔒 Private</span>')
+    : '';
+  const histBtn = isAdmin() ? `<button class="btn btn-ghost btn-sm" onclick="openNoteHistory('${n._ownerUsername || DB.currentUsername}','${n.id}')" title="Edit History">🕐 History</button>` : '';
+  const editBtn = isMine ? `<button class="btn btn-ghost btn-sm" onclick="openNoteEditor('${n.id}')">✏️ Edit</button>` : '';
+  const delBtn = isAdmin() ? `<button class="btn btn-ghost btn-sm" onclick="deleteNote('${n._ownerUsername || DB.currentUsername}','${n.id}')" style="color:#dc2626;" title="Delete">🗑️</button>` : '';
+  return `<div style="border:1.5px solid var(--border);border-radius:10px;padding:.85rem 1rem;margin-bottom:.7rem;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.6rem;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:700;font-size:.95rem;word-break:break-word;">${escHtml(n.title || '(Title නෑ)')}</div>
+        ${ownerTag}
+      </div>
+      ${shareBadge}
+    </div>
+    <div style="white-space:pre-wrap;font-size:.85rem;margin-top:.55rem;color:var(--text);word-break:break-word;">${escHtml(n.body || '')}</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:.7rem;flex-wrap:wrap;gap:.4rem;">
+      <div style="font-size:.72rem;color:var(--muted);">🕐 ${when}${n.updatedByName ? ' · ' + escHtml(n.updatedByName) : ''}</div>
+      <div style="display:flex;gap:.3rem;">${histBtn}${editBtn}${delBtn}</div>
+    </div>
+  </div>`;
+}
+
+function openNoteEditor(id) {
+  if (!(isAdmin() || isManager())) return;
+  const n = id ? myNotesList().find(x => x.id === id) : null;
+  $('note-edit-id').value = n ? n.id : '';
+  $('note-title').value = n ? (n.title || '') : '';
+  $('note-body').value = n ? (n.body || '') : '';
+  $('noteEditorModalTitle').textContent = n ? '✏️ Edit Note' : '➕ New Note';
+  const shareWrap = $('note-share-wrap');
+  if (shareWrap) shareWrap.style.display = isAdmin() ? '' : 'none';
+  if ($('note-share')) $('note-share').checked = n ? !!n.visibleToManager : false;
+  openModal('noteEditorModal');
+}
+
+async function saveNoteFromForm() {
+  const title = ($('note-title').value || '').trim();
+  const body = ($('note-body').value || '').trim();
+  if (!title && !body) { toast('⚠️ Title හෝ Note එකක් ලියන්න', 'red'); return; }
+  const id = $('note-edit-id').value || null;
+  const visibleToManager = isAdmin() ? !!$('note-share')?.checked : false;
+  const ok = await saveNote(DB.currentUsername, { id, title, body, visibleToManager });
+  if (!ok) { toast('⚠️ Save වුනේ නෑ — try again', 'red'); return; }
+  closeModal('noteEditorModal');
+  toast('✅ Note save කළා', 'green');
+  renderNotesSection();
+}
+
+// Transaction-safe create/update on the OWNER's own user doc. Always re-reads the fresh server copy
+// first (same reasoning as removeCashLogDuplicates): two tabs/devices saving notes near-simultaneously
+// must never let one silently overwrite the other's unrelated edit (to a different note, or the same
+// note's share-tick). On an update, the note's pre-edit {title, body} is pushed onto its own history
+// array so Admin can see what it used to say (see openNoteHistory).
+async function saveNote(ownerUsername, data) {
+  const isNew = !data.id;
+  const nowIso = new Date().toISOString();
+  const actor = DB.currentUsername, actorName = DB.currentUser?.name || actor;
+  const buildFresh = list => {
+    const fresh = list.slice();
+    let justShared = false;
+    if (isNew) {
+      fresh.unshift({
+        id: uid(), title: data.title, body: data.body, visibleToManager: !!data.visibleToManager,
+        createdAt: nowIso, createdBy: actor, createdByName: actorName,
+        updatedAt: nowIso, updatedBy: actor, updatedByName: actorName, history: []
+      });
+      justShared = !!data.visibleToManager;
+    } else {
+      const idx = fresh.findIndex(x => x.id === data.id);
+      if (idx === -1) return null;
+      const n = Object.assign({}, fresh[idx]);
+      const hist = Array.isArray(n.history) ? n.history.slice() : [];
+      hist.unshift({ ts: n.updatedAt || n.createdAt, by: n.updatedBy || n.createdBy, byName: n.updatedByName || n.createdByName, title: n.title, body: n.body });
+      justShared = !!data.visibleToManager && !n.visibleToManager;
+      n.history = hist; n.title = data.title; n.body = data.body;
+      if (typeof data.visibleToManager === 'boolean') n.visibleToManager = data.visibleToManager;
+      n.updatedAt = nowIso; n.updatedBy = actor; n.updatedByName = actorName;
+      fresh[idx] = n;
+    }
+    return { fresh, justShared };
+  };
+  if (!firebaseReady() || !usersCol) {
+    const u = getUserByUsername(ownerUsername);
+    if (!u) return false;
+    const built = buildFresh(Array.isArray(u.notes) ? u.notes : []);
+    if (!built) return false;
+    u.notes = built.fresh;
+    syncUser(u);
+    return true;
+  }
+  try {
+    let result = null;
+    await fdb.runTransaction(async tx => {
+      const ref = usersCol.doc(ownerUsername);
+      const snap = await tx.get(ref);
+      if (!snap.exists) throw new Error('OWNER_NOT_FOUND');
+      const built = buildFresh(Array.isArray(snap.data().notes) ? snap.data().notes : []);
+      if (!built) throw new Error('NOTE_NOT_FOUND');
+      tx.update(ref, { notes: built.fresh });
+      result = built;
+    });
+    const u = getUserByUsername(ownerUsername);
+    if (u && result) u.notes = result.fresh;
+    try { saveDBLocal(); } catch (e) { console.error('saveNote local mirror', e); }
+    if (result && result.justShared) {
+      try { mgrAlert('*', 'noteShared', '🗒️ Admin අලුත් Note එකක් Share කළා', (data.title || '(Title නෑ)') + ' — 🗒️ Notes tab එකේ "📌 Admin ගෙන් Shared" එකේ බලන්න.'); } catch (e) { console.error('note share alert', e); }
+    }
+    return true;
+  } catch (e) {
+    console.error('saveNote', e);
+    return false;
+  }
+}
+
+// Admin-only, regardless of whose note it is (even Admin's own) — per design, neither Admin nor
+// Manager can delete a note by casually editing it away; only this explicit, confirmed action can.
+async function deleteNote(ownerUsername, noteId) {
+  if (!isAdmin()) { toast('Admin only', 'red'); return; }
+  if (!confirm('මේ Note එක delete කරනවාද?\n\n(Permanent — Edit History එකත් සමඟ ඉවත් වේ, undo කළ නොහැක)')) return;
+  if (!firebaseReady() || !usersCol) {
+    const u = getUserByUsername(ownerUsername);
+    if (u && Array.isArray(u.notes)) { u.notes = u.notes.filter(n => n.id !== noteId); syncUser(u); }
+    toast('🗑️ Delete කළා', 'green');
+    renderNotesSection();
+    return;
+  }
+  try {
+    let fresh = null;
+    await fdb.runTransaction(async tx => {
+      const ref = usersCol.doc(ownerUsername);
+      const snap = await tx.get(ref);
+      if (!snap.exists) return;
+      fresh = (Array.isArray(snap.data().notes) ? snap.data().notes : []).filter(n => n.id !== noteId);
+      tx.update(ref, { notes: fresh });
+    });
+    const u = getUserByUsername(ownerUsername);
+    if (u && fresh) u.notes = fresh;
+    try { saveDBLocal(); } catch (e) { console.error('deleteNote local mirror', e); }
+    toast('🗑️ Delete කළා', 'green');
+  } catch (e) {
+    console.error('deleteNote', e);
+    toast('⚠️ Delete වුනේ නෑ — try again', 'red');
+  }
+  renderNotesSection();
+}
+
+// Admin-only view of every past version of a note (its own history, oldest edits last).
+function openNoteHistory(ownerUsername, noteId) {
+  if (!isAdmin()) return;
+  const u = getUserByUsername(ownerUsername);
+  const n = u && Array.isArray(u.notes) ? u.notes.find(x => x.id === noteId) : null;
+  if (!n) { toast('Note එක හමු වුනේ නෑ', 'red'); return; }
+  $('noteHistoryModalTitle').textContent = '🕐 Edit History — ' + (n.title || '(Title නෑ)');
+  const hist = Array.isArray(n.history) ? n.history : [];
+  const rows = [{ ts: n.updatedAt, by: n.updatedByName || n.updatedBy, title: n.title, body: n.body, current: true }].concat(hist);
+  $('note-history-list').innerHTML = rows.map(r => `<div style="border:1.5px solid var(--border);border-radius:8px;padding:.6rem .8rem;margin-bottom:.5rem;${r.current ? 'background:#f0fdf4;' : ''}">
+      <div style="font-size:.72rem;color:var(--muted);margin-bottom:.3rem;">${r.current ? '✅ Current' : '🕐 Edited'} · ${r.ts ? new Date(r.ts).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}${r.by ? ' · ' + escHtml(r.by) : ''}</div>
+      <div style="font-weight:700;font-size:.88rem;word-break:break-word;">${escHtml(r.title || '(Title නෑ)')}</div>
+      <div style="white-space:pre-wrap;font-size:.82rem;margin-top:.25rem;word-break:break-word;">${escHtml(r.body || '')}</div>
+    </div>`).join('');
+  openModal('noteHistoryModal');
+}
+
 function getCashRows() {
   const fMonth = $('cash-filter-month')?.value || '';
   let rows = getCashRowsRaw();
@@ -23185,7 +23477,7 @@ restoreSidebarState();
 (function(){
 var ALR_COL='cms_alerts',CHAT_COL='cms_chat',SRV=[],ALR=[],unsubs=[],CHAT=[],chatUnsub=null,curThread=null,stick=true,REFS={};
 var ME=function(){return DB.currentUsername};
-Object.assign(NOTIF_ICON,{syncCheck:'🔧',todo:'📝',todoDone:'✅',chat:'💬',cashIn:'💵',chequeBook:'🧾',reminder:'⏰',attendance:'🗓️'});
+Object.assign(NOTIF_ICON,{syncCheck:'🔧',todo:'📝',todoDone:'✅',chat:'💬',cashIn:'💵',chequeBook:'🧾',reminder:'⏰',attendance:'🗓️',noteShared:'🗒️'});
 var ms=function(c){return c&&c.toDate?c.toDate().getTime():(c?new Date(c).getTime():0)};
 var fmtT=function(c){var m=ms(c);return m?new Date(m).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):''};
 var mgrs=function(){return DB.users.filter(function(u){return u.role==='manager'||u.role==='user'})};
