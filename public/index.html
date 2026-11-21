@@ -4136,12 +4136,18 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
       <p style="color:var(--muted);font-size:.85rem;margin-bottom:1rem;">
         Credit bill එකකට link කරපු (auto-settle) Cheques, ඒ bill එකේම Payment History එකට හරියටම link වී තියෙනවද කියලා මෙතනින් check කරනවා. Cheque එක link කරලා තිබුනත් bill එකේ balance එකට එකතු නොවුනු ඒවා පහළ පෙන්නනවා — "Fix" click කරලා ඒවා නිවැරදි කරගන්න පුළුවන්.
       </p>
+      <div id="chequesync-book-section" style="margin-bottom:1.1rem;display:none;">
+        <div style="font-weight:700;margin-bottom:.4rem;color:#dc2626;">🖐️ "In Manager's Hand" Count වැරදි</div>
+        <p style="color:var(--muted);font-size:.8rem;margin-bottom:.5rem;">Cheque Book එකේ "Available" ලෙස පෙන්වන නමුත් දැනටමත් supplier ට issue කරලා ඉවර cheques — hand-count එක මීට වැඩියෙන් පෙන්වනවා.</p>
+        <div id="chequesync-book-list"></div>
+      </div>
       <div id="chequesync-status" style="font-weight:700;margin-bottom:.8rem;">🔎 Checking...</div>
       <div id="chequesync-list"></div>
     </div>
     <div class="modal-foot">
       <button class="btn btn-ghost" onclick="closeModal('chequeSyncModal')">Close</button>
       <button class="btn btn-ghost" onclick="runDailySyncCheck(true)" title="හැමදාම උදේ 10.45 ට auto run වෙන Daily Sync Check එක දැන්ම run කරලා Admin/Manager ට notify කරන්න (test)">🔔 Daily Check + Notify now</button>
+      <button class="btn btn-red" id="chequesync-book-fixall-btn" onclick="fixAllChequeBookMismatches()" style="display:none;">🖐️ Fix All</button>
       <button class="btn btn-green" id="chequesync-fixall-btn" onclick="fixAllChequePaymentGaps()" style="display:none;">✅ Fix All</button>
     </div>
   </div>
@@ -6011,6 +6017,71 @@ async function applyCreditPaymentsChange(owner, creditId, mutateFn, supplierId) 
   }
 }
 
+// Transaction-safe mutator for an owner's `cheques` array and, optionally, ONE `chequeBook` entry at
+// the same time — issuing/clearing/editing/deleting a cheque almost always touches one or both
+// together. Same reasoning as applyCreditPaymentsChange() above: the live usersCol.onSnapshot
+// listener can swap out DB.users[idx] with a brand-new object the instant ANY write lands on this
+// user's doc — including the write from a nested, awaited transaction like autoSettleLinkedCredit()
+// that these callers kick off right after mutating chequeBook/cheques locally. The old code mutated
+// the in-memory object first and only called the generic, baseline-merge syncUser() afterwards — by
+// then the object the merge compares against could already be orphaned, so the field looked
+// "unchanged" and the edit was silently dropped on the next save. This closes that window by writing
+// chequeBook + cheques FIRST, inside one transaction, straight off a fresh server read.
+// mutateCheques(freshCheques) must return the new array; pass null to leave `cheques` untouched.
+// poolEntryId + mutatePool(freshPoolEntry) optionally update exactly one chequeBook entry the same way.
+async function applyChequeChange(owner, mutateCheques, poolEntryId, mutatePool) {
+  if (!owner) return false;
+  if (!firebaseReady() || !usersCol) {
+    if (mutateCheques) owner.cheques = mutateCheques(Array.isArray(owner.cheques) ? owner.cheques.slice() : []);
+    if (poolEntryId && mutatePool) {
+      const cb = Array.isArray(owner.chequeBook) ? owner.chequeBook.slice() : [];
+      const idx = cb.findIndex(x => x.id === poolEntryId);
+      if (idx !== -1) { cb[idx] = mutatePool(Object.assign({}, cb[idx])); owner.chequeBook = cb; }
+    }
+    syncUser(owner);
+    return true;
+  }
+  try {
+    let freshCheques = null, freshPool = null;
+    await withRetry(() => fdb.runTransaction(async tx => {
+      const ref = usersCol.doc(owner.username);
+      const snap = await tx.get(ref);
+      if (!snap.exists) throw new Error('OWNER_NOT_FOUND');
+      const server = snap.data();
+      const update = {};
+      if (mutateCheques) {
+        freshCheques = mutateCheques(Array.isArray(server.cheques) ? server.cheques.slice() : []);
+        update.cheques = freshCheques;
+      }
+      if (poolEntryId && mutatePool) {
+        const cb = Array.isArray(server.chequeBook) ? server.chequeBook.slice() : [];
+        const idx = cb.findIndex(x => x.id === poolEntryId);
+        if (idx === -1) throw new Error('POOL_ENTRY_NOT_FOUND');
+        cb[idx] = mutatePool(Object.assign({}, cb[idx]));
+        freshPool = cb;
+        update.chequeBook = cb;
+      }
+      tx.update(ref, update);
+    }));
+    // Server write confirmed — mirror it into local memory AND re-baseline these two fields directly
+    // (we have the exact, authoritative post-write arrays from the transaction itself), so the next
+    // ordinary syncUser() save for this owner never mistakes the server's newer copy for "unchanged".
+    const base = _objBase.get(owner) || {};
+    const baseUpdate = {};
+    if (freshCheques) { owner.cheques = freshCheques; baseUpdate.cheques = clean(freshCheques); }
+    if (freshPool) { owner.chequeBook = freshPool; baseUpdate.chequeBook = clean(freshPool); }
+    if (Object.keys(baseUpdate).length) _objBase.set(owner, Object.assign({}, base, baseUpdate));
+    try { saveDBLocal(); } catch (e) { console.error('applyChequeChange local mirror', e); }
+    markSynced('cloud');
+    return true;
+  } catch (e) {
+    console.error('applyChequeChange', e);
+    setSyncStatus('offline');
+    toast('⚠️ Cheque save failed — try again', 'red');
+    return false;
+  }
+}
+
 // Safely rewrites ONE credit bill's own fields (amount/date/supplierId/notes)
 // without the same-document race condition applyCreditPaymentsChange() above
 // already fixes for `payments`. Before this, editCredit()/saveCredit() edited
@@ -6280,6 +6351,35 @@ async function scanChequePaymentGaps() {
     }
   }
   return gaps;
+}
+
+// Finds chequeBook entries still marked "available" (counted in "🖐️ In Manager's Hand") whose cheque
+// NUMBER has actually already been issued (linked, by chequeBookId, to a record in owner.cheques) —
+// i.e. the physical cheque is gone but the hand-count still includes it. This is exactly the data
+// left behind by the race applyChequeChange() now closes (see payCreditWithCheque()/saveCheque()):
+// the chequeBook flip and the new cheques record used to be saved by two different writes with an
+// awaited transaction in between, so one could land without the other. Safe to auto-fix: the issued
+// record's own chequeBookId is the proof this exact chequeBook entry was the one used.
+function scanChequeBookMismatches() {
+  const out = [];
+  DB.users.forEach(owner => {
+    const cb = Array.isArray(owner.chequeBook) ? owner.chequeBook : [];
+    const cheqs = Array.isArray(owner.cheques) ? owner.cheques : [];
+    cb.forEach(poolEntry => {
+      if (poolEntry.status !== 'available') return;
+      const issued = cheqs.find(c => c.chequeBookId === poolEntry.id);
+      if (issued) out.push({ owner, poolEntry, issued });
+    });
+  });
+  return out;
+}
+
+async function fixChequeBookMismatch(g) {
+  return applyChequeChange(g.owner, null, g.poolEntry.id, pe =>
+    pe.status === 'available'   // still available on the server right now? (a concurrent fix/edit may have already handled it)
+      ? Object.assign({}, pe, { status: 'used', usedChequeId: g.issued.id, usedDate: g.issued.date || today() })
+      : pe
+  );
 }
 
 async function fixChequePaymentGap(gap) {
@@ -13023,6 +13123,7 @@ async function fixAllCreditPaymentGaps() {
    Same pattern as the Credit Payment Sync Check above, for cheques that
    auto-settle a linked credit bill. */
 let _chequeSyncGaps = [];
+let _chequeBookMismatches = [];
 
 // Stable identity for one flagged gap (mirrors reconcileGapKey) so an
 // admin's "I fixed this by hand" answer survives across scans/sessions.
@@ -13074,10 +13175,65 @@ async function openChequeSyncModal() {
   $('chequesync-status').textContent = '🔎 Checking...';
   $('chequesync-list').innerHTML = '';
   $('chequesync-fixall-btn').style.display = 'none';
+  if ($('chequesync-book-section')) $('chequesync-book-section').style.display = 'none';
   const gaps = await scanChequePaymentGaps();
   const open = gaps.filter(g => !isChequeSyncAcked(g));
   _chequeSyncGaps = open.map((g, i) => Object.assign({}, g, { _rid: i, fixed: false }));
+  _chequeBookMismatches = scanChequeBookMismatches().map((g, i) => Object.assign({}, g, { _brid: i, fixed: false }));
   renderChequeSyncResults();
+  renderChequeBookMismatches();
+}
+
+function renderChequeBookMismatches() {
+  const sectionEl = $('chequesync-book-section'), listEl = $('chequesync-book-list'), fixAllBtn = $('chequesync-book-fixall-btn');
+  if (!sectionEl || !listEl) return;
+  if (!_chequeBookMismatches.length) {
+    sectionEl.style.display = 'none';
+    listEl.innerHTML = '';
+    if (fixAllBtn) fixAllBtn.style.display = 'none';
+    return;
+  }
+  sectionEl.style.display = '';
+  const open = _chequeBookMismatches.filter(g => !g.fixed);
+  if (fixAllBtn) { fixAllBtn.style.display = open.length ? '' : 'none'; fixAllBtn.textContent = `🖐️ Fix All (${open.length})`; }
+  listEl.innerHTML = _chequeBookMismatches.map(g => {
+    const owner = g.owner, pe = g.poolEntry, ic = g.issued;
+    return `<div style="display:flex;justify-content:space-between;align-items:center;gap:.6rem;padding:.6rem .2rem;border-bottom:1px solid var(--border);${g.fixed ? 'opacity:.55;' : ''}">
+      <div style="font-size:.85rem;">
+        <div><strong>#${escHtml(pe.number || '—')}</strong> (${escHtml(pe.bank || '—')}) — ${escHtml(owner.name || owner.username)}</div>
+        <div style="color:var(--muted);">🖐️ Book එකේ "Available" ලෙසයි පෙන්වන්නේ, නමුත් Cheque ${escHtml(ic.entryId || '')} විදියට ${escHtml(ic.date || '')} දින issue කරලා (${escHtml(ic.status || '—')}) තියෙනවා.</div>
+      </div>
+      ${g.fixed ? '<span style="color:var(--green);font-weight:700;white-space:nowrap;">✅ Fixed</span>' : `<button class="btn btn-red btn-sm" onclick="fixOneChequeBookMismatch(${g._brid})">🖐️ Fix</button>`}
+    </div>`;
+  }).join('');
+}
+
+async function fixOneChequeBookMismatch(rid) {
+  const g = _chequeBookMismatches.find(x => x._brid === rid);
+  if (!g || g.fixed) return;
+  const ok = await fixChequeBookMismatch(g);
+  if (ok) {
+    g.fixed = true;
+    logActivity('CHEQUE_BOOK_FIX', `#${g.poolEntry.number} → used (matches ${g.issued.entryId || g.issued.id})`);
+    toast('✅ Hand-count fix කළා', 'green');
+  } else {
+    toast('⚠️ Fix වුනේ නෑ — try again', 'red');
+  }
+  renderChequeBookMismatches();
+  renderCheques();
+}
+
+async function fixAllChequeBookMismatches() {
+  const pending = _chequeBookMismatches.filter(g => !g.fixed);
+  if (!pending.length) return;
+  let n = 0;
+  for (const g of pending) {
+    if (await fixChequeBookMismatch(g)) { g.fixed = true; n++; }
+  }
+  logActivity('CHEQUE_BOOK_FIX', `Bulk fix — ${n}/${pending.length} chequeBook entries corrected`);
+  toast(n === pending.length ? `✅ ${n} fix කළා` : `⚠️ ${n}/${pending.length} fix කළා — ඉතුරු ඒවා try again`, n === pending.length ? 'green' : 'red');
+  renderChequeBookMismatches();
+  renderCheques();
 }
 
 function renderChequeSyncResults() {
@@ -14064,15 +14220,19 @@ async function payCreditWithCheque() {
     notes: $('pc-notes').value || '',
     chequeBookId: poolEntry ? poolEntry.id : ''
   };
-  if (!owner.cheques) owner.cheques = [];
-  owner.cheques.push(rec);
-
-  if (poolEntry) {
-    poolEntry.status = 'used';
-    poolEntry.usedChequeId = rec.id;
-    poolEntry.usedDate = today();
-    notifyChequeHandLevel(owner);
-  }
+  // Save the new cheque record and (if it came from the book) the chequeBook status flip TOGETHER,
+  // in one transaction, BEFORE the slower autoSettleLinkedCredit() step below — see
+  // applyChequeChange() for why: that nested transaction's own write can wake the live listener and
+  // swap out DB.users mid-flight, and the plain syncUser() this used to end with had no way to tell
+  // the chequeBook flip had happened on a since-orphaned reference. Doing it first closes that gap.
+  const ok = await applyChequeChange(
+    owner,
+    cheques => [...cheques, rec],
+    poolEntry ? poolEntry.id : null,
+    poolEntry ? pe => Object.assign({}, pe, { status: 'used', usedChequeId: rec.id, usedDate: today() }) : null
+  );
+  if (!ok) return;
+  if (poolEntry) notifyChequeHandLevel(owner);
 
   await autoSettleLinkedCredit(rec, owner);
 
@@ -14180,15 +14340,18 @@ async function delCheque(id, ownerUsername) {
       return copy;
     });
   }
-  // If this cheque was issued from the manager's-hand pool, free that cheque
-  // number back up so it can be selected again for a future cheque.
-  if (_dch?.chequeBookId) {
-    const poolEntry = (owner.chequeBook || []).find(e => e.id === _dch.chequeBookId);
-    if (poolEntry) { poolEntry.status = 'available'; poolEntry.usedChequeId = ''; poolEntry.usedDate = ''; }
-  }
-  owner.cheques = (owner.cheques || []).filter(c => c.id !== id);
+  // If this cheque was issued from the manager's-hand pool, free that cheque number back up so it
+  // can be selected again for a future cheque — together with removing it from `cheques`, in one
+  // transaction (applyChequeChange), so the two never land on the server at slightly different times.
+  const poolEntryId = _dch?.chequeBookId || null;
+  const ok = await applyChequeChange(
+    owner,
+    cheques => cheques.filter(c => c.id !== id),
+    poolEntryId,
+    poolEntryId ? pe => Object.assign({}, pe, { status: 'available', usedChequeId: '', usedDate: '' }) : null
+  );
+  if (!ok) return;
   logActivity('DEL_CHEQUE', `${_dch?.entryId||id} deleted`);
-  syncUser(owner);
   renderCheques();
   renderOverview();
   if (DB.analyticsOpen) renderSupplierAnalytics();
@@ -14196,7 +14359,7 @@ async function delCheque(id, ownerUsername) {
   toast('🗑️ Cheque deleted', 'red');
 }
 
-function quickClearCheque(id, ownerUsername) {
+async function quickClearCheque(id, ownerUsername) {
   if (!isAdmin()) { toast('Admin only', 'red'); return; }
   const owner = getTargetUser(ownerUsername);
   if (!owner) return;
@@ -14210,10 +14373,16 @@ function quickClearCheque(id, ownerUsername) {
     return;
   }
   if (!confirm('✅ Mark this cheque as Cleared?')) return;
-  c.status = 'cleared';
-  c.statusDate = today();
-  logActivity('EDIT_CHEQUE', `${c.entryId || id} marked as Cleared`);
-  syncUser(owner);
+  const entryId = c.entryId;
+  const ok = await applyChequeChange(owner, cheques => {
+    const idx = cheques.findIndex(x => x.id === id);
+    if (idx === -1) return cheques;
+    const out = cheques.slice();
+    out[idx] = Object.assign({}, out[idx], { status: 'cleared', statusDate: today() });
+    return out;
+  }, null, null);
+  if (!ok) return;
+  logActivity('EDIT_CHEQUE', `${entryId || id} marked as Cleared`);
   renderCheques();
   renderOverview();
   if (DB.analyticsOpen) renderSupplierAnalytics();
@@ -14609,19 +14778,24 @@ async function saveCheque() {
     notes: $('ch-notes').value,
     chequeBookId: editId ? ((owner.cheques || []).find(c => c.id === editId)?.chequeBookId || '') : (poolEntry ? poolEntry.id : '')
   };
-  if (!owner.cheques) owner.cheques = [];
-  if (editId) {
-    const idx = owner.cheques.findIndex(c => c.id === editId);
-    if (idx !== -1) owner.cheques[idx] = rec;
-  } else {
-    owner.cheques.push(rec);
-  }
-  if (poolEntry) {
-    poolEntry.status = 'used';
-    poolEntry.usedChequeId = rec.id;
-    poolEntry.usedDate = today();
-    notifyChequeHandLevel(owner);
-  }
+  // Save `cheques` (add or edit) and the chequeBook flip (new-from-book only) TOGETHER, in one
+  // transaction, before the awaited autoSettleLinkedCredit() below — same reasoning as
+  // payCreditWithCheque() (see applyChequeChange()).
+  const ok = await applyChequeChange(
+    owner,
+    cheques => {
+      if (editId) {
+        const idx = cheques.findIndex(c => c.id === editId);
+        if (idx === -1) return [...cheques, rec];
+        const out = cheques.slice(); out[idx] = rec; return out;
+      }
+      return [...cheques, rec];
+    },
+    poolEntry ? poolEntry.id : null,
+    poolEntry ? pe => Object.assign({}, pe, { status: 'used', usedChequeId: rec.id, usedDate: today() }) : null
+  );
+  if (!ok) return;
+  if (poolEntry) notifyChequeHandLevel(owner);
   if (!editId && rec.linkedCreditId) await autoSettleLinkedCredit(rec, owner);
   logActivity(editId ? 'EDIT_CHEQUE' : 'ADD_CHEQUE', `${rec.entryId} · ${fmt(rec.amount)}`);
   if (!editId && isManager()) {
