@@ -6338,7 +6338,11 @@ async function scanChequePaymentGaps() {
       if (amt <= 0) continue;
       const credit = (owner.credits || []).find(x => x.id === ch.linkedCreditId);
       if (!credit) {
-        gaps.push({ kind: 'cheque', entry: ch, row: ch, creditOwner: null, credit: null, missing: amt, reason: 'CREDIT_NOT_FOUND' });
+        // chequeOwner is kept even here (unlike creditOwner, which is genuinely
+        // unknown) so the "manually fix" guidance can still offer a direct
+        // "Edit Cheque" shortcut — the cheque record itself is never in doubt,
+        // only its linked bill is.
+        gaps.push({ kind: 'cheque', entry: ch, row: ch, creditOwner: null, chequeOwner: owner, credit: null, missing: amt, reason: 'CREDIT_NOT_FOUND' });
         continue;
       }
       const marker = chequeSettleMarker(ch);
@@ -6346,7 +6350,7 @@ async function scanChequePaymentGaps() {
         .filter(p => p.chequeId === ch.id || (!p.chequeId && p.note === marker))
         .reduce((s, p) => s + (Number(p.amount) || 0), 0);
       if (Math.abs(linkedAmt - amt) > 0.01) {
-        pushGap({ kind: 'cheque', entry: ch, row: ch, creditOwner: owner }, credit, amt - linkedAmt);
+        pushGap({ kind: 'cheque', entry: ch, row: ch, creditOwner: owner, chequeOwner: owner }, credit, amt - linkedAmt);
       }
     }
   }
@@ -13001,6 +13005,44 @@ async function openReconcileModal() {
   renderReconcileResults();
 }
 
+// ===== Manual-fix guidance for Sync Check items that can't be safely auto-fixed =====
+// "wouldOverpay" and "CREDIT_NOT_FOUND" are left to a human ON PURPOSE (see the big
+// comment above scanCreditPaymentGaps / scanChequePaymentGaps) — the data is genuinely
+// ambiguous (which side is wrong? is this a duplicate?) and guessing could silently
+// write a wrong payment. What we CAN safely automate is the busywork around the
+// decision: explain exactly what to check, in order, and put a one-click shortcut to
+// the actual record(s) right next to that explanation, so "manual" still only takes a
+// few seconds. _syncManualFixGuide() builds that explanation + shortcut buttons; it's
+// shared by both Sync Check modals (Credit/Cash and Cheque) so the wording/behaviour
+// stays identical between them.
+//   reason:   'OVERPAY' | 'NOT_FOUND'
+//   ctxLabel: what to call the non-bill side in step 1, e.g. 'cheque එක' / 'cash entry එක'
+//   editBtns: array of {label, onclick} for quick-edit shortcuts (already closes the
+//             sync modal before opening the target edit modal — see call sites)
+function _syncManualFixGuide(reason, ctxLabel, editBtns) {
+  const btns = (editBtns || []).filter(Boolean);
+  const btnHtml = btns.length
+    ? `<div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.5rem;">${btns.map(b => `<button class="btn btn-ghost btn-sm" onclick="${b.onclick}">${b.label}</button>`).join('')}</div>`
+    : '';
+  const steps = reason === 'NOT_FOUND'
+    ? `<ol style="margin:.4rem 0 0 1.1rem;padding:0;">
+        <li>Credits list එකේ මේ bill එක තියෙනවද බලන්න — delete වෙලා හෝ වෙනත් supplier එකකට මාරු වෙලා තියෙන්න පුළුවන්.</li>
+        <li>Bill එක ඇත්තටම delete වෙලා නම්: ${ctxLabel} Edit කරලා වැරදි bill link එක ඉවත් කරන්න, නැත්නම් bill එක නැවතත් හදලා හරියට re-link කරන්න.</li>
+        <li>හරියට verify කරගත්තට පස්සේ විතරක් "✔️ Manually Fixed" click කරන්න — නැත්නම් මේක හැමදාම Daily Sync Check එකේ ආයෙත් පෙන්වයි.</li>
+      </ol>`
+    : `<ol style="margin:.4rem 0 0 1.1rem;padding:0;">
+        <li>${ctxLabel} හි ඇත්ත amount එක confirm කරන්න (bank statement / cheque book / physical receipt එකෙන්).</li>
+        <li>Bill එකේ Payment History එකේ, මීට link වෙච්ච පරණ auto-settle payment එක බලන්න.</li>
+        <li>${ctxLabel} වැරදි amount එකක් නම් → ඒක Edit කරලා නිවැරදි කරන්න. Bill එකේම amount එක වැරදි නම් → Bill එක Edit කරන්න.</li>
+        <li>දෙකම හරි පෙනෙනවා නම්, ඉතුරු මුදල වෙනත් bill එකකටද සම්බන්ධ විය යුතුද කියලා duplicate link එකක් පරීක්ෂා කරන්න.</li>
+        <li>හරියට verify කරගත්තට පස්සේ විතරක් "✔️ Manually Fixed" click කරන්න — නැත්නම් මේක හැමදාම Daily Sync Check එකේ ආයෙත් පෙන්වයි.</li>
+      </ol>`;
+  return `<details style="margin-top:.35rem;">
+      <summary style="cursor:pointer;color:var(--accent);font-size:.78rem;font-weight:600;">🖐️ Manually fix කරන්නේ කොහොමද?</summary>
+      <div style="font-size:.78rem;color:var(--muted);line-height:1.5;">${steps}${btnHtml}</div>
+    </details>`;
+}
+
 function renderReconcileResults() {
   const statusEl = $('reconcile-status'), listEl = $('reconcile-list'), fixAllBtn = $('reconcile-fixall-btn');
   if (!statusEl || !listEl) return;
@@ -13040,9 +13082,10 @@ function renderReconcileResults() {
     } else {
       actionHtml = `<span style="color:var(--muted);font-size:.8rem;white-space:nowrap;">Manual check</span>`;
     }
+    const creditEditBtn = g.credit ? { label: '✏️ Bill Edit කරන්න', onclick: `closeModal('reconcileModal');editCredit('${g.credit.id}','${g.creditOwner.username}')` } : null;
     const warnNote = g.wouldOverpay
-      ? `<div style="color:var(--red);">⚠️ Bill balance එක දැනටමත් මේ මුදල ආවරණය කරනවා විය හැක — cash books වල duplicate entry එකක් ද කියලා පරීක්ෂා කරන්න.</div>`
-      : '';
+      ? `<div style="color:var(--red);">⚠️ Bill balance එක දැනටමත් මේ මුදල ආවරණය කරනවා විය හැක — cash books වල duplicate entry එකක් ද කියලා පරීක්ෂා කරන්න.</div>${_syncManualFixGuide('OVERPAY', `${sourceLabel} entry`, [creditEditBtn])}`
+      : (g.reason === 'CREDIT_NOT_FOUND' ? _syncManualFixGuide('NOT_FOUND', `${sourceLabel} entry`, []) : '');
     return `<div style="display:flex;justify-content:space-between;align-items:center;gap:.6rem;padding:.6rem .2rem;border-bottom:1px solid var(--border);${g.fixed ? 'opacity:.55;' : ''}">
       <div style="font-size:.85rem;">
         <div><strong>${billLabel}</strong> · ${supplierName}</div>
@@ -13276,9 +13319,11 @@ function renderChequeSyncResults() {
     } else {
       actionHtml = `<span style="color:var(--muted);font-size:.8rem;white-space:nowrap;">Manual check</span>`;
     }
+    const chequeEditBtn = (ch && g.chequeOwner) ? { label: '✏️ Cheque Edit කරන්න', onclick: `closeModal('chequeSyncModal');editCheque('${ch.id}','${g.chequeOwner.username}')` } : null;
+    const billEditBtn = g.credit ? { label: '✏️ Bill Edit කරන්න', onclick: `closeModal('chequeSyncModal');editCredit('${g.credit.id}','${g.creditOwner.username}')` } : null;
     const warnNote = g.wouldOverpay
-      ? `<div style="color:var(--red);">⚠️ Bill balance එක දැනටමත් මේ මුදල ආවරණය කරනවා විය හැක — cheque record එකේ duplicate link එකක් ද කියලා පරීක්ෂා කරන්න.</div>`
-      : '';
+      ? `<div style="color:var(--red);">⚠️ Bill balance එක දැනටමත් මේ මුදල ආවරණය කරනවා විය හැක — cheque record එකේ duplicate link එකක් ද කියලා පරීක්ෂා කරන්න.</div>${_syncManualFixGuide('OVERPAY', 'Cheque එක', [chequeEditBtn, billEditBtn])}`
+      : (g.reason === 'CREDIT_NOT_FOUND' ? _syncManualFixGuide('NOT_FOUND', 'Cheque එක', [chequeEditBtn]) : '');
     return `<div style="display:flex;justify-content:space-between;align-items:center;gap:.6rem;padding:.6rem .2rem;border-bottom:1px solid var(--border);${g.fixed ? 'opacity:.55;' : ''}">
       <div style="font-size:.85rem;">
         <div><strong>${billLabel}</strong> · ${supplierName}</div>
@@ -19079,7 +19124,17 @@ async function runDailySyncCheck(force) {
       // (fixing those Sync Check modals is Admin-only); Admin has already
       // been alerted and will handle it.
       const managerBody = summary + ' — Admin ට දැනුම් දී ඇත. Admin විසින් හදාගනු ලැබේ.';
-      try { mgrAlert('admin', 'syncCheck', title, adminBody); mgrAlert('*', 'syncCheck', title, managerBody); } catch (e) { console.error('dailySync alert', e); }
+      // NOTE: Admin is deliberately NOT sent a 'cms_alerts' doc here (no
+      // mgrAlert('admin', ...)) — only queuePushEvent() below, for Admin.
+      // Admin's Notification Center merges TWO sources: cms_alerts (mgrAlert)
+      // and cms_notifications (written server-side off the push_events doc
+      // queuePushEvent() creates — see startNotifSync()'s two subscriptions).
+      // Writing to both for the SAME event used to show Admin two identical
+      // rows for one real issue (one from each source, same title/body,
+      // different icon). Managers have no cms_notifications subscription, so
+      // they still need their own mgrAlert('*', ...) below — only Admin's
+      // redundant copy is removed.
+      try { mgrAlert('*', 'syncCheck', title, managerBody); } catch (e) { console.error('dailySync alert', e); }
       queuePushEvent(cashOpen.length ? 'disposal' : 'credit', title, adminBody);
       toast(title, 'red');
     } else if (force) {
