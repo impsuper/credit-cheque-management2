@@ -1311,7 +1311,24 @@ body.cashier-mode .main{margin-left:0!important;margin-bottom:0!important;paddin
 .ce-layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:1.2rem;align-items:start;padding:1.2rem;}
 .ce-main{display:flex;flex-direction:column;gap:1rem;min-width:0;}
 .ce-side{display:flex;flex-direction:column;gap:1rem;min-width:0;position:sticky;top:1rem;}
-@media(max-width:1000px){.ce-layout{grid-template-columns:1fr;padding:.9rem;}.ce-side{position:static;}}
+@media(max-width:1000px){
+  .ce-layout{grid-template-columns:1fr;padding:.9rem;}
+  /* Net Cash Calculation (inside .ce-side) used to go position:static here, so on a
+     single-column phone layout it sat BELOW all 7 form sections and scrolled away like
+     everything else — sticky alone wouldn't have helped either, since .ce-side only
+     starts sticking once its own natural position (after the whole form) is reached.
+     Fix: visually move .ce-side ABOVE .ce-main (order, not a DOM change — every
+     onclick/id stays put) and keep it sticky, so the live Net Cash total + Save button
+     stay pinned at the top of the screen the whole time the form below is being filled. */
+  .ce-main{order:2;}
+  .ce-side{order:1;position:sticky;top:.8rem;z-index:40;max-height:calc(100dvh - 1.6rem);overflow-y:auto;}
+}
+@media(max-width:768px){
+  /* Below 768px the sidebar itself becomes a fixed ~78px top bar (see the "turn sidebar
+     into a top navigation bar" block above) — the sticky summary's offset has to clear
+     that bar too, or it sticks right underneath it instead of at the visible top. */
+  .ce-side{top:calc(78px + .5rem);max-height:calc(100dvh - 78px - 1rem);}
+}
 .ce-sec{--ce-c:var(--navy3,#2563eb);background:var(--surface);border:1.5px solid var(--border);border-left:5px solid var(--ce-c);border-radius:14px;overflow:hidden;}
 .ce-sec.ce-green{--ce-c:#16a34a;}.ce-sec.ce-amber{--ce-c:#d97706;}.ce-sec.ce-violet{--ce-c:#7c3aed;}
 .ce-sec.ce-teal{--ce-c:#0f766e;}.ce-sec.ce-red{--ce-c:#dc2626;}.ce-sec.ce-navy{--ce-c:#1d4ed8;}
@@ -2791,7 +2808,9 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
           </div>
           <div style="padding:1.2rem 1.5rem;">
             <p style="color:var(--muted);font-size:.85rem;margin-bottom:1rem;">🏦 බැංකු මෙතන කලින් Register කරන්න. <b>Banking</b> tick කළ බැංකු Cash Entry හි 🏦 Banking එකේ තෝරන්න පුළුවන්; <b>Card machine</b> tick කළ බැංකු Sales Breakdown හි 💳 Card Sale field ලෙස එයි. මේක සියලුම users ලාට අදාළයි.</p>
+            <p style="color:var(--muted);font-size:.8rem;margin:-.4rem 0 1rem;">🎯 Card machine tick කළ බැංකුවකට මාසික අවම Transaction amount එකක් දැම්මොත්, හැම මාසෙම දින 15/20/25/28 වෙනකොට ඒ අගයට නොගියොත් Admin + Manager ට alert එකක් යනවා.</p>
             <div class="bank-registry-host"></div>
+            <button type="button" class="btn btn-ghost btn-sm bank-min-check-btn" style="display:none;margin-top:.8rem;" onclick="runBankMinTxnCheck(true)" title="දින 15/20/25/28 නොවුනත්, දැන්ම Card Machine අවම Transaction check එක test කරන්න">🔔 Min. Transaction Check Now</button>
           </div>
         </div>
 
@@ -4094,9 +4113,11 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
     </div>
     <div class="modal-body">
       <p style="color:var(--muted);font-size:.85rem;margin-bottom:1rem;">බැංකුව Register කර, <b>🏦 Banking</b> (තැන්පත් කිරීම්) සහ/හෝ <b>💳 Card machine</b> (Card Sale) ලෙස tick කරන්න. Register වූ විට Cash Entry form එකේ ස්වයංක්‍රීයව පෙන්වයි.</p>
+      <p style="color:var(--muted);font-size:.8rem;margin:-.4rem 0 1rem;">🎯 Card machine tick කළ බැංකුවකට මාසික අවම Transaction amount එකක් දැම්මොත්, හැම මාසෙම දින 15/20/25/28 වෙනකොට ඒ අගයට නොගියොත් Admin + Manager ට alert එකක් යනවා.</p>
       <div class="bank-registry-host"></div>
     </div>
     <div class="modal-foot">
+      <button type="button" class="btn btn-ghost btn-sm bank-min-check-btn" style="display:none;" onclick="runBankMinTxnCheck(true)" title="දින 15/20/25/28 නොවුනත්, දැන්ම Card Machine අවම Transaction check එක test කරන්න">🔔 Min. Transaction Check Now</button>
       <button class="btn btn-ghost" onclick="closeModal('bankRegistryModal')">Close</button>
     </div>
   </div>
@@ -4644,6 +4665,10 @@ document.addEventListener('DOMContentLoaded',function(){run(document.body)});})(
       <div class="notif-pref-row">
         <div class="notif-pref-label"><span class="npi">💼</span><div><strong>Salary Processed</strong><div class="npd">Manager employee කෙනෙකුගේ salary එකක් process කළ විට</div></div></div>
         <label class="np-switch"><input type="checkbox" id="np-salary" onchange="saveNotifPref('salary', this.checked)"><span class="np-slider"></span></label>
+      </div>
+      <div class="notif-pref-row">
+        <div class="notif-pref-label"><span class="npi">🏦</span><div><strong>Card Machine — Min. Transaction</strong><div class="npd">මාසයේ දින 15, 20, 25, 28 — Card Machine එකට 🎯 මාසික අවම Transaction එකට නොගිය බැංකු තියෙනවා නම්</div></div></div>
+        <label class="np-switch"><input type="checkbox" id="np-bankMinTxn" onchange="saveNotifPref('bankMinTxn', this.checked)"><span class="np-slider"></span></label>
       </div>
       <div class="notif-pref-row">
         <div class="notif-pref-label"><span class="npi">📝</span><div><strong>To-Do Reminders (Push)</strong><div class="npd">To-Do එකක early reminder / due වෙලාවට, සහ ඉවර නොකළ ඒවා දිනපතා උදේ</div></div></div>
@@ -7659,7 +7684,7 @@ function notifyChequeHandLevel(owner) {
   }
 }
 
-const NOTIF_PREF_KEYS = ['cash', 'cheque', 'credit', 'payment', 'chequeDue', 'reload', 'advance', 'supplier', 'disposal', 'chequeLow', 'salary', 'todo'];
+const NOTIF_PREF_KEYS = ['cash', 'cheque', 'credit', 'payment', 'chequeDue', 'reload', 'advance', 'supplier', 'disposal', 'chequeLow', 'salary', 'todo', 'bankMinTxn'];
 
 async function openNotifSettings() {
   if (!isAdmin()) { toast('⚠️ Admin only', 'red'); return; }
@@ -19164,7 +19189,127 @@ async function runDailySyncCheck(force) {
 function startDailySyncCheck() {
   if (!(isAdmin() || isManager())) return;
   setTimeout(() => runDailySyncCheck(), 9000);
-  if (!_dailySyncTimer) _dailySyncTimer = setInterval(() => runDailySyncCheck(), 15 * 60 * 1000);
+  setTimeout(() => runBankMinTxnCheck(), 9500);
+  if (!_dailySyncTimer) _dailySyncTimer = setInterval(() => { runDailySyncCheck(); runBankMinTxnCheck(); }, 15 * 60 * 1000);
+}
+
+/* ===== BANK CARD-MACHINE MINIMUM MONTHLY TRANSACTION CHECK (days 15 / 20 / 25 / 28) =====
+   Many banks require a minimum monthly card-transaction volume on a card machine, or they
+   charge a fee / pull the machine. Settings → Banks lets Admin set a "🎯 මාසික අවම" (minimum)
+   per card-enabled bank. On the 15th, 20th, 25th and 28th of every month, the first Admin/
+   Manager session open that day adds up this month's card sales so far for every such bank
+   (across EVERY user's cash entries — card machines are shared business-wide, not per-user)
+   and, for any bank still short of its minimum, alerts Admin + Manager so there's still time
+   left in the month to push more card sales through that machine.
+   Same "claim via a dedicated Firestore doc" pattern as runDailySyncCheck above, so only one
+   alert goes out per checkpoint day even if several sessions are open — and the exact same
+   Admin/Manager notification split (see the big comment inside runDailySyncCheck) so Admin
+   doesn't end up with the two-copies-of-one-alert bug that pattern was built to avoid. */
+const BANK_MIN_CHECK_DAYS = [15, 20, 25, 28];
+let _bankMinCheckRunning = false;
+
+function _bmcCheckedToday(dateStr) {
+  return DB.users.some(u => (u.role === 'admin' || u.role === 'manager' || u.role === 'user')
+    && u.bankMinTxnCheck && u.bankMinTxnCheck.date === dateStr);
+}
+
+async function _claimBankMinTxnCheck(dateStr) {
+  if (!firebaseReady() || !fdb) return false;
+  try {
+    let claimed = false;
+    await fdb.runTransaction(async tx => {
+      const ref = fdb.collection('cms_bank_min_check').doc(dateStr);
+      const snap = await tx.get(ref);
+      if (snap.exists) { claimed = false; return; }
+      tx.set(ref, { date: dateStr, claimedAt: new Date().toISOString(), claimedBy: DB.currentUsername || '' });
+      claimed = true;
+    });
+    return claimed;
+  } catch (e) {
+    console.error('_claimBankMinTxnCheck', e);
+    return false;   // can't prove we won the claim → skip rather than risk a duplicate alert
+  }
+}
+
+// SDB/DFCC keep their own legacy fields on a cash entry; every other card-enabled bank's
+// amount lives in that entry's cardSalesExtra array instead (see CORE_CARD_FIELD above).
+function cardAmountForBankInEntry(e, bankId) {
+  if (bankId === 'sdb') return Number(e.creditSales) || 0;
+  if (bankId === 'dfcc') return Number(e.cardPayments) || 0;
+  return (e.cardSalesExtra || []).filter(x => x && x.bankId === bankId).reduce((s, x) => s + (Number(x.amount) || 0), 0);
+}
+
+// Card sales are entered by whichever manager/cashier is on shift, but the card MACHINE (and
+// its bank-imposed minimum) is shared by the whole business — so this sums across every user's
+// cash entries for the month, not just the current user's.
+function bankCardMonthTotal(bankId, monthStr) {
+  let total = 0;
+  DB.users.forEach(u => (u.cashEntries || []).forEach(e => {
+    if ((e.date || '').startsWith(monthStr)) total += cardAmountForBankInEntry(e, bankId);
+  }));
+  return total;
+}
+
+function scanBankMinTxnShortfalls(monthStr) {
+  return getBanks()
+    .filter(b => b.card && b.active !== false && Number(b.cardMinAmount) > 0)
+    .map(b => ({ bank: b, min: Number(b.cardMinAmount), total: bankCardMonthTotal(b.id, monthStr) }))
+    .map(x => ({ ...x, shortfall: x.min - x.total }))
+    .filter(x => x.shortfall > 0.01);
+}
+
+async function runBankMinTxnCheck(force) {
+  if (!(isAdmin() || isManager())) return;
+  if (!firebaseReady() || !usersCol || _bankMinCheckRunning) return;
+  const t = _csLocalDate(Date.now());
+  const day = new Date().getDate();
+  if (!force && !BANK_MIN_CHECK_DAYS.includes(day)) return;
+  if (!force && _bmcCheckedToday(t)) return;   // cheap local pre-check, same reasoning as _dsCheckedToday
+  _bankMinCheckRunning = true;
+  try {
+    if (!force) {
+      const claimed = await _claimBankMinTxnCheck(t);
+      if (!claimed) return;   // another tab/device/user already claimed today — stay silent
+    }
+
+    // Fresh server read before judging anything, same reasoning as runDailySyncCheck.
+    const snap = await _withTimeout(usersCol.get({ source: 'server' }), 12000);
+    DB.users = adoptServerUsers(snap.docs.map(d => d.data()));
+    const me = getUserByUsername(DB.currentUsername);
+    if (!me) return;
+    DB.currentUser = me;
+    DB.dataIncomplete = false;
+    if (!force && _bmcCheckedToday(t)) return;
+
+    const monthStr = t.slice(0, 7);
+    const shortfalls = scanBankMinTxnShortfalls(monthStr);
+    const monthLabel = new Date(monthStr + '-15T12:00:00Z').toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+    me.bankMinTxnCheck = { date: t, at: new Date().toISOString(), by: me.username, banks: shortfalls.length };
+    syncUser(me);
+    logActivity('BANK_MIN_TXN_CHECK', shortfalls.length
+      ? `දින ${day} (${monthLabel}) — ${shortfalls.map(x => `${x.bank.name} ${fmt(x.total)}/${fmt(x.min)}`).join(', ')}`
+      : `දින ${day} (${monthLabel}) — සියල්ල අවම අගයට ගිහින්`);
+
+    if (shortfalls.length) {
+      const title = `🏦 Card Machine — අවම Transaction එකට නොගිය බැංකු ${shortfalls.length}ක්`;
+      const lines = shortfalls.map(x => `${x.bank.name}: ${fmt(x.total)} / ${fmt(x.min)} (අඩුව ${fmt(x.shortfall)})`);
+      const body = `${monthLabel} — දින ${day} වෙනකොට — ${lines.join(' | ')}`;
+      // Same split as runDailySyncCheck: Manager gets their own 'cms_alerts' doc ('*'); Admin is
+      // NOT also sent one — queuePushEvent() below already gives Admin both the push AND the
+      // in-app 'cms_notifications' entry, so sending mgrAlert('admin', ...) too would duplicate it.
+      try { mgrAlert('*', 'bankMinTxn', title, body); } catch (e) { console.error('bankMinTxn alert', e); }
+      queuePushEvent('bankMinTxn', title, body);
+      if (force) toast(title, 'red');
+    } else if (force) {
+      toast('✅ හැම Card Machine බැංකුවක්ම මේ මාසයේ අවම Transaction එකට ගිහින්', 'green');
+    }
+  } catch (e) {
+    console.error('runBankMinTxnCheck', e);
+    if (force) toast('⚠️ Check run කරන්න බැරි උනා — internet බලලා නැවත උත්සාහ කරන්න', 'red');
+  } finally {
+    _bankMinCheckRunning = false;
+  }
 }
 
 /* ===== NOTES (Admin + Manager) =====
@@ -19667,22 +19812,25 @@ function renderBankRegistry() {
       <div class="form-group" style="margin:0;"><label>📝 Account no. / note (optional)</label><input type="text" data-f="note" maxlength="40" placeholder="e.g. Current A/C 1234"></div>
       <div class="bk-reg-checks">
         <label><input type="checkbox" data-f="deposit" checked> 🏦 Banking (deposits)</label>
-        <label><input type="checkbox" data-f="card"> 💳 Card machine</label>
+        <label><input type="checkbox" data-f="card" onchange="this.closest('.bk-reg-add').querySelector('[data-f=cardMinAmount]').disabled=!this.checked;"> 💳 Card machine</label>
       </div>
+      <div class="form-group" style="margin:0;"><label>🎯 මාසික අවම Card Transaction (optional)</label><input type="number" min="0" step="0.01" data-f="cardMinAmount" placeholder="e.g. 50000" disabled></div>
       <div class="bk-reg-btn"><button type="button" class="btn btn-green btn-sm" onclick="addBankFromForm(this)">➕ Register Bank</button></div>
     </div>` : ''}
     <div class="table-wrap"><table class="bk-reg-tbl">
-      <thead><tr><th>Bank</th><th>Note</th><th>🏦 Banking</th><th>💳 Card machine</th><th>Enabled</th><th></th></tr></thead>
+      <thead><tr><th>Bank</th><th>Note</th><th>🏦 Banking</th><th>💳 Card machine</th><th>🎯 මාසික අවම (LKR)</th><th>Enabled</th><th></th></tr></thead>
       <tbody>${banks.map(b => `<tr class="${b.active === false ? 'bk-off' : ''}">
         <td><b>${escHtml(b.name)}</b>${b.core ? ' <span style="font-size:.7rem;color:var(--muted);">(built-in)</span>' : ''}</td>
         <td style="color:var(--muted);">${escHtml(b.note || '—')}</td>
         <td><input type="checkbox" ${b.deposit ? 'checked' : ''} ${can ? '' : 'disabled'} onchange="toggleBankFlag('${escHtml(b.id)}','deposit',this.checked)"></td>
         <td><input type="checkbox" ${b.card ? 'checked' : ''} ${can ? '' : 'disabled'} onchange="toggleBankFlag('${escHtml(b.id)}','card',this.checked)"></td>
+        <td><input type="number" min="0" step="0.01" style="width:110px;" value="${b.cardMinAmount ? escHtml(String(b.cardMinAmount)) : ''}" placeholder="—" ${(can && b.card) ? '' : 'disabled'} onchange="setBankMinAmount('${escHtml(b.id)}',this.value)" title="${b.card ? 'මේ බැංකුවේ Card Machine එකට මාසික අවම Transaction amount එක' : 'Card machine tick කළොත් විතරක් මේක set කරන්න පුළුවන්'}"></td>
         <td><input type="checkbox" ${b.active !== false ? 'checked' : ''} ${can ? '' : 'disabled'} onchange="toggleBankFlag('${escHtml(b.id)}','active',this.checked)"></td>
         <td>${can && !b.core ? `<button type="button" class="btn btn-red btn-sm" onclick="removeBank('${escHtml(b.id)}')" title="Remove">🗑️</button>` : ''}</td>
       </tr>`).join('')}</tbody>
     </table></div>`;
   hosts.forEach(h => { h.innerHTML = html; });
+  document.querySelectorAll('.bank-min-check-btn').forEach(btn => { btn.style.display = can ? '' : 'none'; });
 }
 
 function addBankFromForm(btn) {
@@ -19693,11 +19841,12 @@ function addBankFromForm(btn) {
   const name = (q('name').value || '').trim();
   const note = (q('note').value || '').trim();
   const deposit = q('deposit').checked, card = q('card').checked;
+  const cardMinAmount = card ? (Number(q('cardMinAmount').value) || 0) : 0;
   if (!name) { toast('⚠️ බැංකුවේ නම ඇතුළත් කරන්න', 'red'); return; }
   if (!deposit && !card) { toast('⚠️ Banking හෝ Card machine එකක් tick කරන්න', 'red'); return; }
   const banks = getBanks();
   if (banks.some(b => (b.name || '').toLowerCase() === name.toLowerCase())) { toast('⚠️ මේ නමින් බැංකුවක් දැනටමත් Register කර ඇත', 'red'); return; }
-  banks.push({ id: 'b' + uid(), name, note, deposit, card, active: true });
+  banks.push({ id: 'b' + uid(), name, note, deposit, card, cardMinAmount, active: true });
   if (!saveBanks(banks)) return;
   logActivity('BANK_ADD', `${name}${deposit ? ' · Banking' : ''}${card ? ' · Card' : ''}`);
   renderBankRegistry();
@@ -19716,6 +19865,20 @@ function toggleBankFlag(id, flag, val) {
   logActivity('BANK_EDIT', `${b.name} · ${flag}=${!!val}`);
   renderBankRegistry();
   refreshBankDependentForm();
+}
+
+// Minimum monthly card-transaction target for a bank's card machine (see runBankMinTxnCheck
+// below) — set from the 🎯 column in the Bank Registry table, only meaningful while card=true.
+function setBankMinAmount(id, val) {
+  if (!canManageBanks()) { toast('⚠️ Admin only', 'red'); renderBankRegistry(); return; }
+  const banks = getBanks();
+  const b = banks.find(x => x.id === id);
+  if (!b) return;
+  const n = Number(val) || 0;
+  b.cardMinAmount = n > 0 ? n : 0;
+  if (!saveBanks(banks)) return;
+  logActivity('BANK_EDIT', `${b.name} · මාසික අවම Card Transaction = ${fmt(b.cardMinAmount)}`);
+  renderBankRegistry();
 }
 
 function isBankUsed(id) {
@@ -23706,7 +23869,7 @@ restoreSidebarState();
 (function(){
 var ALR_COL='cms_alerts',CHAT_COL='cms_chat',SRV=[],ALR=[],unsubs=[],CHAT=[],chatUnsub=null,curThread=null,stick=true,REFS={};
 var ME=function(){return DB.currentUsername};
-Object.assign(NOTIF_ICON,{syncCheck:'🔧',todo:'📝',todoDone:'✅',chat:'💬',cashIn:'💵',chequeBook:'🧾',reminder:'⏰',attendance:'🗓️',noteShared:'🗒️'});
+Object.assign(NOTIF_ICON,{syncCheck:'🔧',todo:'📝',todoDone:'✅',chat:'💬',cashIn:'💵',chequeBook:'🧾',reminder:'⏰',attendance:'🗓️',noteShared:'🗒️',bankMinTxn:'🏦'});
 var ms=function(c){return c&&c.toDate?c.toDate().getTime():(c?new Date(c).getTime():0)};
 var fmtT=function(c){var m=ms(c);return m?new Date(m).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):''};
 var mgrs=function(){return DB.users.filter(function(u){return u.role==='manager'||u.role==='user'})};
